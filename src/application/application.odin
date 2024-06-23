@@ -15,23 +15,21 @@ import "../assets"
 import "core:math/linalg"
 import mu "vendor:microui"
 
-vec3 :: common.vec3
-dvec3 :: common.dvec3
-vec4 :: common.vec4
-mat4 :: common.mat4
-quaternion :: common.quaternion
+vec3 		:: common.vec3
+dvec3 		:: common.dvec3
+vec4 		:: common.vec4
+mat4 		:: common.mat4
+quaternion 	:: common.quaternion
 
 WINDOW_WIDTH :: 960
 WINDOW_HEIGHT :: 540
 
 APPLICATION_NAME :: "Shrubs"
 
-camera : Camera
-XXX_assets : Assets
-
-test_mesh : graphics.Mesh
-terrain_mesh : graphics.Mesh
-pillar_mesh : graphics.Mesh
+camera 			: Camera
+test_mesh 		: graphics.Mesh
+terrain_mesh 	: graphics.Mesh
+pillar_mesh 	: graphics.Mesh
 
 application : struct {
 	wants_to_quit : bool,
@@ -43,7 +41,6 @@ initialize :: proc() {
 	graphics.initialize()	
 	gui.initialize()
 
-	XXX_assets = create_assets()
 	camera = create_camera()
 
 	{
@@ -67,45 +64,7 @@ initialize :: proc() {
 	terrain_mesh = create_static_terrain_mesh()
 }
 
-CUBE_VERTEX_POSITIONS :: []vec3 {
-	{-0.5, -0.5, -0.5},
-	{0.5, -0.5, -0.5},
-	{-0.5, 0.5, -0.5},
-	{0.5, 0.5, -0.5},
-
-	{-0.3, -0.3, 0.3},
-	{0.3, -0.3, 0.3},
-	{-0.3, 0.3, 0.3},
-	{0.3, 0.3, 0.3},
-}
-
-CUBE_VERTEX_NORMALS :: []vec3 {
-	{-0.5, -0.5, -0.5},
-	{0.5, -0.5, -0.5},
-	{-0.5, 0.5, -0.5},
-	{0.5, 0.5, -0.5},
-
-	{-0.5, -0.5, 0.5},
-	{0.5, -0.5, 0.5},
-	{-0.5, 0.5, 0.5},
-	{0.5, 0.5, 0.5},
-}
-
-CUBE_ELEMENTS :: []u16 {
-	0, 2, 1,  1, 2, 3,
-	5, 7, 4,  4, 7, 6, 
-
-	4, 6, 0,  0, 6, 2,
-	1, 3, 5,  5, 3, 7,
-
-	0, 1, 4,  4, 1, 5,
-	2, 6, 3,  3, 6, 7,
-}
-
 terminate :: proc() {
-	// destroy_snapshot_interpolation(&snapshot_interpolation)
-	destroy_assets(&XXX_assets)
-
 	gui.terminate()
 	graphics.terminate()
 	input.terminate()
@@ -147,32 +106,38 @@ update :: proc(delta_time: f64) {
 
 	light_direction := linalg.normalize(vec3{1, 2, -10})
 	light_color := vec3{2.0, 1.9, 1.7}
-	graphics.set_lighting(light_direction, light_color)
+	ambient_color := vec3{0.2, 0.25, 0.3}
+	graphics.set_lighting(light_direction, light_color, ambient_color)
 
 	graphics.set_surface({0.5, 0.5, 0.6})
 	graphics.draw_mesh(&pillar_mesh, mat4(1))
 
-	positions := [?]vec3{
-		{3, 0, 0.5},
-		{3, 0, 1.5},
-		{0, 3, 0.5},
-		{0, 3, 2.5},
+	shrub_positions := []vec3{
+		{3, 0, 0},
+		{2.8, 1, 0},
+		{0, 2, 0},
+		{1, 3, 0},
 	}
-
-	graphics.set_surface({0.4, 0.2, 0.1})
-	for p in positions {
+	graphics.set_surface({0.2, 0.4, 0.1})
+	for p in shrub_positions {
 		model_matrix := linalg.matrix4_translate_f32(p)
 		graphics.draw_mesh(&test_mesh, model_matrix)
 	}
 
-	terrain_positions := [?]vec3 {
-		{-10, -10, 0},
-		{0, -10, 0},
-		{-10, 0, 0},
-		{0, 0, 0},
-	}
+	terrain_positions := []vec3 {
+		{-15, -15, 0},
+		{-5, -15, 0},
+		{5, -15, 0},
 
-	graphics.set_surface({0.05, 0.3, 0.1})
+		{-15, -5, 0},
+		{-5, -5, 0},
+		{5, -5, 0},
+		
+		{-15, 5, 0},
+		{-5, 5, 0},
+		{5, 5, 0},
+	}
+	graphics.set_surface({0.15, 0.2, 0.05})
 	for p in terrain_positions {
 		model_matrix := linalg.matrix4_translate_f32(p)
 		graphics.draw_mesh(&terrain_mesh, model_matrix)

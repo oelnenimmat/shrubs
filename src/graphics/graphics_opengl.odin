@@ -32,19 +32,22 @@ artifacts in the resource.
 */
 VIRTUAL_FRAME_COUNT :: 3
 
-set_lighting :: proc(direction : vec3, color : vec3) {
-	direction := direction
-	color := color
+set_lighting :: proc(direction, color, ambient : vec3) {
+	direction 	:= direction
+	color 		:= color
+	ambient 	:= ambient
 
 	gc := &graphics_context
 
 	// todo(Leo): use uniform buffer objects, or just go vulkan :)
 	direction_location 	:= gl.GetUniformLocation(gc.shader_program, "light_direction")
 	color_location 		:= gl.GetUniformLocation(gc.shader_program, "light_color")
+	ambient_location 	:= gl.GetUniformLocation(gc.shader_program, "ambient_color")
 
 	gl.UseProgram(gc.shader_program)
 	gl.Uniform3fv(direction_location, 1, auto_cast &direction)
 	gl.Uniform3fv(color_location, 1, auto_cast &color)
+	gl.Uniform3fv(ambient_location, 1, auto_cast &ambient)
 }
 
 set_surface :: proc(color : vec3) {
