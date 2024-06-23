@@ -42,7 +42,7 @@ create_camera :: proc() -> Camera {
 }
 
 reset_camera :: proc(using camera : ^Camera) {
-	position 	= {0, 0, 1}
+	position 	= {0, 0, 1.8}
 	pan 		= 0
 	tilt 		= 0
 }
@@ -79,8 +79,8 @@ update_camera :: proc(camera : ^Camera, delta_time : f32) {
 
 	// rotation_this_frame := roll * pitch * yaw
 
-	x_sensitivity := f32(1)
-	y_sensitivity := f32(1)
+	x_sensitivity := f32(-1)
+	y_sensitivity := f32(-1)
 
 	camera.pan += input.camera.look.x * x_sensitivity
 	camera.pan = mod(camera.pan, 2 * math.PI)

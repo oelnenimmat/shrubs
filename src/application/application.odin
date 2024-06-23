@@ -10,6 +10,7 @@ import "../window"
 import "../graphics"
 import "../input"
 import "../gui"
+import "../assets"
 
 import "core:math/linalg"
 import mu "vendor:microui"
@@ -26,9 +27,11 @@ WINDOW_HEIGHT :: 540
 APPLICATION_NAME :: "Shrubs"
 
 camera : Camera
-assets : Assets
+XXX_assets : Assets
 
 test_mesh : graphics.Mesh
+terrain_mesh : graphics.Mesh
+pillar_mesh : graphics.Mesh
 
 application : struct {
 	wants_to_quit : bool,
@@ -40,34 +43,52 @@ initialize :: proc() {
 	graphics.initialize()	
 	gui.initialize()
 
-	assets = create_assets()
+	XXX_assets = create_assets()
 	camera = create_camera()
 
-	test_mesh = graphics.create_mesh(CUBE_VERTEX_POSITIONS, CUBE_VERTEX_NORMALS, CUBE_ELEMENTS)
+	{
+		positions, normals, elements := assets.NOT_MEMORY_SAFE_gltf_load_node("assets/shrubs.glb", "mock_coordinate_pillar")
+		pillar_mesh = graphics.create_mesh(positions, normals, elements)
+
+		delete(positions)
+		delete(normals)
+		delete(elements)
+	}
+
+	{
+		positions, normals, elements := assets.NOT_MEMORY_SAFE_gltf_load_node("assets/shrubs.glb", "mock_shrub")
+		test_mesh = graphics.create_mesh(positions, normals, elements)
+
+		delete(positions)
+		delete(normals)
+		delete(elements)
+	}
+
+	terrain_mesh = create_static_terrain_mesh()
 }
 
-CUBE_VERTEX_POSITIONS :: []f32 {
-	-0.5, -0.5, -0.5,
-	0.5, -0.5, -0.5,
-	-0.5, 0.5, -0.5,
-	0.5, 0.5, -0.5,
+CUBE_VERTEX_POSITIONS :: []vec3 {
+	{-0.5, -0.5, -0.5},
+	{0.5, -0.5, -0.5},
+	{-0.5, 0.5, -0.5},
+	{0.5, 0.5, -0.5},
 
-	-0.3, -0.3, 0.3,
-	0.3, -0.3, 0.3,
-	-0.3, 0.3, 0.3,
-	0.3, 0.3, 0.3,
+	{-0.3, -0.3, 0.3},
+	{0.3, -0.3, 0.3},
+	{-0.3, 0.3, 0.3},
+	{0.3, 0.3, 0.3},
 }
 
-CUBE_VERTEX_NORMALS :: [] f32 {
-	-0.5, -0.5, -0.5,
-	0.5, -0.5, -0.5,
-	-0.5, 0.5, -0.5,
-	0.5, 0.5, -0.5,
+CUBE_VERTEX_NORMALS :: []vec3 {
+	{-0.5, -0.5, -0.5},
+	{0.5, -0.5, -0.5},
+	{-0.5, 0.5, -0.5},
+	{0.5, 0.5, -0.5},
 
-	-0.5, -0.5, 0.5,
-	0.5, -0.5, 0.5,
-	-0.5, 0.5, 0.5,
-	0.5, 0.5, 0.5,
+	{-0.5, -0.5, 0.5},
+	{0.5, -0.5, 0.5},
+	{-0.5, 0.5, 0.5},
+	{0.5, 0.5, 0.5},
 }
 
 CUBE_ELEMENTS :: []u16 {
@@ -83,7 +104,7 @@ CUBE_ELEMENTS :: []u16 {
 
 terminate :: proc() {
 	// destroy_snapshot_interpolation(&snapshot_interpolation)
-	destroy_assets(&assets)
+	destroy_assets(&XXX_assets)
 
 	gui.terminate()
 	graphics.terminate()
@@ -124,20 +145,37 @@ update :: proc(delta_time: f64) {
 
 	graphics.begin_frame()
 
-	graphics.set_lighting({0, 0, -1}, {2.0, 1.9, 1.7})
-	graphics.set_surface({0.4, 0.2, 0.1})
+	light_direction := linalg.normalize(vec3{1, 2, -10})
+	light_color := vec3{2.0, 1.9, 1.7}
+	graphics.set_lighting(light_direction, light_color)
+
+	graphics.set_surface({0.5, 0.5, 0.6})
+	graphics.draw_mesh(&pillar_mesh, mat4(1))
 
 	positions := [?]vec3{
-		{0, 0, 0,},
-		{3, 0, 0,},
-		{3, 0, 1,},
-		{0, 3, 0,},
-		{0, 3, 2,},
+		{3, 0, 0.5},
+		{3, 0, 1.5},
+		{0, 3, 0.5},
+		{0, 3, 2.5},
 	}
 
+	graphics.set_surface({0.4, 0.2, 0.1})
 	for p in positions {
-		model := linalg.matrix4_translate_f32(p)
-		graphics.draw_mesh(&test_mesh, model)
+		model_matrix := linalg.matrix4_translate_f32(p)
+		graphics.draw_mesh(&test_mesh, model_matrix)
+	}
+
+	terrain_positions := [?]vec3 {
+		{-10, -10, 0},
+		{0, -10, 0},
+		{-10, 0, 0},
+		{0, 0, 0},
+	}
+
+	graphics.set_surface({0.05, 0.3, 0.1})
+	for p in terrain_positions {
+		model_matrix := linalg.matrix4_translate_f32(p)
+		graphics.draw_mesh(&terrain_mesh, model_matrix)
 	}
 
 	gui.render()

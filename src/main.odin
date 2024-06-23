@@ -49,7 +49,7 @@ main :: proc() {
 		when limit_fps {
 			// todo(Leo): hacktrick! Limit frame rate to 30 FPS to add delay between 
 			// frames while we still not have proper cpu-gpu synchronization
-			max_fps :: 20
+			max_fps :: 60
 			target_time :: 1.0 / max_fps
 			time_to_wait_ms := int((target_time - delta_time) * 1000)
 
