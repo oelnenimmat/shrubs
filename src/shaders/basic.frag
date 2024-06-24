@@ -1,6 +1,7 @@
 #version 450
 
 layout (location = 0) in vec3 surface_normal;
+layout (location = 1) in vec2 texcoord;
 
 layout (location = 3) uniform vec3 surface_color;
 layout (location = 4) uniform vec3 light_direction;

@@ -40,14 +40,30 @@ set_lighting :: proc(direction, color, ambient : vec3) {
 	gc := &graphics_context
 
 	// todo(Leo): use uniform buffer objects, or just go vulkan :)
-	direction_location 	:= gl.GetUniformLocation(gc.shader_program, "light_direction")
-	color_location 		:= gl.GetUniformLocation(gc.shader_program, "light_color")
-	ambient_location 	:= gl.GetUniformLocation(gc.shader_program, "ambient_color")
+	
+	// basic shader
+	{
+		direction_location 	:= gl.GetUniformLocation(gc.shader_program, "light_direction")
+		color_location 		:= gl.GetUniformLocation(gc.shader_program, "light_color")
+		ambient_location 	:= gl.GetUniformLocation(gc.shader_program, "ambient_color")
 
-	gl.UseProgram(gc.shader_program)
-	gl.Uniform3fv(direction_location, 1, auto_cast &direction)
-	gl.Uniform3fv(color_location, 1, auto_cast &color)
-	gl.Uniform3fv(ambient_location, 1, auto_cast &ambient)
+		gl.UseProgram(gc.shader_program)
+		gl.Uniform3fv(direction_location, 1, auto_cast &direction)
+		gl.Uniform3fv(color_location, 1, auto_cast &color)
+		gl.Uniform3fv(ambient_location, 1, auto_cast &ambient)
+	}
+	
+	// grass shader
+	{
+		direction_location 	:= gl.GetUniformLocation(gc.instance_shader_program, "light_direction")
+		color_location 		:= gl.GetUniformLocation(gc.instance_shader_program, "light_color")
+		ambient_location 	:= gl.GetUniformLocation(gc.instance_shader_program, "ambient_color")
+
+		gl.UseProgram(gc.instance_shader_program)
+		gl.Uniform3fv(direction_location, 1, auto_cast &direction)
+		gl.Uniform3fv(color_location, 1, auto_cast &color)
+		gl.Uniform3fv(ambient_location, 1, auto_cast &ambient)
+	}
 }
 
 set_surface :: proc(color : vec3) {
@@ -55,10 +71,29 @@ set_surface :: proc(color : vec3) {
 
 	gc := &graphics_context
 
-	color_location := gl.GetUniformLocation(gc.shader_program, "surface_color")
+	{
+		color_location := gl.GetUniformLocation(gc.shader_program, "surface_color")
 
-	gl.UseProgram(gc.shader_program)
-	gl.Uniform3fv(color_location, 1, auto_cast &color)
+		gl.UseProgram(gc.shader_program)
+		gl.Uniform3fv(color_location, 1, auto_cast &color)
+	}
+
+	{
+		color_location := gl.GetUniformLocation(gc.instance_shader_program, "surface_color")
+
+		gl.UseProgram(gc.instance_shader_program)
+		gl.Uniform3fv(color_location, 1, auto_cast &color)
+	}
+}
+
+set_wind :: proc(direction : vec3, amount : f32) {
+	direction_amount := vec4{direction.x, direction.y, direction.z, amount}
+
+	gc := &graphics_context
+
+	location := gl.GetUniformLocation(gc.instance_shader_program, "wind_direction_amount")
+	gl.UseProgram(gc.instance_shader_program)
+	gl.Uniform4fv(location, 1, auto_cast &direction_amount)
 }
 
 //@private
@@ -68,7 +103,8 @@ graphics_context : struct {
 	particle_index_count 			: i32,
 
 	shader_program 	: u32,
-	
+	instance_shader_program : u32, 
+
 	// instance_buffer : InstanceBuffer,
 
 	view_matrix 		: mat4,
@@ -94,11 +130,11 @@ initialize :: proc() {
 
 	gl.Enable(gl.DEPTH_TEST)
 
-	// Note(Leo): my laptop cannot really handle this right now
 	// gl.Enable(gl.MULTISAMPLE)
 
 	gl.CullFace(gl.BACK)
-	gl.Enable(gl.CULL_FACE)
+	// gl.Enable(gl.CULL_FACE)
+	gl.Disable(gl.CULL_FACE)
 	gl.FrontFace(gl.CCW)
 
 	gl.Viewport(0, 0, i32(window_width), i32(window_height))
@@ -107,8 +143,8 @@ initialize :: proc() {
 	{
 		// Compile time generated slices to program memory, no need to delete after.
 		// Now we don't need to worry about shader files being present runtime.
-		vertex_shader_source := #load("../shaders/basic.vert", string)
-		frag_shader_source := #load("../shaders/basic.frag", string)
+		vertex_shader_source := #load("../shaders/basic.vert", cstring)
+		frag_shader_source := #load("../shaders/basic.frag", cstring)
 
 		vertex_shader := make_shader(vertex_shader_source, gl.VERTEX_SHADER)
 		fragment_shader := make_shader(frag_shader_source, gl.FRAGMENT_SHADER)
@@ -133,7 +169,38 @@ initialize :: proc() {
 		gl.DeleteShader(vertex_shader)
 		gl.DeleteShader(fragment_shader)
 	}
-	gl.UseProgram(test_shader_program)
+
+	instance_shader_program := gl.CreateProgram()
+	{
+		// Compile time generated slices to program memory, no need to delete after.
+		// Now we don't need to worry about shader files being present runtime.
+		vertex_shader_source := #load("../shaders/grass.vert", cstring)
+		frag_shader_source := #load("../shaders/grass.frag", cstring)
+
+		vertex_shader := make_shader(vertex_shader_source, gl.VERTEX_SHADER)
+		fragment_shader := make_shader(frag_shader_source, gl.FRAGMENT_SHADER)
+
+		gl.AttachShader(instance_shader_program, vertex_shader)
+		gl.AttachShader(instance_shader_program, fragment_shader)
+		gl.LinkProgram(instance_shader_program)
+
+		success : i32
+		gl.GetProgramiv(instance_shader_program, gl.LINK_STATUS, &success)
+		if success == 0 {
+			info_log_buffer := make([]u8, 1024, context.temp_allocator)
+			defer delete(info_log_buffer, context.temp_allocator)
+
+			info_log_length : i32 = 0
+			gl.GetProgramInfoLog(instance_shader_program, cast(i32) len(info_log_buffer), &info_log_length, raw_data(info_log_buffer))
+			fmt.printf("SHADER PROGRAM ERROR: %s\n", transmute(string)info_log_buffer[:info_log_length])	
+		} else {
+			fmt.println("Shader Program created succesfully")
+		}
+	
+		gl.DeleteShader(vertex_shader)
+		gl.DeleteShader(fragment_shader)
+	}
+
 
 	VERTICES :: PARTICLE_CUBE_VERTICES
 	INDICES :: PARTICLE_CUBE_INDICES
@@ -165,6 +232,7 @@ initialize :: proc() {
 	gc.particle_vertex_buffer_object 	= particle_vertex_buffer_object
 	gc.particle_index_buffer_object 	= particle_index_buffer_object
 	gc.shader_program 					= test_shader_program
+	gc.instance_shader_program 			= instance_shader_program
 	gc.particle_index_count 			= particle_index_count
 
 	gc.view_matrix_location 		= gl.GetUniformLocation(test_shader_program, "view")
@@ -186,26 +254,6 @@ terminate :: proc() {
 	// So far no need to do anything, many things are claimed automatically
 	// by os on termination
 	fmt.println("OpenGL terminated (no work done)")
-}
-
-draw_instance_buffer :: proc(ib : ^InstanceBuffer) {
-	using graphics_context
-	gl.UseProgram(shader_program)
-
-	gl.UniformMatrix4fv(view_matrix_location, 1, false, transmute([^]f32)&view_matrix)
-	gl.UniformMatrix4fv(projection_matrix_location, 1, false, transmute([^]f32)&projection_matrix)
-
-	gl.BindVertexArray(ib.vertex_arrays[virtual_frame_index])
-
-	gl.DrawElementsInstanced(
-		gl.TRIANGLES, 
-		particle_index_count, 
-		gl.UNSIGNED_SHORT, 
-		nil, 
-		ib.count,
-	)
-
-	//gui.draw_rectangle()
 }
 
 render :: proc() {
@@ -239,7 +287,8 @@ begin_frame :: proc() {
 	// gl.ClearColor(0.37, 0.41, 0.47, 1.0)
 	// gl.ClearColor(0.27, 0.31, 0.37, 1.0)
 	// gl.ClearColor(0.17, 0.20, 0.23, 1.0)
-	gl.ClearColor(0.07, 0.10, 0.13, 1.0)
+	// gl.ClearColor(0.07, 0.10, 0.13, 1.0)
+	gl.ClearColor(0.4, 0.45, 0.95, 1.0)
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
 	// Todo(Leo): learn more if this is necessary or not. Also if it matters
@@ -276,19 +325,6 @@ set_view_projection :: proc(view_matrix: mat4, projection_matrix: mat4) {
 	gc.projection_matrix 	= projection_matrix
 }
 
-create_instance_buffer :: proc(instance_count: int) -> InstanceBuffer{
-	// gc := &graphics_context
-
-	ib := create_instance_buffer_internal(instance_count)
-	// gc.instance_buffer = ib 
-	return ib
-}
-
-get_instance_buffer_writeable_memory :: proc(ib : ^InstanceBuffer) -> rawptr {
-	// ib_internal := &graphics_context.instance_buffer
-	return ib.mapped_memories[graphics_context.virtual_frame_index]
-}
-
 // INTERNAL THINGS ------------------------------------------------------------
 
 PARTICLE_CUBE_VERTICES :: []f32 {
@@ -315,14 +351,11 @@ PARTICLE_CUBE_INDICES :: []u16 {
 }
 
 @(private="file")
-make_shader :: proc(shader_source: string, type: u32) -> u32 {
-	// opengl expects a null terminated cstring, let her have it her way
-	shader_cstring := strings.clone_to_cstring(shader_source)
-	defer delete(shader_cstring)
-
+make_shader :: proc(shader_source: cstring, type: u32) -> u32 {
+	shader_source := shader_source
 	shader := gl.CreateShader(type)
 
-	gl.ShaderSource(shader, 1, &shader_cstring, nil)
+	gl.ShaderSource(shader, 1, &shader_source, nil)
 	gl.CompileShader(shader)
 
 	success : i32
@@ -342,65 +375,6 @@ make_shader :: proc(shader_source: string, type: u32) -> u32 {
 	return shader
 }
 
-@(private="file")
-create_instance_buffer_internal :: proc (instance_count: int) -> InstanceBuffer {		
-	gc := &graphics_context
-
-	ib := InstanceBuffer {}
-
-	instance_size := size_of(InstanceData)
-	instance_data_size := instance_size * instance_count
-
-	gl.GenBuffers(VIRTUAL_FRAME_COUNT, raw_data(&ib.buffer_objects))
-	for i in 0..<VIRTUAL_FRAME_COUNT {
-		gl.BindBuffer(gl.ARRAY_BUFFER, ib.buffer_objects[i])
-		
-		/*
-		To use this same memory from both CPU and GPU we need to specify
-			- GL_MAP_COHERENT_BIT -> memory is visible on GPU 'immediately' after write
-			- GL_MAP_PERSISTENT_BIT -> memory wont change, so same mapping can be used for long times
-			- GL_MAP_WRITE_BIT -> OpenGL promises that we can write to memory correctly (we do not need to read)
-		Note(Leo): using same memory on GPU and CPU is convenient, but may prevent
-		GPU from using optimal memory layout which may cause performance loss. When
-		optimizing, check if we can/need to do something different.
-		*/
-		flags : u32 = gl.MAP_COHERENT_BIT | gl.MAP_PERSISTENT_BIT | gl.MAP_WRITE_BIT
-		gl.BufferStorage(gl.ARRAY_BUFFER, instance_data_size, nil, flags)
-		ib.mapped_memories[i] = gl.MapBufferRange(gl.ARRAY_BUFFER, 0, instance_data_size, flags)
-	}
-
-
-	// In this application we basically only render batches of instances, and since instance
-	// buffer is same as vertex buffer and needs to bound to and vertex array object so we create
-	// one for each instance
-	// instance_vertex_array_object : u32
-	{
-		// CREATE VERTEX ARRAY OBJECT
-		gl.GenVertexArrays(VIRTUAL_FRAME_COUNT, raw_data(&ib.vertex_arrays))
-
-		for i in 0..<VIRTUAL_FRAME_COUNT {
-			gl.BindVertexArray(ib.vertex_arrays[i])
-
-			// SETUP PARTICLE MESH VERTEX BUFFER
-			gl.BindBuffer(gl.ARRAY_BUFFER, gc.particle_vertex_buffer_object)
-			gl.VertexAttribPointer(0, 3, gl.FLOAT, gl.FALSE, 3 * size_of(f32), uintptr(0))
-			gl.EnableVertexAttribArray(0)
-
-			// SETUP PARTICLE MESH INDEX BUFFER
-			gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, gc.particle_index_buffer_object)
-
-			// SETUP INSTANCE DATA BUFFER
-			gl.BindBuffer(gl.ARRAY_BUFFER, ib.buffer_objects[i])
-			gl.VertexAttribPointer(1, 4, gl.FLOAT, gl.FALSE, 4 * size_of(f32), uintptr(0))
-			gl.EnableVertexAttribArray(1)
-			gl.VertexAttribDivisor(1, 1)
-		}
-	}
-
-	ib.count 					= i32(instance_count)
-
-	return ib
-}
 
 create_gradient_texture :: proc(colors : []vec4, positions : []f32) -> Texture {
 	return Texture {internal_create_gradient_texture(colors, positions) }

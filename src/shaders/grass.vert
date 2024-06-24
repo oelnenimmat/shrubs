@@ -1,0 +1,46 @@
+#version 450
+
+layout(location = 0) in vec3 vertex_position;
+layout(location = 1) in vec3 vertex_normal;
+layout(location = 2) in vec4 instance_position;
+
+layout(location = 0) uniform mat4 projection;
+layout(location = 1) uniform mat4 view;
+// layout(location = 2) uniform mat4 model;
+
+layout(location = 2) uniform vec4 wind_direction_amount;
+
+layout(location = 0) out vec3 surface_normal;
+layout(location = 1) out vec2 texcoord;
+
+void main() {
+
+	float angle 			= instance_position.w;
+	mat3 rotation_matrix 	= mat3(1.0);
+	rotation_matrix[0][0] 	= cos(angle);
+	rotation_matrix[1][0] 	= -sin(angle);
+	rotation_matrix[0][1] 	= sin(angle);
+	rotation_matrix[1][1] 	= cos(angle);
+
+	float scale 	= instance_position.z;
+	vec3 position 	= rotation_matrix * vertex_position * scale + vec3(instance_position.xy, 0);
+
+	// assume this is true
+	float normalized_height = vertex_position.z;
+	float offset_strength = normalized_height * normalized_height; 
+
+	vec3 offset_direction = normalize(wind_direction_amount.xyz);
+	float offset_amount = wind_direction_amount.w;
+
+	vec3 offset = offset_direction * offset_amount * offset_strength;
+
+	position += offset;
+
+	gl_Position = projection * view * vec4(position, 1.0);
+
+	// mat3 normal_matrix = transpose(inverse(mat3(model)));
+	surface_normal = normalize(vertex_normal);
+
+	texcoord.x = vertex_position.x * 5 + 0.1;
+	texcoord.y = vertex_position.z;
+}

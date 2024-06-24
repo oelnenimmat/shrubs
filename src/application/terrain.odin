@@ -2,6 +2,77 @@ package application
 
 import "../graphics"
 
+import "core:math"
+import "core:math/rand"
+
+create_grass_blade_mesh :: proc() -> graphics.Mesh {
+	w := f32(0.1)
+	h := f32(0.25)
+
+	hw := w / 2
+
+	positions := []vec3{
+		{-hw, 			0, 0},
+		{hw, 			0, 0},
+		{-hw * 0.9375, 	0, h},
+		{hw * 0.9375, 	0, h},
+		{-hw * 0.75, 	0, 2*h},
+		{hw * 0.75, 	0, 2*h},
+		{-hw * 0.4375, 	0, 3*h},
+		{hw * 0.4375, 	0, 3*h},
+		{0, 			0, 4*h},
+	}
+
+	normals := []vec3 {
+		{0, 1, 0},
+		{0, 1, 0},
+		{0, 1, 0},
+		{0, 1, 0},
+		{0, 1, 0},
+		{0, 1, 0},
+		{0, 1, 0},
+		{0, 1, 0},
+		{0, 1, 0},
+	}
+
+	// Todo(Leo): make triangle strip, this is just normal triangles, as this is what we have now
+	// Todo(Leo): might be that we do not need this at all in the end, just generate things on gpu/vertex shader
+	elements := []u16 {
+		0, 1, 2, 2, 1, 3,
+		2, 3, 4, 4, 3, 5,
+		4, 5, 6, 6, 5, 7,
+		6, 7, 8,
+	}
+
+	return graphics.create_mesh(positions, normals, elements) 
+}
+
+generate_grass_positions :: proc(min, max : vec3, count_per_dimension : int) -> graphics.InstanceBuffer {
+
+	cell_count := count_per_dimension * count_per_dimension
+	cell_size_x := (max.x - min.x) / f32(count_per_dimension)
+	cell_size_y := (max.y - min.y) / f32(count_per_dimension)
+
+	buffer := graphics.create_instance_buffer(cell_count)
+	
+	instance_memory := (cast([^]vec4) graphics.get_instance_buffer_writeable_memory(&buffer))[0:cell_count]
+
+	for i in 0..<cell_count {
+		cell_x := i % count_per_dimension
+		cell_y := i / count_per_dimension
+
+		x := min.x + (f32(cell_x) + rand.float32()) * cell_size_x
+		y := min.y + (f32(cell_y) + rand.float32()) * cell_size_y
+		
+		h := 0.9 + rand.float32() * 0.2
+		r := rand.float32() * 2 * math.PI
+
+		instance_memory[i] = vec4{x, y, h, r}	
+	}
+
+	return buffer
+}
+
 create_static_terrain_mesh :: proc() -> graphics.Mesh {
 	
 	world_size := 10

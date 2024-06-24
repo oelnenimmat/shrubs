@@ -12,12 +12,14 @@ import "../input"
 import "../gui"
 import "../assets"
 
+import "core:math"
 import "core:math/linalg"
 import mu "vendor:microui"
 
+vec2 		:: common.vec2
 vec3 		:: common.vec3
-dvec3 		:: common.dvec3
 vec4 		:: common.vec4
+dvec3 		:: common.dvec3
 mat4 		:: common.mat4
 quaternion 	:: common.quaternion
 
@@ -27,9 +29,26 @@ WINDOW_HEIGHT :: 540
 APPLICATION_NAME :: "Shrubs"
 
 camera 			: Camera
+
 test_mesh 		: graphics.Mesh
 terrain_mesh 	: graphics.Mesh
 pillar_mesh 	: graphics.Mesh
+grass_mesh 		: graphics.Mesh
+
+grass_instances : graphics.InstanceBuffer
+
+grass_positions := []vec3{
+	{1, 1, 0},
+	{2, 1, 0},
+	{1, 2, 0},
+	{3, 1, 0},
+	{1, 5, 0},
+	{3, 1, 0},
+	{6, 2, 0},
+	{5, 4, 0},
+	{2, 3, 0},
+	{0, 1, 0},
+}
 
 application : struct {
 	wants_to_quit : bool,
@@ -62,6 +81,9 @@ initialize :: proc() {
 	}
 
 	terrain_mesh = create_static_terrain_mesh()
+	grass_mesh = create_grass_blade_mesh()
+
+	grass_instances = generate_grass_positions({-10, -10, 0}, {10, 10, 0}, 80)
 }
 
 terminate :: proc() {
@@ -106,7 +128,7 @@ update :: proc(delta_time: f64) {
 
 	light_direction := linalg.normalize(vec3{1, 2, -10})
 	light_color := vec3{2.0, 1.9, 1.7}
-	ambient_color := vec3{0.2, 0.25, 0.3}
+	ambient_color := vec3{0.3, 0.35, 0.4} * 3
 	graphics.set_lighting(light_direction, light_color, ambient_color)
 
 	graphics.set_surface({0.5, 0.5, 0.6})
@@ -143,7 +165,15 @@ update :: proc(delta_time: f64) {
 		graphics.draw_mesh(&terrain_mesh, model_matrix)
 	}
 
-	gui.render()
+	@static wind_time := f32 (0)
+	wind_time += delta_time
+	wind_amount := math.sin(wind_time)
+
+	graphics.set_surface({0.2, 0.4, 0.1})
+	graphics.set_wind({0, 1, 0}, wind_amount)
+	graphics.draw_mesh_instanced(&grass_mesh, &grass_instances)
+
+	// gui.render()
 	graphics.render()
 	window.end_frame()
 }
