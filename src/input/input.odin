@@ -38,7 +38,7 @@ camera and playback below belongs to group b) and mouse to group a)
 */
 
 camera : struct {
-	move : vec2,
+	move : vec3,
 	look : vec2,
 	reset : bool,
 }
@@ -103,6 +103,10 @@ update :: proc() {
 	back_down 		:= key_is_down(.S) || key_is_down(.Down)
 	forward_down 	:= key_is_down(.W) || key_is_down(.Up)
 
+	down_down 		:= key_is_down(.F)
+	up_down 		:= key_is_down(.R)
+
+
 	look_left_right := mouse.movement.x * 0.005
 	look_down_up := mouse.movement.y * 0.005
 
@@ -110,9 +114,10 @@ update :: proc() {
 		move = {
 			axis_value_from_bool(left_down, right_down),
 			axis_value_from_bool(back_down, forward_down),
+			axis_value_from_bool(down_down, up_down),
 		},
 		look = { look_left_right, look_down_up },
-		reset = key_went_down(.R),
+		reset = key_went_down_mods(.R, {.Ctrl}),
 	}
 
 

@@ -8,12 +8,14 @@ layout (location = 4) uniform vec3 light_direction;
 layout (location = 5) uniform vec3 light_color;
 layout (location = 6) uniform vec3 ambient_color;
 
+layout (location = 7) uniform sampler2D surface_texture;
+
 out vec4 out_color;
 
 void main() {
 
 	vec3 lighting 	= light_color * dot(-light_direction, normalize(surface_normal)) + ambient_color;
-	vec3 surface 	= surface_color;
+	vec3 surface 	= surface_color * texture(surface_texture, texcoord).rgb;
 
 	vec3 color 		= lighting * surface;
 

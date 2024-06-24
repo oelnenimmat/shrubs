@@ -3,6 +3,7 @@
 layout(location = 0) in vec3 vertex_position;
 layout(location = 1) in vec3 vertex_normal;
 layout(location = 2) in vec4 instance_position;
+layout(location = 3) in vec4 instance_texcoord;
 
 layout(location = 0) uniform mat4 projection;
 layout(location = 1) uniform mat4 view;
@@ -11,7 +12,8 @@ layout(location = 1) uniform mat4 view;
 layout(location = 2) uniform vec4 wind_direction_amount;
 
 layout(location = 0) out vec3 surface_normal;
-layout(location = 1) out vec2 texcoord;
+layout(location = 1) out vec2 blade_texcoord;
+layout(location = 2) out vec2 field_texcoord;
 
 void main() {
 
@@ -41,6 +43,8 @@ void main() {
 	// mat3 normal_matrix = transpose(inverse(mat3(model)));
 	surface_normal = normalize(vertex_normal);
 
-	texcoord.x = vertex_position.x * 5 + 0.1;
-	texcoord.y = vertex_position.z;
+	blade_texcoord.x = vertex_position.x * 5 + 0.1;
+	blade_texcoord.y = vertex_position.z;
+
+	field_texcoord = instance_texcoord.xy;
 }

@@ -14,12 +14,6 @@ import "application"
 
 main :: proc() {
 
-	// arguments := application.parse_command_line_arguments()
-	// if error, is_error := arguments.(application.ArgumentParseError); is_error {
-	// 	fmt.printf("ERROR: %s\n", error.explanation)
-	// 	return
-	// }
-
 	// SETUP
 	// ------------------------------------------------------------------
 	application.initialize()
@@ -45,7 +39,7 @@ main :: proc() {
 		delta_time 		= time.duration_seconds(
 			time.diff(frame_start_time, frame_end_time))
 		
-		limit_fps :: true
+		limit_fps :: false
 		when limit_fps {
 			// todo(Leo): hacktrick! Limit frame rate to 30 FPS to add delay between 
 			// frames while we still not have proper cpu-gpu synchronization

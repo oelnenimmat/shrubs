@@ -26,8 +26,7 @@ initialize :: proc(width, height: int, application_name: string) {
 	application_name_cstring := strings.clone_to_cstring(application_name)
 	defer delete(application_name_cstring)
 
-	// Note(Leo): my laptop cannot really handle this right now
-	// glfw.WindowHint(glfw.SAMPLES, 2)
+	glfw.WindowHint(glfw.SAMPLES, 4)
 	window_handle = glfw.CreateWindow(i32(width), i32(height), application_name_cstring, nil, nil)
 	assert(window_handle != nil)
 

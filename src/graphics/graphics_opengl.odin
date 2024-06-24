@@ -32,6 +32,17 @@ artifacts in the resource.
 */
 VIRTUAL_FRAME_COUNT :: 3
 
+OnOff :: enum { Off, On }
+
+set_cull :: proc(cull_on : OnOff) {
+	if cull_on == .On {
+		gl.Enable(gl.CULL_FACE)
+	} else {
+		gl.Disable(gl.CULL_FACE)
+	}
+
+}
+
 set_lighting :: proc(direction, color, ambient : vec3) {
 	direction 	:= direction
 	color 		:= color
@@ -98,14 +109,9 @@ set_wind :: proc(direction : vec3, amount : f32) {
 
 //@private
 graphics_context : struct {
-	particle_vertex_buffer_object 	: u32,
-	particle_index_buffer_object 	: u32,
-	particle_index_count 			: i32,
 
 	shader_program 	: u32,
 	instance_shader_program : u32, 
-
-	// instance_buffer : InstanceBuffer,
 
 	view_matrix 		: mat4,
 	projection_matrix 	: mat4,
@@ -114,9 +120,10 @@ graphics_context : struct {
 	projection_matrix_location 	: i32,
 	model_matrix_location 		: i32,
 
-	
 	virtual_frame_index : int,
 	virtual_frame_in_use_fences : [VIRTUAL_FRAME_COUNT]gl.sync_t,
+
+	basic_pipeline : BasicPipeline,
 }
 
 // WHAT IS THIS ---------------------------------------------------------------
@@ -130,16 +137,16 @@ initialize :: proc() {
 
 	gl.Enable(gl.DEPTH_TEST)
 
-	// gl.Enable(gl.MULTISAMPLE)
+	gl.Enable(gl.MULTISAMPLE)
 
 	gl.CullFace(gl.BACK)
 	// gl.Enable(gl.CULL_FACE)
-	gl.Disable(gl.CULL_FACE)
+	// gl.Disable(gl.CULL_FACE)
 	gl.FrontFace(gl.CCW)
 
 	gl.Viewport(0, 0, i32(window_width), i32(window_height))
 
-	test_shader_program := gl.CreateProgram()
+	basic_shader_program := gl.CreateProgram()
 	{
 		// Compile time generated slices to program memory, no need to delete after.
 		// Now we don't need to worry about shader files being present runtime.
@@ -149,18 +156,18 @@ initialize :: proc() {
 		vertex_shader := make_shader(vertex_shader_source, gl.VERTEX_SHADER)
 		fragment_shader := make_shader(frag_shader_source, gl.FRAGMENT_SHADER)
 
-		gl.AttachShader(test_shader_program, vertex_shader)
-		gl.AttachShader(test_shader_program, fragment_shader)
-		gl.LinkProgram(test_shader_program)
+		gl.AttachShader(basic_shader_program, vertex_shader)
+		gl.AttachShader(basic_shader_program, fragment_shader)
+		gl.LinkProgram(basic_shader_program)
 
 		success : i32
-		gl.GetProgramiv(test_shader_program, gl.LINK_STATUS, &success)
+		gl.GetProgramiv(basic_shader_program, gl.LINK_STATUS, &success)
 		if success == 0 {
 			info_log_buffer := make([]u8, 1024, context.temp_allocator)
 			defer delete(info_log_buffer, context.temp_allocator)
 
 			info_log_length : i32 = 0
-			gl.GetProgramInfoLog(test_shader_program, cast(i32) len(info_log_buffer), &info_log_length, raw_data(info_log_buffer))
+			gl.GetProgramInfoLog(basic_shader_program, cast(i32) len(info_log_buffer), &info_log_length, raw_data(info_log_buffer))
 			fmt.printf("SHADER PROGRAM ERROR: %s\n", transmute(string)info_log_buffer[:info_log_length])	
 		} else {
 			fmt.println("Shader Program created succesfully")
@@ -201,43 +208,15 @@ initialize :: proc() {
 		gl.DeleteShader(fragment_shader)
 	}
 
-
-	VERTICES :: PARTICLE_CUBE_VERTICES
-	INDICES :: PARTICLE_CUBE_INDICES
-
-	particle_vertex_buffer_object : u32
-	particle_index_buffer_object : u32
-	particle_index_count := i32(len(INDICES))
-
-	// CREATE PARTICLE MESH
-	{
-		// VERTEX POSITIONS
-		gl.GenBuffers(1, &particle_vertex_buffer_object)
-		gl.BindBuffer(gl.ARRAY_BUFFER, particle_vertex_buffer_object)
-		vertex_data_size := size_of(f32) * len(VERTICES)
-		vertex_data := raw_data(VERTICES)
-		gl.BufferData(gl.ARRAY_BUFFER, vertex_data_size, vertex_data, gl.STATIC_DRAW)
-
-		// INDICES
-		gl.GenBuffers(1, &particle_index_buffer_object)
-		gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, particle_index_buffer_object)
-		index_data_size := size_of(u16) * int(particle_index_count)
-		index_data := raw_data(INDICES)
-		gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, index_data_size, index_data, gl.STATIC_DRAW)
-	}
-
 	gc := &graphics_context
 	gc^ = {}
 
-	gc.particle_vertex_buffer_object 	= particle_vertex_buffer_object
-	gc.particle_index_buffer_object 	= particle_index_buffer_object
-	gc.shader_program 					= test_shader_program
+	gc.shader_program 					= basic_shader_program
 	gc.instance_shader_program 			= instance_shader_program
-	gc.particle_index_count 			= particle_index_count
 
-	gc.view_matrix_location 		= gl.GetUniformLocation(test_shader_program, "view")
-	gc.projection_matrix_location 	= gl.GetUniformLocation(test_shader_program, "projection")
-	gc.model_matrix_location 		= gl.GetUniformLocation(test_shader_program, "model")
+	gc.view_matrix_location 		= gl.GetUniformLocation(basic_shader_program, "view")
+	gc.projection_matrix_location 	= gl.GetUniformLocation(basic_shader_program, "projection")
+	gc.model_matrix_location 		= gl.GetUniformLocation(basic_shader_program, "model")
 
 	// Todo(Leo): there might be issue here that this could be called before
 	// setting up the opengl stuff and then something going haywire, seems to work now
@@ -282,13 +261,7 @@ begin_frame :: proc() {
 	fence := gc.virtual_frame_in_use_fences[gc.virtual_frame_index]
 	gl.ClientWaitSync(fence, 0, max(u64))
 
-	// gl.ClearColor(0.1, 0.15, 0.2, 1.0)
-	// gl.ClearColor(0.43, 0.49, 0.58, 1.0)
-	// gl.ClearColor(0.37, 0.41, 0.47, 1.0)
-	// gl.ClearColor(0.27, 0.31, 0.37, 1.0)
-	// gl.ClearColor(0.17, 0.20, 0.23, 1.0)
-	// gl.ClearColor(0.07, 0.10, 0.13, 1.0)
-	gl.ClearColor(0.4, 0.45, 0.95, 1.0)
+	gl.ClearColor(0.1, 0.65, 0.95, 1.0)
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
 	// Todo(Leo): learn more if this is necessary or not. Also if it matters
@@ -376,58 +349,53 @@ make_shader :: proc(shader_source: cstring, type: u32) -> u32 {
 }
 
 
-create_gradient_texture :: proc(colors : []vec4, positions : []f32) -> Texture {
-	return Texture {internal_create_gradient_texture(colors, positions) }
-}
+// create_gradient_texture :: proc(colors : []vec4, positions : []f32) -> Texture {
+// 	return Texture {internal_create_gradient_texture(colors, positions) }
+// }
 
-destroy_texture :: proc(texture : Texture) {
-	name := texture.opengl_name
-	gl.DeleteTextures(1, &name)
-}
+// internal_create_gradient_texture :: proc(colors : []vec4, positions : []f32) -> u32 {
+// 	color_count := len(colors)
 
-internal_create_gradient_texture :: proc(colors : []vec4, positions : []f32) -> u32 {
-	color_count := len(colors)
+// 	pixel_count := 128
+// 	pixel_data := make([]u8, pixel_count * 4)
+// 	defer delete(pixel_data)
 
-	pixel_count := 128
-	pixel_data := make([]u8, pixel_count * 4)
-	defer delete(pixel_data)
-
-	for i in 0..<pixel_count {
-		t := f32(i) / f32(pixel_count - 1)
+// 	for i in 0..<pixel_count {
+// 		t := f32(i) / f32(pixel_count - 1)
 		
-		a := 0
-		for positions[a + 1] < t {
-			a += 1
-		}
-		a = linalg.min(a, color_count - 1)
-		b := linalg.min(a + 1, color_count - 1) 
+// 		a := 0
+// 		for positions[a + 1] < t {
+// 			a += 1
+// 		}
+// 		a = linalg.min(a, color_count - 1)
+// 		b := linalg.min(a + 1, color_count - 1) 
 
-		min := clamp(positions[a], 0, 1)
-		max := clamp(positions[b], min, 1)
-		t = (t - min) / (max - min)
+// 		min := clamp(positions[a], 0, 1)
+// 		max := clamp(positions[b], min, 1)
+// 		t = (t - min) / (max - min)
 
-		color := linalg.lerp(colors[a], colors[b], t)
+// 		color := linalg.lerp(colors[a], colors[b], t)
 		
-		x := i * 4
-		pixel_data[x + 0] = u8(color.r * 255.999)
-		pixel_data[x + 1] = u8(color.g * 255.999)
-		pixel_data[x + 2] = u8(color.b * 255.999)
-		pixel_data[x + 3] = 255
-	}
+// 		x := i * 4
+// 		pixel_data[x + 0] = u8(color.r * 255.999)
+// 		pixel_data[x + 1] = u8(color.g * 255.999)
+// 		pixel_data[x + 2] = u8(color.b * 255.999)
+// 		pixel_data[x + 3] = 255
+// 	}
 
-	texture : u32
-	gl.GenTextures(1, &texture)
-	// todo(Leo): Maybe pick and reserve a slot for all housekeeping texture activites such as this. maybe
-	gl.BindTexture(gl.TEXTURE_2D, texture)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+// 	texture : u32
+// 	gl.GenTextures(1, &texture)
+// 	// todo(Leo): Maybe pick and reserve a slot for all housekeeping texture activites such as this. maybe
+// 	gl.BindTexture(gl.TEXTURE_2D, texture)
+// 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+// 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+// 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+// 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
 	
-	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, i32(pixel_count), 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, raw_data(pixel_data))
+// 	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, i32(pixel_count), 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, raw_data(pixel_data))
 
-	gl.BindTexture(gl.TEXTURE_2D, 0)
+// 	gl.BindTexture(gl.TEXTURE_2D, 0)
 
-	return texture
-}
+// 	return texture
+// }
 

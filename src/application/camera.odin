@@ -54,6 +54,7 @@ update_camera :: proc(camera : ^Camera, delta_time : f32) {
 	// or input. I(Leo) am in favor of here, but wasn't super sure yet.
 	x_input := input.camera.move.x
 	y_input := input.camera.move.y
+	HACK_z_input := input.camera.move.z
 
 	using linalg
 	/*
@@ -102,7 +103,8 @@ update_camera :: proc(camera : ^Camera, delta_time : f32) {
 	flat_forward 	:= linalg.normalize(vec3{view_forward.x, view_forward.y, 0})
 
 	movement_vector := 	x_input * flat_right +
-						y_input * flat_forward
+						y_input * flat_forward +
+						HACK_z_input * OBJECT_UP
 	camera.position += movement_vector * CAMERA_TRANSLATION_SPEED * delta_time 
 
 	if input.camera.reset {

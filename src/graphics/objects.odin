@@ -1,52 +1,65 @@
 package graphics
 
+import "../common"
+
+import "core:fmt"
+
 import gl "vendor:OpenGL"
 
 Mesh :: struct {
-	positions_vbo 	: u32,
-	normals_vbo 	: u32,
+	vbo 			: u32,
 	ebo 			: u32,
 	vao 			: u32,
 
 	index_count : i32,
 }
 
-create_mesh :: proc(vertex_positions : []vec3, vertex_normals : []vec3, elements : []u16) -> Mesh {
+create_mesh :: proc(
+	vertex_positions 	: []vec3,
+	vertex_normals 		: []vec3,
+	vertex_texcoords	: []vec2, 
+	elements 			: []u16
+) -> Mesh {
+	// Vertex arrays/slices need to match in size
+	vertex_count := len(vertex_positions)
+	assert(len(vertex_normals) == vertex_count)
+	assert(len(vertex_texcoords) == vertex_count || vertex_texcoords == nil)
+
 	mesh : Mesh
-
 	gl.GenVertexArrays(1, &mesh.vao)
-	gl.GenBuffers(1, &mesh.positions_vbo)
-	gl.GenBuffers(1, &mesh.normals_vbo)
-	gl.GenBuffers(1, &mesh.ebo)
-
 	gl.BindVertexArray(mesh.vao)
 
-	// POSITIONS
-	gl.BindBuffer(gl.ARRAY_BUFFER, mesh.positions_vbo)
-	gl.BufferData(
-		gl.ARRAY_BUFFER, 
-		size_of(vec3) * len(vertex_positions), 
-		raw_data(vertex_positions), 
-		gl.STATIC_DRAW,
-	)
+	positions_data_size := size_of(vec3) * vertex_count
+	normals_data_size 	:= size_of(vec3) * vertex_count
+	texcoords_data_size := size_of(vec2) * vertex_count
+	buffer_data_size 	:= positions_data_size + normals_data_size + texcoords_data_size
 
-	gl.VertexAttribPointer(0, 3, gl.FLOAT, gl.FALSE, size_of(vec3), uintptr(0))
+	positions_offset 	:= 0
+	normals_offset 		:= positions_offset + positions_data_size
+	texcoords_offset 	:= normals_offset + normals_data_size
+
+	// Create and allocate vbo
+	gl.GenBuffers(1, &mesh.vbo)
+	gl.BindBuffer(gl.ARRAY_BUFFER, mesh.vbo)
+	gl.BufferData(gl.ARRAY_BUFFER, buffer_data_size, nil, gl.STATIC_DRAW)
+
+	// Positions
+	gl.BufferSubData(gl.ARRAY_BUFFER, positions_offset, positions_data_size, raw_data(vertex_positions))
+	gl.VertexAttribPointer(0, 3, gl.FLOAT, gl.FALSE, size_of(vec3), uintptr(positions_offset))
 	gl.EnableVertexAttribArray(0)
 
-	// NORMALS
-	gl.BindBuffer(gl.ARRAY_BUFFER, mesh.normals_vbo)
-	gl.BufferData(
-		gl.ARRAY_BUFFER,
-		size_of(vec3) * len(vertex_normals),
-		raw_data(vertex_normals),
-		gl.STATIC_DRAW,
-	)
-
-	gl.VertexAttribPointer(1, 3, gl.FLOAT, gl.FALSE, size_of(vec3), uintptr(0))
+	// Normals
+	gl.BufferSubData(gl.ARRAY_BUFFER, normals_offset, normals_data_size, raw_data(vertex_normals))
+	gl.VertexAttribPointer(1, 3, gl.FLOAT, gl.FALSE, size_of(vec3), uintptr(normals_offset))
 	gl.EnableVertexAttribArray(1)
 
+	// Texcoords
+	gl.BufferSubData(gl.ARRAY_BUFFER, texcoords_offset, texcoords_data_size, raw_data(vertex_texcoords))
+	gl.VertexAttribPointer(2, 2, gl.FLOAT, gl.FALSE, size_of(vec2), uintptr(texcoords_offset))
+	gl.EnableVertexAttribArray(2)
 
-	// ELEMENTS
+	// Elements/Triangles
+	gl.GenBuffers(1, &mesh.ebo)
 	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.ebo)
 	index_data_size := size_of(u16) * len(elements)
 	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, index_data_size, raw_data(elements), gl.STATIC_DRAW)
@@ -87,6 +100,32 @@ use_texture :: proc(texture : Texture, slot := 0) {
 	gl.BindTexture(gl.TEXTURE_2D, texture.opengl_name)
 }
 
+create_color_texture :: proc(width, height : int, pixels : []common.Color_u8_rgba) -> Texture {
+
+	pixel_count := width * height
+	assert(pixel_count == len(pixels))
+	pixel_data := (cast([^]u8)raw_data(pixels))[0:pixel_count]
+
+	name : u32
+	gl.GenTextures(1, &name)
+	// todo(Leo): Maybe pick and reserve a slot for all housekeeping name activites such as this. maybe
+	gl.BindTexture(gl.TEXTURE_2D, name)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+	
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, i32(width), i32(height), 0, gl.RGBA, gl.UNSIGNED_BYTE, raw_data(pixel_data))
+
+	gl.BindTexture(gl.TEXTURE_2D, 0)
+
+	return { name }
+}
+
+destroy_texture :: proc(texture : Texture) {
+	name := texture.opengl_name
+	gl.DeleteTextures(1, &name)
+}
 
 draw_mesh_instanced :: proc(mesh : ^Mesh, ib : ^InstanceBuffer) {
 	gc := &graphics_context
@@ -100,9 +139,14 @@ draw_mesh_instanced :: proc(mesh : ^Mesh, ib : ^InstanceBuffer) {
 
 	// SETUP INSTANCE DATA BUFFER
 	gl.BindBuffer(gl.ARRAY_BUFFER, ib.buffer)
-	gl.VertexAttribPointer(2, 4, gl.FLOAT, gl.FALSE, 4 * size_of(f32), uintptr(0))
+	gl.VertexAttribPointer(2, 4, gl.FLOAT, gl.FALSE, 2 * size_of(vec4), uintptr(0))
 	gl.EnableVertexAttribArray(2)
 	gl.VertexAttribDivisor(2, 1)
+
+	gl.BindBuffer(gl.ARRAY_BUFFER, ib.buffer)
+	gl.VertexAttribPointer(3, 4, gl.FLOAT, gl.FALSE, 2 * size_of(vec4), uintptr(size_of(vec4)))
+	gl.EnableVertexAttribArray(3)
+	gl.VertexAttribDivisor(3, 1)
 
 	gl.DrawElementsInstanced(
 		gl.TRIANGLES, 
@@ -119,12 +163,11 @@ InstanceBuffer :: struct {
 	mapped_memory 	: rawptr,
 }
 
-create_instance_buffer :: proc(instance_count: int) -> InstanceBuffer {	
+create_instance_buffer :: proc(instance_count: int, instance_size : int) -> InstanceBuffer {	
 	gc := &graphics_context
 
 	ib := InstanceBuffer {}
 
-	instance_size := size_of(vec4)
 	instance_data_size := instance_size * instance_count
 
 	gl.GenBuffers(1, &ib.buffer)

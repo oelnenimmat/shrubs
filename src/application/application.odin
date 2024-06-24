@@ -36,6 +36,9 @@ pillar_mesh 	: graphics.Mesh
 grass_mesh 		: graphics.Mesh
 
 grass_instances : graphics.InstanceBuffer
+grass_field_texture : graphics.Texture
+
+white_texture : graphics.Texture
 
 grass_positions := []vec3{
 	{1, 1, 0},
@@ -64,7 +67,7 @@ initialize :: proc() {
 
 	{
 		positions, normals, elements := assets.NOT_MEMORY_SAFE_gltf_load_node("assets/shrubs.glb", "mock_coordinate_pillar")
-		pillar_mesh = graphics.create_mesh(positions, normals, elements)
+		pillar_mesh = graphics.create_mesh(positions, normals, nil, elements)
 
 		delete(positions)
 		delete(normals)
@@ -73,7 +76,7 @@ initialize :: proc() {
 
 	{
 		positions, normals, elements := assets.NOT_MEMORY_SAFE_gltf_load_node("assets/shrubs.glb", "mock_shrub")
-		test_mesh = graphics.create_mesh(positions, normals, elements)
+		test_mesh = graphics.create_mesh(positions, normals, nil, elements)
 
 		delete(positions)
 		delete(normals)
@@ -83,7 +86,18 @@ initialize :: proc() {
 	terrain_mesh = create_static_terrain_mesh()
 	grass_mesh = create_grass_blade_mesh()
 
-	grass_instances = generate_grass_positions({-10, -10, 0}, {10, 10, 0}, 80)
+	grass_instances = generate_grass_positions({-10, -10, 0}, {10, 10, 0}, 200)
+
+	grass_field_image := assets.load_color_image("assets/cgshare-book-grass-01.jpg")
+	// grass_field_image := assets.load_color_image("assets/callum_andrews_ghibli_grass.png")
+	defer assets.free_loaded_color_image(&grass_field_image)
+	grass_field_texture = graphics.create_color_texture(
+		grass_field_image.width,
+		grass_field_image.height,
+		grass_field_image.pixels,
+	)
+
+	white_texture = graphics.create_color_texture(1, 1, []common.Color_u8_rgba{{255, 255, 255, 255}})
 }
 
 terminate :: proc() {
@@ -127,11 +141,13 @@ update :: proc(delta_time: f64) {
 	graphics.begin_frame()
 
 	light_direction := linalg.normalize(vec3{1, 2, -10})
-	light_color := vec3{2.0, 1.9, 1.7}
+	light_color := vec3{1.0, 0.95, 0.85}
 	ambient_color := vec3{0.3, 0.35, 0.4} * 3
 	graphics.set_lighting(light_direction, light_color, ambient_color)
 
+	graphics.set_cull(.On)
 	graphics.set_surface({0.5, 0.5, 0.6})
+	graphics.use_texture(white_texture)
 	graphics.draw_mesh(&pillar_mesh, mat4(1))
 
 	shrub_positions := []vec3{
@@ -140,7 +156,8 @@ update :: proc(delta_time: f64) {
 		{0, 2, 0},
 		{1, 3, 0},
 	}
-	graphics.set_surface({0.2, 0.4, 0.1})
+	graphics.set_surface({0.4, 0.35, 0.35})
+	graphics.use_texture(white_texture)
 	for p in shrub_positions {
 		model_matrix := linalg.matrix4_translate_f32(p)
 		graphics.draw_mesh(&test_mesh, model_matrix)
@@ -160,6 +177,7 @@ update :: proc(delta_time: f64) {
 		{5, 5, 0},
 	}
 	graphics.set_surface({0.15, 0.2, 0.05})
+	graphics.use_texture(grass_field_texture)
 	for p in terrain_positions {
 		model_matrix := linalg.matrix4_translate_f32(p)
 		graphics.draw_mesh(&terrain_mesh, model_matrix)
@@ -167,10 +185,12 @@ update :: proc(delta_time: f64) {
 
 	@static wind_time := f32 (0)
 	wind_time += delta_time
-	wind_amount := math.sin(wind_time)
+	wind_amount := math.sin(wind_time) * 0.2
 
+	graphics.set_cull(.Off)
 	graphics.set_surface({0.2, 0.4, 0.1})
 	graphics.set_wind({0, 1, 0}, wind_amount)
+	graphics.use_texture(grass_field_texture)
 	graphics.draw_mesh_instanced(&grass_mesh, &grass_instances)
 
 	// gui.render()

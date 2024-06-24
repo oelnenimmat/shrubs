@@ -44,8 +44,17 @@ create_grass_blade_mesh :: proc() -> graphics.Mesh {
 		6, 7, 8,
 	}
 
-	return graphics.create_mesh(positions, normals, elements) 
+	return graphics.create_mesh(positions, normals, nil, elements) 
 }
+
+GrassInstanceData :: struct #align(16) {
+	position 	: vec2,
+	height 		: f32,
+	rotation 	: f32,
+	field_uv 	: vec2,
+}
+#assert(size_of(GrassInstanceData) == 32)
+
 
 generate_grass_positions :: proc(min, max : vec3, count_per_dimension : int) -> graphics.InstanceBuffer {
 
@@ -53,9 +62,9 @@ generate_grass_positions :: proc(min, max : vec3, count_per_dimension : int) -> 
 	cell_size_x := (max.x - min.x) / f32(count_per_dimension)
 	cell_size_y := (max.y - min.y) / f32(count_per_dimension)
 
-	buffer := graphics.create_instance_buffer(cell_count)
+	buffer := graphics.create_instance_buffer(cell_count, size_of(GrassInstanceData))
 	
-	instance_memory := (cast([^]vec4) graphics.get_instance_buffer_writeable_memory(&buffer))[0:cell_count]
+	instance_memory := (cast([^]GrassInstanceData) graphics.get_instance_buffer_writeable_memory(&buffer))[0:cell_count]
 
 	for i in 0..<cell_count {
 		cell_x := i % count_per_dimension
@@ -65,9 +74,17 @@ generate_grass_positions :: proc(min, max : vec3, count_per_dimension : int) -> 
 		y := min.y + (f32(cell_y) + rand.float32()) * cell_size_y
 		
 		h := 0.9 + rand.float32() * 0.2
+		h *= 0.4
 		r := rand.float32() * 2 * math.PI
 
-		instance_memory[i] = vec4{x, y, h, r}	
+		instance_memory[i].position = {x, y}	
+		instance_memory[i].height = h	
+		instance_memory[i].rotation = r
+
+		instance_memory[i].field_uv = vec2{
+			(x - min.x) / (max.x - min.x),
+			(y - min.y) / (max.y - min.y),
+		}
 	}
 
 	return buffer
@@ -91,13 +108,17 @@ create_static_terrain_mesh :: proc() -> graphics.Mesh {
 	normals := make([]vec3, vertex_count)
 	defer delete(normals)
 
+	texcoords := make([]vec2, vertex_count)
+	defer delete(texcoords)
+
 	// origin at the first vertex, growing to positive X and Y
 	for i in 0..<vertex_count {
 		x := i % (quad_count_1D + 1)
 		y := i / (quad_count_1D + 1)
 
-		positions[i] = {f32(x) * quad_size, f32(y) * quad_size, 0}
-		normals[i] = {0, 0, 1}
+		positions[i] 	= {f32(x) * quad_size, f32(y) * quad_size, 0}
+		normals[i] 		= {0, 0, 1}
+		texcoords[i] 	= {f32(x) / f32(quad_count_1D + 1), f32(y) / f32(quad_count_1D + 1)}
 	}
 
 	// ELEMENTS/TRIANGLES
@@ -131,6 +152,6 @@ create_static_terrain_mesh :: proc() -> graphics.Mesh {
 		indices[t5] = u16(v5)
 	}
 
-	mesh := graphics.create_mesh(positions, normals, indices)
+	mesh := graphics.create_mesh(positions, normals, texcoords, indices)
 	return mesh
 }
