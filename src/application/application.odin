@@ -31,7 +31,7 @@ APPLICATION_NAME :: "Shrubs"
 camera 			: Camera
 
 test_mesh 		: graphics.Mesh
-terrain_mesh 	: graphics.Mesh
+terrain_meshes 	: []graphics.Mesh
 pillar_mesh 	: graphics.Mesh
 grass_mesh 		: graphics.Mesh
 
@@ -40,17 +40,18 @@ grass_field_texture : graphics.Texture
 
 white_texture : graphics.Texture
 
-grass_positions := []vec3{
-	{1, 1, 0},
-	{2, 1, 0},
-	{1, 2, 0},
-	{3, 1, 0},
-	{1, 5, 0},
-	{3, 1, 0},
-	{6, 2, 0},
-	{5, 4, 0},
-	{2, 3, 0},
-	{0, 1, 0},
+terrain_positions := []vec3 {
+	{-15, -15, 0},
+	{-5, -15, 0},
+	{5, -15, 0},
+
+	{-15, -5, 0},
+	{-5, -5, 0},
+	{5, -5, 0},
+	
+	{-15, 5, 0},
+	{-5, 5, 0},
+	{5, 5, 0},
 }
 
 application : struct {
@@ -83,13 +84,18 @@ initialize :: proc() {
 		delete(elements)
 	}
 
-	terrain_mesh = create_static_terrain_mesh()
+	// Todo(Leo): allocator!!!!!
+	terrain_meshes = make([]graphics.Mesh, 9)
+	for i in 0..<9 {
+		terrain_meshes[i] = create_static_terrain_mesh(terrain_positions[i].xy)
+	}
+
 	grass_mesh = create_grass_blade_mesh()
 
 	grass_instances = generate_grass_positions({-10, -10, 0}, {10, 10, 0}, 200)
 
-	grass_field_image := assets.load_color_image("assets/cgshare-book-grass-01.jpg")
-	// grass_field_image := assets.load_color_image("assets/callum_andrews_ghibli_grass.png")
+	// grass_field_image := assets.load_color_image("assets/cgshare-book-grass-01.jpg")
+	grass_field_image := assets.load_color_image("assets/callum_andrews_ghibli_grass.png")
 	defer assets.free_loaded_color_image(&grass_field_image)
 	grass_field_texture = graphics.create_color_texture(
 		grass_field_image.width,
@@ -101,6 +107,8 @@ initialize :: proc() {
 }
 
 terminate :: proc() {
+	delete (terrain_meshes)
+
 	gui.terminate()
 	graphics.terminate()
 	input.terminate()
@@ -163,24 +171,12 @@ update :: proc(delta_time: f64) {
 		graphics.draw_mesh(&test_mesh, model_matrix)
 	}
 
-	terrain_positions := []vec3 {
-		{-15, -15, 0},
-		{-5, -15, 0},
-		{5, -15, 0},
 
-		{-15, -5, 0},
-		{-5, -5, 0},
-		{5, -5, 0},
-		
-		{-15, 5, 0},
-		{-5, 5, 0},
-		{5, 5, 0},
-	}
 	graphics.set_surface({0.15, 0.2, 0.05})
 	graphics.use_texture(grass_field_texture)
-	for p in terrain_positions {
+	for p, i in terrain_positions {
 		model_matrix := linalg.matrix4_translate_f32(p)
-		graphics.draw_mesh(&terrain_mesh, model_matrix)
+		graphics.draw_mesh(&terrain_meshes[i], model_matrix)
 	}
 
 	@static wind_time := f32 (0)

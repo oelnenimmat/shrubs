@@ -17,15 +17,15 @@ layout(location = 2) out vec2 field_texcoord;
 
 void main() {
 
-	float angle 			= instance_position.w;
+	float angle 			= instance_texcoord.w;
 	mat3 rotation_matrix 	= mat3(1.0);
 	rotation_matrix[0][0] 	= cos(angle);
 	rotation_matrix[1][0] 	= -sin(angle);
 	rotation_matrix[0][1] 	= sin(angle);
 	rotation_matrix[1][1] 	= cos(angle);
 
-	float scale 	= instance_position.z;
-	vec3 position 	= rotation_matrix * vertex_position * scale + vec3(instance_position.xy, 0);
+	float scale 	= instance_texcoord.z;
+	vec3 position 	= rotation_matrix * vertex_position * scale + instance_position.xyz;
 
 	// assume this is true
 	float normalized_height = vertex_position.z;

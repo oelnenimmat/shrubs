@@ -3,6 +3,7 @@ package application
 import "../graphics"
 
 import "core:math"
+import "core:math/linalg"
 import "core:math/rand"
 
 create_grass_blade_mesh :: proc() -> graphics.Mesh {
@@ -48,13 +49,12 @@ create_grass_blade_mesh :: proc() -> graphics.Mesh {
 }
 
 GrassInstanceData :: struct #align(16) {
-	position 	: vec2,
+	position 	: vec4,
+	field_uv 	: vec2,
 	height 		: f32,
 	rotation 	: f32,
-	field_uv 	: vec2,
 }
 #assert(size_of(GrassInstanceData) == 32)
-
 
 generate_grass_positions :: proc(min, max : vec3, count_per_dimension : int) -> graphics.InstanceBuffer {
 
@@ -72,12 +72,13 @@ generate_grass_positions :: proc(min, max : vec3, count_per_dimension : int) -> 
 
 		x := min.x + (f32(cell_x) + rand.float32()) * cell_size_x
 		y := min.y + (f32(cell_y) + rand.float32()) * cell_size_y
-		
+		z := sample_height(x, y)
+
 		h := 0.9 + rand.float32() * 0.2
 		h *= 0.4
 		r := rand.float32() * 2 * math.PI
 
-		instance_memory[i].position = {x, y}	
+		instance_memory[i].position = {x, y, z, 0}	
 		instance_memory[i].height = h	
 		instance_memory[i].rotation = r
 
@@ -90,7 +91,22 @@ generate_grass_positions :: proc(min, max : vec3, count_per_dimension : int) -> 
 	return buffer
 }
 
-create_static_terrain_mesh :: proc() -> graphics.Mesh {
+
+
+sample_height :: proc(x, y : f32) -> f32 {
+	
+	WORLD_SEED 			:: 562
+	WORLD_TO_GRID_SCALE :: 0.1
+	TERRAIN_Z_SCALE 	:: 3
+
+	// transform to grid scale
+	x := x * WORLD_TO_GRID_SCALE
+	y := y * WORLD_TO_GRID_SCALE
+
+	return value_noise_2D(x, y) * TERRAIN_Z_SCALE
+}
+
+create_static_terrain_mesh :: proc(min_corner_position : vec2) -> graphics.Mesh {
 	
 	world_size := 10
 	
@@ -113,12 +129,20 @@ create_static_terrain_mesh :: proc() -> graphics.Mesh {
 
 	// origin at the first vertex, growing to positive X and Y
 	for i in 0..<vertex_count {
-		x := i % (quad_count_1D + 1)
-		y := i / (quad_count_1D + 1)
+		cell_x := i % (quad_count_1D + 1)
+		cell_y := i / (quad_count_1D + 1)
 
-		positions[i] 	= {f32(x) * quad_size, f32(y) * quad_size, 0}
+		x := f32(cell_x) * quad_size
+		y := f32(cell_y) * quad_size	
+
+		z := sample_height(x + min_corner_position.x, y + min_corner_position.y)
+
+		u := f32(cell_x) / f32(quad_count_1D + 1)
+		v := f32(cell_y) / f32(quad_count_1D + 1)
+
+		positions[i] 	= {x, y, z}
 		normals[i] 		= {0, 0, 1}
-		texcoords[i] 	= {f32(x) / f32(quad_count_1D + 1), f32(y) / f32(quad_count_1D + 1)}
+		texcoords[i] 	= {u, v}
 	}
 
 	// ELEMENTS/TRIANGLES

@@ -14,7 +14,8 @@ layout (location = 7) uniform sampler2D field_color_texture;
 out vec4 out_color;
 
 void main() {
-	vec3 lighting 	= light_color * dot(-light_direction, normalize(surface_normal)) + ambient_color;
+	vec3 normal 	= normalize(surface_normal); // * (gl_FrontFacing ? 1 : -1)); 
+	vec3 lighting 	= light_color * dot(-light_direction, normal) + ambient_color;
 
 	vec3 surface_color 	= texture(field_color_texture, field_texcoord).rgb;
 	vec3 surface 		= surface_color; // * (0.6 + 0.4 * blade_texcoord.y);
