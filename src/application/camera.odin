@@ -110,8 +110,23 @@ update_camera :: proc(camera : ^Camera, delta_time : f32) {
 	if input.camera.reset {
 		reset_camera(camera)
 	}
+}
 
-	// SET RENDER MATRICES ----------------------------------------------------
+
+// Todo(Leo): some things here are calculated again that are already calculated in
+// update_camera()
+camera_get_projection_and_view_matrices :: proc(camera : ^Camera) -> (mat4, mat4) {
+	using linalg
+
+	tilt := quaternion_angle_axis_f32(camera.tilt, OBJECT_RIGHT)
+	pan := quaternion_angle_axis_f32(camera.pan, OBJECT_UP)
+
+	camera_rotation := pan * tilt
+
+	// view_right 		:= normalize(mul(camera_rotation, OBJECT_RIGHT))
+	view_forward 	:= normalize(mul(camera_rotation, OBJECT_FORWARD))
+	view_up 		:= normalize(mul(camera_rotation, OBJECT_UP))
+
 	view_matrix: = glsl.mat4LookAt(
 		auto_cast camera.position, 
 		auto_cast (camera.position + view_forward), 
@@ -128,5 +143,5 @@ update_camera :: proc(camera : ^Camera, delta_time : f32) {
 		FAR_CLIPPING_PLANE
 	)
 
-	graphics.set_view_projection(view_matrix, projection_matrix)
+	return projection_matrix, view_matrix
 }

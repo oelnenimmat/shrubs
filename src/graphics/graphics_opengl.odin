@@ -32,191 +32,48 @@ artifacts in the resource.
 */
 VIRTUAL_FRAME_COUNT :: 3
 
-OnOff :: enum { Off, On }
-
-set_cull :: proc(cull_on : OnOff) {
-	if cull_on == .On {
-		gl.Enable(gl.CULL_FACE)
-	} else {
-		gl.Disable(gl.CULL_FACE)
-	}
-
-}
-
-set_lighting :: proc(direction, color, ambient : vec3) {
-	direction 	:= direction
-	color 		:= color
-	ambient 	:= ambient
-
-	gc := &graphics_context
-
-	// todo(Leo): use uniform buffer objects, or just go vulkan :)
-	
-	// basic shader
-	{
-		direction_location 	:= gl.GetUniformLocation(gc.shader_program, "light_direction")
-		color_location 		:= gl.GetUniformLocation(gc.shader_program, "light_color")
-		ambient_location 	:= gl.GetUniformLocation(gc.shader_program, "ambient_color")
-
-		gl.UseProgram(gc.shader_program)
-		gl.Uniform3fv(direction_location, 1, auto_cast &direction)
-		gl.Uniform3fv(color_location, 1, auto_cast &color)
-		gl.Uniform3fv(ambient_location, 1, auto_cast &ambient)
-	}
-	
-	// grass shader
-	{
-		direction_location 	:= gl.GetUniformLocation(gc.instance_shader_program, "light_direction")
-		color_location 		:= gl.GetUniformLocation(gc.instance_shader_program, "light_color")
-		ambient_location 	:= gl.GetUniformLocation(gc.instance_shader_program, "ambient_color")
-
-		gl.UseProgram(gc.instance_shader_program)
-		gl.Uniform3fv(direction_location, 1, auto_cast &direction)
-		gl.Uniform3fv(color_location, 1, auto_cast &color)
-		gl.Uniform3fv(ambient_location, 1, auto_cast &ambient)
-	}
-}
-
-set_surface :: proc(color : vec3) {
-	color := color 
-
-	gc := &graphics_context
-
-	{
-		color_location := gl.GetUniformLocation(gc.shader_program, "surface_color")
-
-		gl.UseProgram(gc.shader_program)
-		gl.Uniform3fv(color_location, 1, auto_cast &color)
-	}
-
-	{
-		color_location := gl.GetUniformLocation(gc.instance_shader_program, "surface_color")
-
-		gl.UseProgram(gc.instance_shader_program)
-		gl.Uniform3fv(color_location, 1, auto_cast &color)
-	}
-}
-
-set_wind :: proc(direction : vec3, amount : f32) {
-	direction_amount := vec4{direction.x, direction.y, direction.z, amount}
-
-	gc := &graphics_context
-
-	location := gl.GetUniformLocation(gc.instance_shader_program, "wind_direction_amount")
-	gl.UseProgram(gc.instance_shader_program)
-	gl.Uniform4fv(location, 1, auto_cast &direction_amount)
-}
-
-//@private
+@private
 graphics_context : struct {
-
-	shader_program 	: u32,
-	instance_shader_program : u32, 
-
 	view_matrix 		: mat4,
 	projection_matrix 	: mat4,
-
-	view_matrix_location 		: i32,
-	projection_matrix_location 	: i32,
-	model_matrix_location 		: i32,
 
 	virtual_frame_index : int,
 	virtual_frame_in_use_fences : [VIRTUAL_FRAME_COUNT]gl.sync_t,
 
+	// Pipelines :)
 	basic_pipeline : BasicPipeline,
+	grass_pipeline : GrassPipeline,
+
+	// Per draw uniform locations. These are set whenever a new pipeline
+	// is bound/setupped, and used in draw_XXX functions
+	model_matrix_location : i32,
+
 }
 
 // WHAT IS THIS ---------------------------------------------------------------
 
 initialize :: proc() {
 
-	window_width, window_height := window.get_window_size()
-
 	// OpenGL headers contain a set of function pointers, that need to be loaded explicitly
 	gl.load_up_to(4, 6, glfw.gl_set_proc_address)
 
 	gl.Enable(gl.DEPTH_TEST)
 
+	// These SHOULD be same for all, if not, move to individual pipelines
+	gl.FrontFace(gl.CCW)
+	gl.CullFace(gl.BACK)
+	
+	// This is same for all for now, for gui and postprocessing might change
 	gl.Enable(gl.MULTISAMPLE)
 
-	gl.CullFace(gl.BACK)
-	// gl.Enable(gl.CULL_FACE)
-	// gl.Disable(gl.CULL_FACE)
-	gl.FrontFace(gl.CCW)
-
+	window_width, window_height := window.get_window_size()
 	gl.Viewport(0, 0, i32(window_width), i32(window_height))
-
-	basic_shader_program := gl.CreateProgram()
-	{
-		// Compile time generated slices to program memory, no need to delete after.
-		// Now we don't need to worry about shader files being present runtime.
-		vertex_shader_source := #load("../shaders/basic.vert", cstring)
-		frag_shader_source := #load("../shaders/basic.frag", cstring)
-
-		vertex_shader := make_shader(vertex_shader_source, gl.VERTEX_SHADER)
-		fragment_shader := make_shader(frag_shader_source, gl.FRAGMENT_SHADER)
-
-		gl.AttachShader(basic_shader_program, vertex_shader)
-		gl.AttachShader(basic_shader_program, fragment_shader)
-		gl.LinkProgram(basic_shader_program)
-
-		success : i32
-		gl.GetProgramiv(basic_shader_program, gl.LINK_STATUS, &success)
-		if success == 0 {
-			info_log_buffer := make([]u8, 1024, context.temp_allocator)
-			defer delete(info_log_buffer, context.temp_allocator)
-
-			info_log_length : i32 = 0
-			gl.GetProgramInfoLog(basic_shader_program, cast(i32) len(info_log_buffer), &info_log_length, raw_data(info_log_buffer))
-			fmt.printf("SHADER PROGRAM ERROR: %s\n", transmute(string)info_log_buffer[:info_log_length])	
-		} else {
-			fmt.println("Shader Program created succesfully")
-		}
-	
-		gl.DeleteShader(vertex_shader)
-		gl.DeleteShader(fragment_shader)
-	}
-
-	instance_shader_program := gl.CreateProgram()
-	{
-		// Compile time generated slices to program memory, no need to delete after.
-		// Now we don't need to worry about shader files being present runtime.
-		vertex_shader_source := #load("../shaders/grass.vert", cstring)
-		frag_shader_source := #load("../shaders/grass.frag", cstring)
-
-		vertex_shader := make_shader(vertex_shader_source, gl.VERTEX_SHADER)
-		fragment_shader := make_shader(frag_shader_source, gl.FRAGMENT_SHADER)
-
-		gl.AttachShader(instance_shader_program, vertex_shader)
-		gl.AttachShader(instance_shader_program, fragment_shader)
-		gl.LinkProgram(instance_shader_program)
-
-		success : i32
-		gl.GetProgramiv(instance_shader_program, gl.LINK_STATUS, &success)
-		if success == 0 {
-			info_log_buffer := make([]u8, 1024, context.temp_allocator)
-			defer delete(info_log_buffer, context.temp_allocator)
-
-			info_log_length : i32 = 0
-			gl.GetProgramInfoLog(instance_shader_program, cast(i32) len(info_log_buffer), &info_log_length, raw_data(info_log_buffer))
-			fmt.printf("SHADER PROGRAM ERROR: %s\n", transmute(string)info_log_buffer[:info_log_length])	
-		} else {
-			fmt.println("Shader Program created succesfully")
-		}
-	
-		gl.DeleteShader(vertex_shader)
-		gl.DeleteShader(fragment_shader)
-	}
 
 	gc := &graphics_context
 	gc^ = {}
 
-	gc.shader_program 					= basic_shader_program
-	gc.instance_shader_program 			= instance_shader_program
-
-	gc.view_matrix_location 		= gl.GetUniformLocation(basic_shader_program, "view")
-	gc.projection_matrix_location 	= gl.GetUniformLocation(basic_shader_program, "projection")
-	gc.model_matrix_location 		= gl.GetUniformLocation(basic_shader_program, "model")
+	gc.basic_pipeline = create_basic_pipeline()
+	gc.grass_pipeline = create_grass_pipeline()
 
 	// Todo(Leo): there might be issue here that this could be called before
 	// setting up the opengl stuff and then something going haywire, seems to work now
@@ -237,7 +94,6 @@ terminate :: proc() {
 
 render :: proc() {
 	gc := &graphics_context
-
 
 	// Todo(Leo): learn more if this is necessary or not. Also if it matters
 	// if this is before or after fence sync. https://stackoverflow.com/questions/2143240/opengl-glflush-vs-glfinish
@@ -290,14 +146,6 @@ resize_framebuffer :: proc "c" (width, height: int) {
 	gl.Viewport(0, 0, width, height)
 }
 
-// OPENGL IMPLEMENTATION FOR THE GRAPHICS API ---------------------------------
-
-set_view_projection :: proc(view_matrix: mat4, projection_matrix: mat4) {
-	gc := &graphics_context
-	gc.view_matrix 			= view_matrix
-	gc.projection_matrix 	= projection_matrix
-}
-
 // INTERNAL THINGS ------------------------------------------------------------
 
 PARTICLE_CUBE_VERTICES :: []f32 {
@@ -323,7 +171,7 @@ PARTICLE_CUBE_INDICES :: []u16 {
 	2, 6, 3,  3, 6, 7,
 }
 
-@(private="file")
+@private
 make_shader :: proc(shader_source: cstring, type: u32) -> u32 {
 	shader_source := shader_source
 	shader := gl.CreateShader(type)
@@ -348,6 +196,35 @@ make_shader :: proc(shader_source: cstring, type: u32) -> u32 {
 	return shader
 }
 
+@private
+create_shader_program :: proc(vertex_source, fragment_source : cstring) -> u32 {
+	program := gl.CreateProgram()
+
+	vertex_shader := make_shader(vertex_source, gl.VERTEX_SHADER)
+	fragment_shader := make_shader(fragment_source, gl.FRAGMENT_SHADER)
+
+	gl.AttachShader(program, vertex_shader)
+	gl.AttachShader(program, fragment_shader)
+	gl.LinkProgram(program)
+
+	success : i32
+	gl.GetProgramiv(program, gl.LINK_STATUS, &success)
+	if success == 0 {
+		info_log_buffer := make([]u8, 1024, context.temp_allocator)
+		defer delete(info_log_buffer, context.temp_allocator)
+
+		info_log_length : i32 = 0
+		gl.GetProgramInfoLog(program, cast(i32) len(info_log_buffer), &info_log_length, raw_data(info_log_buffer))
+		fmt.printf("SHADER PROGRAM ERROR: %s\n", transmute(string)info_log_buffer[:info_log_length])	
+	} else {
+		fmt.println("Shader Program created succesfully")
+	}
+
+	gl.DeleteShader(vertex_shader)
+	gl.DeleteShader(fragment_shader)
+
+	return program
+}
 
 // create_gradient_texture :: proc(colors : []vec4, positions : []f32) -> Texture {
 // 	return Texture {internal_create_gradient_texture(colors, positions) }

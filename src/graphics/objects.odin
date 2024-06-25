@@ -73,11 +73,8 @@ draw_mesh :: proc(mesh : ^Mesh, model : mat4) {
 	model := model
 
 	gc := &graphics_context
-	gl.UseProgram(gc.shader_program)
 
-	gl.UniformMatrix4fv(gc.view_matrix_location, 1, false, transmute([^]f32)&gc.view_matrix)
-	gl.UniformMatrix4fv(gc.projection_matrix_location, 1, false, transmute([^]f32)&gc.projection_matrix)
-	gl.UniformMatrix4fv(gc.model_matrix_location, 1, false, transmute([^]f32)&model)
+	gl.UniformMatrix4fv(gc.model_matrix_location, 1, false, auto_cast &model)
 
 	gl.BindVertexArray(mesh.vao)
 
@@ -129,11 +126,6 @@ destroy_texture :: proc(texture : Texture) {
 
 draw_mesh_instanced :: proc(mesh : ^Mesh, ib : ^InstanceBuffer) {
 	gc := &graphics_context
-	gl.UseProgram(gc.instance_shader_program)
-
-	gl.UniformMatrix4fv(gc.view_matrix_location, 1, false, transmute([^]f32)&gc.view_matrix)
-	gl.UniformMatrix4fv(gc.projection_matrix_location, 1, false, transmute([^]f32)&gc.projection_matrix)
-	// gl.UniformMatrix4fv(gc.model_matrix_location, 1, false, transmute([^]f32)&model)
 
 	gl.BindVertexArray(mesh.vao)
 
