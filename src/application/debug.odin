@@ -59,10 +59,10 @@ render_debug_drawing :: proc() {
 	for draw in dd.draws[0:dd.count] {
 		// Todo(Leo): not nice to set material every frame, maybe limit palette
 		// and sort, but also doesn't really matter (escpecially right now :))
-		graphics.set_basic_material(draw.color, &white_texture)
+		graphics.set_debug_line_material(draw.color)
 		model_matrix := linalg.matrix4_translate_f32(draw.position) *
 						linalg.matrix4_scale_f32(draw.size)
-		graphics.draw_mesh(&dd.sphere_mesh, model_matrix)
+		graphics.draw_debug_mesh(&dd.sphere_mesh, model_matrix)
 	}
 
 }

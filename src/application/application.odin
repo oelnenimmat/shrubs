@@ -199,11 +199,12 @@ update :: proc(delta_time: f64) {
 
 	render_tank(&tank)
 
-	// Debug render still uses basic pipeline
+	// NEXT PIPELINE
+	graphics.setup_debug_pipeline(projection_matrix, view_matrix)
 	render_debug_drawing()
 
-	// NEXT PIPELINE
 
+	// NEXT PIPELINE
 	@static wind_time := f32 (0)
 	wind_time += delta_time
 	wind_amount := math.sin(wind_time) * 0.2
