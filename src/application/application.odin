@@ -5,12 +5,12 @@ The actual core application main file. Initialize, terminate and
 update all systems from this file
 */
 
-import "../common"
-import "../window"
-import "../graphics"
-import "../input"
-import "../gui"
-import "../assets"
+import "shrubs:common"
+import "shrubs:window"
+import "shrubs:graphics"
+import "shrubs:input"
+import "shrubs:gui"
+import "shrubs:assets"
 
 import "core:math"
 import "core:math/linalg"
@@ -20,6 +20,7 @@ vec2 		:: common.vec2
 vec3 		:: common.vec3
 vec4 		:: common.vec4
 dvec3 		:: common.dvec3
+mat3 		:: common.mat3
 mat4 		:: common.mat4
 quaternion 	:: common.quaternion
 
@@ -28,31 +29,25 @@ WINDOW_HEIGHT :: 540
 
 APPLICATION_NAME :: "Shrubs"
 
+
+// Todo(Leo): All the components should not be here in the wild,
+// can easily lead into spaghetti and/or confusion. Some more 
+// service like things like camera are fine
 camera 			: Camera
 
 test_mesh 		: graphics.Mesh
-terrain_meshes 	: []graphics.Mesh
 pillar_mesh 	: graphics.Mesh
-grass_mesh 		: graphics.Mesh
 
-grass_instances : graphics.InstanceBuffer
+debug_sphere_mesh : graphics.Mesh
+
+terrain : Terrain
+grass : Grass
+tank : Tank
+
+
 grass_field_texture : graphics.Texture
-
 white_texture : graphics.Texture
 
-terrain_positions := []vec3 {
-	{-15, -15, 0},
-	{-5, -15, 0},
-	{5, -15, 0},
-
-	{-15, -5, 0},
-	{-5, -5, 0},
-	{5, -5, 0},
-	
-	{-15, 5, 0},
-	{-5, 5, 0},
-	{5, 5, 0},
-}
 
 application : struct {
 	wants_to_quit : bool,
@@ -64,7 +59,7 @@ initialize :: proc() {
 	graphics.initialize()	
 	gui.initialize()
 
-	camera = create_camera()
+	initialize_debug_drawing(256)
 
 	{
 		positions, normals, elements := assets.NOT_MEMORY_SAFE_gltf_load_node("assets/shrubs.glb", "mock_coordinate_pillar")
@@ -84,15 +79,20 @@ initialize :: proc() {
 		delete(elements)
 	}
 
-	// Todo(Leo): allocator!!!!!
-	terrain_meshes = make([]graphics.Mesh, 9)
-	for i in 0..<9 {
-		terrain_meshes[i] = create_static_terrain_mesh(terrain_positions[i].xy)
+	{
+		positions, normals, elements := assets.NOT_MEMORY_SAFE_gltf_load_node("assets/shapes.glb", "shape_sphere")
+		debug_sphere_mesh = graphics.create_mesh(positions, normals, nil, elements)
+
+		delete(positions)
+		delete(normals)
+		delete(elements)
 	}
 
-	grass_mesh = create_grass_blade_mesh()
 
-	grass_instances = generate_grass_positions({-10, -10, 0}, {10, 10, 0}, 200)
+	camera = create_camera()
+	terrain = create_terrain()
+	grass = create_grass()
+	tank = create_tank()
 
 	// grass_field_image := assets.load_color_image("assets/cgshare-book-grass-01.jpg")
 	grass_field_image := assets.load_color_image("assets/callum_andrews_ghibli_grass.png")
@@ -107,7 +107,12 @@ initialize :: proc() {
 }
 
 terminate :: proc() {
-	delete (terrain_meshes)
+	// Todo(Leo): not really necessary at this point, but I keep these here
+	// to remeber that destroying stuff is at times actually necessary.
+	destroy_terrain(&terrain)
+	destroy_grass(&grass)
+
+	terminate_debug_drawing()
 
 	gui.terminate()
 	graphics.terminate()
@@ -130,6 +135,15 @@ update :: proc(delta_time: f64) {
 	input.update()
 	gui.begin_frame()
 
+	debug_drawing_new_frame()
+
+	if input.events.application.exit {
+		application.wants_to_quit = true
+	}
+
+	///////////////////////////////////////////////////////////////////////////
+	// START OF UPDATE
+
 	// Some events are fired from here, needs to be done before updates
 	// Todo(Leo): This is a little spaghetti now, as we fire events in
 	// input package to control values in application package (where this
@@ -138,10 +152,10 @@ update :: proc(delta_time: f64) {
 	// MOCKUP_do_gui(&gui.gui_state.mu_ctx)
 
 	update_camera(&camera, delta_time)
+	update_tank(&tank, delta_time)
 
-	if input.events.application.exit {
-		application.wants_to_quit = true
-	}
+	///////////////////////////////////////////////////////////////////////////
+	// END OF UPDATE
 
 	// Events can only be used before this. This is as intended.
 	input.reset_events()
@@ -177,11 +191,18 @@ update :: proc(delta_time: f64) {
 		graphics.draw_mesh(&test_mesh, model_matrix)
 	}
 
-	graphics.set_basic_material({0.15, 0.2, 0.05}, &grass_field_texture)
-	for p, i in terrain_positions {
+	graphics.set_basic_material({0.4, 0.4, 0.4}, &grass_field_texture)
+	for p, i in terrain.positions {
 		model_matrix := linalg.matrix4_translate_f32(p)
-		graphics.draw_mesh(&terrain_meshes[i], model_matrix)
+		graphics.draw_mesh(&terrain.meshes[i], model_matrix)
 	}
+
+	render_tank(&tank)
+
+	// Debug render still uses basic pipeline
+	render_debug_drawing()
+
+	// NEXT PIPELINE
 
 	@static wind_time := f32 (0)
 	wind_time += delta_time
@@ -195,7 +216,8 @@ update :: proc(delta_time: f64) {
 		ambient_color,
 		{0, 1, 0}, wind_amount
 	)
-	graphics.draw_mesh_instanced(&grass_mesh, &grass_instances)
+	graphics.set_grass_material(&grass_field_texture)
+	graphics.draw_mesh_instanced(&grass.mesh, &grass.instances)
 
 	// gui.render()
 	graphics.render()

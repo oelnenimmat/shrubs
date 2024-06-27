@@ -18,7 +18,28 @@ import "core:fmt"
 vec2 :: common.vec2
 vec3 :: common.vec3
 
+Key :: enum {
+	Invalid = 0,
+
+	A, B, C, D, E, F, G,
+	H, I, J, K, L, M, N,
+	O, P, Q, R, S, T, U,
+	V, W, X, Y, Z,
+
+	_0, _1, _2, _3, _4, _5, _6, _7, _8, _9,
+
+	Left, Right, Down, Up,
+
+	Escape, Space,
+}
+
+DEBUG_get_key_axis :: proc(negative, positive : Key) -> f32 {
+	return axis_value_from_bool(key_is_down(negative), key_is_down(positive))
+}
+
 // INPUT STRUCTS ------------------------------------------
+// Todo(Leo): these are not really good, do something else. Still, the overlapping use of 
+// input should be taken care of
 /*
 Use these structs to read input. They can technically be written outside, but no
 reason to do so. As more systems come to be, add new ones here and in 'update' make
@@ -53,12 +74,12 @@ mouse : struct {
 // CONTROL INTERFACE --------------------------------------
 
 initialize :: proc() {
-	_internal_initialize()
+	glfw_internal_initialize()
 
 	mouse.locked = true
-	lock_mouse(mouse.locked)
+	glfw_lock_mouse(mouse.locked)
 
-	initial_mouse_position := get_mouse_position()
+	initial_mouse_position := glfw_get_mouse_position()
 	mouse.position = {f32(initial_mouse_position.x), f32(initial_mouse_position.y)}
 }
 
@@ -69,15 +90,15 @@ update :: proc() {
 	// DEVELOPER MODE??? ------------------------------------------------------
 	if key_went_down(.Escape) {
 		mouse.locked = !mouse.locked
-		lock_mouse(mouse.locked)
+		glfw_lock_mouse(mouse.locked)
 		mouse.movement = {0, 0}
 
-		mouse_position := get_mouse_position()
+		mouse_position := glfw_get_mouse_position()
 		mouse.position = {f32(mouse_position.x), f32(mouse_position.y)}
 	}
 
 	// MOUSE ------------------------------------------------------------------
-	new_mouse_position := get_mouse_position()
+	new_mouse_position := glfw_get_mouse_position()
 	mouse.movement.x = f32(new_mouse_position.x) - mouse.position.x 
 	mouse.movement.y = f32(new_mouse_position.y) - mouse.position.y 
 	mouse.position = {f32(new_mouse_position.x), f32(new_mouse_position.y)}
@@ -157,6 +178,43 @@ mouse_button_is_down :: proc(button : int) -> bool {
 mouse_button_went_up :: proc(button : int) -> bool {
 	button_state := mouse.button_states[button]
 	return button_state == .Went_Up 	
+}
+
+key_is_down :: proc(key: Key) -> bool {
+	state := input_keys[key]
+	return state == .Is_Down || state == .Went_Down
+}
+
+key_went_down :: proc(key: Key) -> bool {
+	state := input_keys[key]
+	return state == .Went_Down
+}
+
+key_went_up :: proc(key: Key) -> bool {
+	state := input_keys[key]
+	return state == .Went_Up
+}
+
+key_is_down_mods :: proc(key: Key, mods: KeyModifiers) -> bool {
+	state 		:= input_keys[key]
+	is_down 	:= state == .Is_Down || state == .Went_Down
+	mods_agree 	:= mods == key_modifiers
+
+	return is_down && mods_agree
+}
+
+key_went_down_mods :: proc(key: Key, mods: KeyModifiers) -> bool {
+	went_down 	:= input_keys[key] == .Went_Down
+	mods_agree 	:= mods == key_modifiers
+
+	return went_down && mods_agree
+}
+
+key_went_up_mods :: proc(key: Key, mods: KeyModifiers) -> bool {
+	went_up 	:= input_keys[key] == .Went_Up
+	mods_agree 	:= mods == key_modifiers
+
+	return went_up && mods_agree
 }
 
 // HELPERS ------------------------------------------------

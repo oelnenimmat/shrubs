@@ -1,10 +1,56 @@
 package application
 
-import "../graphics"
+import "shrubs:graphics"
 
+import "core:fmt"
 import "core:math"
 import "core:math/linalg"
 import "core:math/rand"
+
+// Squares!!! for now..
+TERRAIN_CHUNK_COUNT :: 5 // x 3
+TERRAIN_CHUNK_SIZE :: 10 // x 10
+
+GRASS_DENSITY_PER_UNIT :: 10
+
+Terrain :: struct {
+	positions : []vec3,
+	meshes : []graphics.Mesh,
+}
+
+create_terrain :: proc() -> Terrain {
+	t : Terrain
+
+	chunk_count := TERRAIN_CHUNK_COUNT * TERRAIN_CHUNK_COUNT
+	// Todo(Leo): allocator!!!
+	t.positions = make([]vec3, chunk_count)
+	t.meshes = make([]graphics.Mesh, chunk_count)
+
+	terrain_world_size := TERRAIN_CHUNK_COUNT * TERRAIN_CHUNK_SIZE
+	min_chunk_min_corner := -0.5 * f32(terrain_world_size)
+
+	for i in 0..<chunk_count {
+		chunk_x := i % TERRAIN_CHUNK_COUNT
+		chunk_y := i / TERRAIN_CHUNK_COUNT
+
+		x := f32(chunk_x) * TERRAIN_CHUNK_SIZE + min_chunk_min_corner
+		y := f32(chunk_y) * TERRAIN_CHUNK_SIZE + min_chunk_min_corner
+
+		t.positions[i] = {x, y, 0}
+		t.meshes[i] = create_static_terrain_mesh(t.positions[i].xy)
+	}
+
+	return t
+}
+
+destroy_terrain :: proc(terrain : ^Terrain) {
+	delete (terrain.positions)
+
+	// Todo(Leo): also delete all the meshes from graphics
+	delete (terrain.meshes)
+
+	terrain^ = {}
+}
 
 create_grass_blade_mesh :: proc() -> graphics.Mesh {
 	w := f32(0.1)
@@ -48,6 +94,37 @@ create_grass_blade_mesh :: proc() -> graphics.Mesh {
 	return graphics.create_mesh(positions, normals, nil, elements) 
 }
 
+Grass :: struct {
+	instances 	: graphics.InstanceBuffer,
+	mesh 		: graphics.Mesh,
+}
+
+create_grass :: proc() -> Grass {
+	g : Grass
+
+	g.mesh = create_grass_blade_mesh()
+
+	world_side_length := f32(TERRAIN_CHUNK_COUNT * TERRAIN_CHUNK_SIZE)
+	w := 0.5 * world_side_length
+
+	count := int(world_side_length * GRASS_DENSITY_PER_UNIT)
+
+	fmt.println("grass count:", count * count)
+
+	g.instances = generate_grass_positions({-w, -w, 0}, {w, w, 0}, count)
+
+	return g
+}
+
+destroy_grass :: proc(grass : ^Grass) {
+	// Todo(Leo): destroy mesh and instances
+
+	grass^ = {}
+}
+
+// Todo(Leo): make sure sure this is GPU compatible
+// Todo(Leo): maybe move this into graphics/pipeline_grass.odin???
+// This needs to be GPU compatible and match shader things
 GrassInstanceData :: struct #align(16) {
 	position 	: vec4,
 	field_uv 	: vec2,

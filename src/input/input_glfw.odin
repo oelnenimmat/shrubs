@@ -5,7 +5,7 @@ import "vendor:glfw"
 
 import "../window"
 
-input_keys : [InputKey] InputKeyState
+input_keys : [Key] InputKeyState
 
 KeyModifiers :: bit_set[enum {Ctrl, Shift, Alt, AltGr}]
 key_modifiers : KeyModifiers
@@ -21,24 +21,9 @@ InputKeyState :: enum {
 	Went_Up,
 }
 
-InputKey :: enum {
-	Invalid = 0,
-
-	A, B, C, D, E, F, G,
-	H, I, J, K, L, M, N,
-	O, P, Q, R, S, T, U,
-	V, W, X, Y, Z,
-
-	_0, _1, _2, _3, _4, _5, _6, _7, _8, _9,
-
-	Left, Right, Down, Up,
-
-	Escape, Space,
-}
-
 glfw_key_proc :: proc "c" (window: glfw.WindowHandle, key, scancode, action, mods: i32) {
 
-	input_key := InputKey.Invalid
+	input_key := Key.Invalid
 
 	switch key {
 	case glfw.KEY_A :		input_key = .A
@@ -126,54 +111,17 @@ glfw_mouse_proc :: proc "c" (window: glfw.WindowHandle, button, action, mods: i3
 	}
 }
 
-_internal_initialize :: proc() {
+glfw_internal_initialize :: proc() {
 	glfw.SetKeyCallback(window.get_glfw_window_handle(), glfw_key_proc)
 	glfw.SetMouseButtonCallback(window.get_glfw_window_handle(), glfw_mouse_proc)
 }
 
-lock_mouse :: proc(locked : bool) {
+glfw_lock_mouse :: proc(locked : bool) {
 	mode := cast(i32) glfw.CURSOR_DISABLED if locked else glfw.CURSOR_NORMAL
 	glfw.SetInputMode(window.get_glfw_window_handle(), glfw.CURSOR, mode)
 }
 
-key_is_down :: proc(key: InputKey) -> bool {
-	state := input_keys[key]
-	return state == .Is_Down || state == .Went_Down
-}
-
-key_went_down :: proc(key: InputKey) -> bool {
-	state := input_keys[key]
-	return state == .Went_Down
-}
-
-key_went_up :: proc(key: InputKey) -> bool {
-	state := input_keys[key]
-	return state == .Went_Up
-}
-
-key_is_down_mods :: proc(key: InputKey, mods: KeyModifiers) -> bool {
-	state 		:= input_keys[key]
-	is_down 	:= state == .Is_Down || state == .Went_Down
-	mods_agree 	:= mods == key_modifiers
-
-	return is_down && mods_agree
-}
-
-key_went_down_mods :: proc(key: InputKey, mods: KeyModifiers) -> bool {
-	went_down 	:= input_keys[key] == .Went_Down
-	mods_agree 	:= mods == key_modifiers
-
-	return went_down && mods_agree
-}
-
-key_went_up_mods :: proc(key: InputKey, mods: KeyModifiers) -> bool {
-	went_up 	:= input_keys[key] == .Went_Up
-	mods_agree 	:= mods == key_modifiers
-
-	return went_up && mods_agree
-}
-
-get_mouse_position :: proc() -> [2]i32 {
+glfw_get_mouse_position :: proc() -> [2]i32 {
 	window := window.get_glfw_window_handle()
 	xPos, yPos := glfw.GetCursorPos(window)
 	return [2]i32{i32(xPos), i32(yPos)}

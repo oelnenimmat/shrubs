@@ -33,6 +33,7 @@ Camera :: struct {
 	position 	: vec3,
 	rotation 	: quaternion,
 	pan, tilt 	: f32,
+	height 		: f32,
 }
 
 create_camera :: proc() -> Camera {
@@ -42,9 +43,10 @@ create_camera :: proc() -> Camera {
 }
 
 reset_camera :: proc(using camera : ^Camera) {
-	position 	= {0, 0, 1.8}
+	position 	= {0, 0, 0}
 	pan 		= 0
 	tilt 		= 0
+	height 		= 1.8
 }
 
 update_camera :: proc(camera : ^Camera, delta_time : f32) {
@@ -103,9 +105,11 @@ update_camera :: proc(camera : ^Camera, delta_time : f32) {
 	flat_forward 	:= linalg.normalize(vec3{view_forward.x, view_forward.y, 0})
 
 	movement_vector := 	x_input * flat_right +
-						y_input * flat_forward +
-						HACK_z_input * OBJECT_UP
+						y_input * flat_forward
 	camera.position += movement_vector * CAMERA_TRANSLATION_SPEED * delta_time 
+	camera.position.z = sample_height (camera.position.x, camera.position.y)
+	
+	camera.height += HACK_z_input * CAMERA_TRANSLATION_SPEED * delta_time
 
 	if input.camera.reset {
 		reset_camera(camera)
@@ -127,9 +131,11 @@ camera_get_projection_and_view_matrices :: proc(camera : ^Camera) -> (mat4, mat4
 	view_forward 	:= normalize(mul(camera_rotation, OBJECT_FORWARD))
 	view_up 		:= normalize(mul(camera_rotation, OBJECT_UP))
 
+	view_position := camera.position + {0, 0, camera.height}
+
 	view_matrix: = glsl.mat4LookAt(
-		auto_cast camera.position, 
-		auto_cast (camera.position + view_forward), 
+		auto_cast view_position, 
+		auto_cast (view_position + view_forward), 
 		auto_cast view_up
 	)
 
