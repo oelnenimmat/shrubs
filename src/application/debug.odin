@@ -12,6 +12,9 @@ DEBUG_RED 	:: vec3{0.9, 0.1, 0.1}
 DEBUG_GREEN :: vec3{0.1, 0.9, 0.1}
 DEBUG_BLUE 	:: vec3{0.1, 0.1, 0.9}
 
+DEBUG_YELLOW :: vec3{0.9, 0.9, 0.1}
+DEBUG_BLACK :: vec3{0.1, 0.1, 0.1}
+
 DebugDraw :: struct {
 	position : vec3,
 	size : f32,

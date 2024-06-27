@@ -78,6 +78,7 @@ setup_grass_pipeline :: proc(
 	gl.Uniform4fv(pl.wind_location, 1, auto_cast &direction_amount)	
 
 	gl.Disable(gl.CULL_FACE)
+	gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
 
 	// no need for model matrix
 }

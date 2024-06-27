@@ -154,6 +154,8 @@ update :: proc(delta_time: f64) {
 	update_camera(&camera, delta_time)
 	update_tank(&tank, delta_time)
 
+	// debug_draw_sphere({2, 2, 2}, 1, DEBUG_RED)
+
 	///////////////////////////////////////////////////////////////////////////
 	// END OF UPDATE
 

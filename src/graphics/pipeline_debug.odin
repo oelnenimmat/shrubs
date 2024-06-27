@@ -53,6 +53,9 @@ setup_debug_pipeline :: proc (projection, view : mat4) {
 
 	// set per draw locations for mesh rendering
 	graphics_context.model_matrix_location = pl.model_matrix_location
+
+	gl.Disable(gl.CULL_FACE)
+	gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
 }
 
 // This is called once for each change of material
@@ -75,7 +78,7 @@ draw_debug_mesh :: proc(mesh : ^Mesh, model : mat4) {
 	gl.BindVertexArray(mesh.vao)
 
 	gl.DrawElements(
-		gl.LINES, 
+		gl.TRIANGLES, 
 		mesh.index_count, 
 		gl.UNSIGNED_SHORT, 
 		nil, 

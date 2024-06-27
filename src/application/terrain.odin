@@ -168,13 +168,11 @@ generate_grass_positions :: proc(min, max : vec3, count_per_dimension : int) -> 
 	return buffer
 }
 
-
-
 sample_height :: proc(x, y : f32) -> f32 {
 	
 	WORLD_SEED 			:: 562
 	WORLD_TO_GRID_SCALE :: 0.1
-	TERRAIN_Z_SCALE 	:: 3
+	TERRAIN_Z_SCALE 	:: 5
 
 	// transform to grid scale
 	x := x * WORLD_TO_GRID_SCALE
