@@ -5,7 +5,7 @@ https://catlikecoding.com/unity/tutorials/pseudorandom-noise/hashing/
 read that more carefully for extra cpu-optimization hints
 */
 
-package application
+package game
 
 PRIME_A : u32 : 0b10011110001101110111100110110001
 PRIME_B : u32 : 0b10000101111010111100101001110111

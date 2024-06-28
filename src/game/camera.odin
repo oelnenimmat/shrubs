@@ -6,7 +6,7 @@ Coordinate systems are discussed in /doc folder
 */
 
 // +private
-package application
+package game
 
 import "core:math"
 import "core:math/linalg"
@@ -54,33 +54,11 @@ update_camera :: proc(camera : ^Camera, delta_time : f32) {
 	// GET CAMERA INPUT -------------------------------------------------------
 	// todo(Leo, Louis): think if we want to handle camera rotation axes here
 	// or input. I(Leo) am in favor of here, but wasn't super sure yet.
-	x_input := input.camera.move.x
+	x_input := input.DEBUG_get_key_axis(.A, .D) + input.DEBUG_get_key_axis(.Left, .Right)
 	y_input := input.camera.move.y
 	HACK_z_input := input.camera.move.z
 
 	using linalg
-	/*
-	Tait-Bryan convention (similar to or variant of Euler angles).
-	See "https://en.wikipedia.org/wiki/Euler_angles" for more information.
-	
-	Order: yaw-pitch'-roll''
-	
-	where ' and '' indicates that it has been rotated by previous axes.
-	
-	(could indicate that it is equal to "Order: roll-pitch-yaw", but I did
-	not spend any expense to prove that. Note that here there are no 
-	pre-rotating the axes. Read on.)
-
-	Turns out, by multiplying the quaternions (representing each axes rotations)
-	in opposite order, we can skip the rotation by previous axes.
-
-	*/
-	// time_step 	:= CAMERA_ROTATION_SPEED * delta_time
-	// yaw 		:= quaternion_angle_axis_f32(yaw_input * time_step, auto_cast camera.up)
-	// pitch 		:= quaternion_angle_axis_f32(pitch_input * time_step, auto_cast camera.right)
-	// roll 		:= quaternion_angle_axis_f32(roll_input * time_step, auto_cast camera.forward)
-
-	// rotation_this_frame := roll * pitch * yaw
 
 	x_sensitivity := f32(-1)
 	y_sensitivity := f32(-1)

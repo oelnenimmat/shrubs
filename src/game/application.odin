@@ -1,4 +1,4 @@
-package application
+package game
 
 /*
 The actual core application main file. Initialize, terminate and

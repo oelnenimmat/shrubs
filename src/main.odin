@@ -1,5 +1,5 @@
 /*
-Entry point and main loop for the application. Package application
+Entry point and main loop for the game. Package game
 will do all stuff basically, this merely starts the program and tracks
 time.
 */
@@ -10,13 +10,13 @@ import "core:time"
 import "core:math"
 import "core:os"
 
-import "application"
+import "game"
 
 main :: proc() {
 
 	// SETUP
 	// ------------------------------------------------------------------
-	application.initialize()
+	game.initialize()
 
 	frame_start_time 	:= time.now()
 	delta_time 			:= 0.0
@@ -26,9 +26,9 @@ main :: proc() {
 		// UPDATE APPLICATION
 		// -------------------------------------------------
 		
-		application.update(delta_time)
+		game.update(delta_time)
 
-		if application.does_want_to_quit() {
+		if game.does_want_to_quit() {
 			break;
 		}
 
@@ -63,7 +63,7 @@ main :: proc() {
 	// CLEANUP
 	// ----------------------------------------------------------------
 
-	application.terminate()
+	game.terminate()
 	fmt.println("All good!")
 
 
