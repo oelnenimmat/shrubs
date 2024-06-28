@@ -136,13 +136,13 @@ begin_frame :: proc() {
     ctx := &gui_state.mu_ctx
 
     // Processs input     
-    mouse_x := i32(input.mouse.position.x)
-    mouse_y := i32(input.mouse.position.y)
+    mouse_x := i32(input.DEBUG_get_mouse_position(0))
+    mouse_y := i32(input.DEBUG_get_mouse_position(1))
     mu.input_mouse_move(ctx, mouse_x, mouse_y)
-    if input.mouse_button_went_down(0) {
+    if input.DEBUG_get_mouse_button_pressed(0) {
         mu.input_mouse_down(ctx, mouse_x, mouse_y, gui_state.mu_mouse)
     }
-    if input.mouse_button_went_up(0) {
+    if input.DEBUG_get_mouse_button_released(0) {
         mu.input_mouse_up(ctx, mouse_x, mouse_y, gui_state.mu_mouse)
     }
 

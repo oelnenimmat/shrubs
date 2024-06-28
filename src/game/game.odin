@@ -33,21 +33,23 @@ APPLICATION_NAME :: "Shrubs"
 // Todo(Leo): All the components should not be here in the wild,
 // can easily lead into spaghetti and/or confusion. Some more 
 // service like things like camera are fine
-camera 			: Camera
 
-test_mesh 		: graphics.Mesh
-pillar_mesh 	: graphics.Mesh
+// Components/actors/systems?
+player_character 	: PlayerCharacter
+camera 				: Camera
+terrain 			: Terrain
 
-debug_sphere_mesh : graphics.Mesh
-
-terrain : Terrain
+// Scenery
 grass : Grass
 tank : Tank
 
+// Resources
+test_mesh 			: graphics.Mesh
+pillar_mesh 		: graphics.Mesh
+debug_sphere_mesh 	: graphics.Mesh
 
 grass_field_texture : graphics.Texture
-white_texture : graphics.Texture
-
+white_texture 		: graphics.Texture
 
 application : struct {
 	wants_to_quit : bool,
@@ -88,14 +90,16 @@ initialize :: proc() {
 		delete(elements)
 	}
 
+	camera 				= create_camera()
+	tank 				= create_tank()
+	player_character 	= create_player_character()
 
-	camera = create_camera()
 	terrain = create_terrain()
-	grass = create_grass()
-	tank = create_tank()
+	grass 	= create_grass()
 
 	// grass_field_image := assets.load_color_image("assets/cgshare-book-grass-01.jpg")
-	grass_field_image := assets.load_color_image("assets/callum_andrews_ghibli_grass.png")
+	// grass_field_image := assets.load_color_image("assets/callum_andrews_ghibli_grass.png")
+	grass_field_image := assets.load_color_image("assets/blue_grass.png")
 	defer assets.free_loaded_color_image(&grass_field_image)
 	grass_field_texture = graphics.create_color_texture(
 		grass_field_image.width,
@@ -131,18 +135,20 @@ update :: proc(delta_time: f64) {
 	// to just use f32 everywhere here
 	delta_time := f32(delta_time)
 
+	// Need to always call window.XXX_frame(), then input.XXX_frame
+	// Todo(Leo): maybe combine, or move to main.odin
 	window.begin_frame()
-	input.update()
+	input.begin_frame()
 	gui.begin_frame()
 
 	debug_drawing_new_frame()
 
-	if input.events.application.exit {
+	if input.DEBUG_get_key_pressed(.Q, {.Ctrl}) {
 		application.wants_to_quit = true
 	}
 
 	///////////////////////////////////////////////////////////////////////////
-	// START OF UPDATE
+	// START OF GAME UPDATE
 
 	// Some events are fired from here, needs to be done before updates
 	// Todo(Leo): This is a little spaghetti now, as we fire events in
@@ -151,16 +157,13 @@ update :: proc(delta_time: f64) {
 	// visuals_set_gradient 
 	// MOCKUP_do_gui(&gui.gui_state.mu_ctx)
 
-	update_camera(&camera, delta_time)
+	update_player_character(&player_character, &camera, delta_time)
 	update_tank(&tank, delta_time)
 
 	// debug_draw_sphere({2, 2, 2}, 1, DEBUG_RED)
 
 	///////////////////////////////////////////////////////////////////////////
 	// END OF UPDATE
-
-	// Events can only be used before this. This is as intended.
-	input.reset_events()
 
 	graphics.begin_frame()
 
@@ -224,7 +227,11 @@ update :: proc(delta_time: f64) {
 
 	// gui.render()
 	graphics.render()
+
+	// Need to always call window.XXX_frame(), then input.XXX_frame
+	// Todo(Leo): maybe combine, or move to main.odin
 	window.end_frame()
+	input.end_frame()
 }
 
 /*

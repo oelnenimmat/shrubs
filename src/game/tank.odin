@@ -5,7 +5,6 @@ import "shrubs:graphics"
 import "shrubs:input"
 import "shrubs:physics"
 
-import "base:runtime"
 import "core:fmt"
 import "core:math"
 import "core:math/linalg"
@@ -28,7 +27,10 @@ TANK_WHEEL_WIDTH :: f32(0.4)
 TANK_WHEEL_RADIUS :: 0.35
 TANK_SPEED :: 2.5
 
-CONSTRAINT_ITERATIONS :: 5
+// Even a small number seems to work fine :)
+// Todo(Leo): move all this to physics package, were going to do
+// more, probably
+CONSTRAINT_ITERATIONS :: 3
 
 FL :: 0
 MFL :: 1
@@ -49,7 +51,7 @@ WheelConstraint :: struct {
 Tank :: struct {
 	wheel_positions 	: [TANK_WHEEL_COUNT]vec3,
 	old_wheel_positions : [TANK_WHEEL_COUNT]vec3,
-	wheel_constraints 	: [14]WheelConstraint,
+	wheel_constraints 	: [20]WheelConstraint,
 	wheel_rotations 	: [TANK_WHEEL_COUNT]mat4,
 	wheel_spins 		: [TANK_WHEEL_COUNT]f32,
 
@@ -58,17 +60,10 @@ Tank :: struct {
 	// rendering
 	body_mesh	: graphics.Mesh,
 	wheel_mesh 	: graphics.Mesh,
-
-	// physics time keeping
-	// Todo(Leo): move to physics
-	// total_time : f32,
 }
 
 create_tank :: proc() -> Tank {
 	t := Tank{}
-
-	// t.position = {2, 2, 1}
-	// t.rotation = quaternion(1)
 
 	t.wheel_positions[FL] = {4, 7, 5}
 	t.wheel_positions[FR] = {6, 7, 5}
@@ -102,6 +97,14 @@ create_tank :: proc() -> Tank {
 	
 	t.wheel_constraints[12] = {MRL, MRR, width}
 	t.wheel_constraints[13] = {MFL, MFR, width}
+
+	small_length := f32(1)
+	t.wheel_constraints[14] = {RL, MRL, small_length}
+	t.wheel_constraints[15] = {MRL, MFL, small_length}
+	t.wheel_constraints[16] = {MFL, FL, small_length}
+	t.wheel_constraints[17] = {RR, MRR, small_length}
+	t.wheel_constraints[18] = {MRR, MFR, small_length}
+	t.wheel_constraints[19] = {MFR, FR, small_length}
 
 	{
 		positions, normals, elements := assets.NOT_MEMORY_SAFE_gltf_load_node("assets/tank.glb", "tank_body")
@@ -187,7 +190,8 @@ update_tank :: proc(tank : ^Tank, delta_time : f32) {
 		tank.wheel_spins[i] = math.mod(tank.wheel_spins[i] + 2 * math.PI, 2 * math.PI)
 	}
 	// Todo(Leo): this is now using the normal variable delta_time, but we
-	// should use fixed
+	// should use fixed, but this is probably same issue as moving this to
+	// physics package
 	// accelerate by gravity
 	for i in 0..<TANK_WHEEL_COUNT {
 		current_position 	:= tank.wheel_positions[i]
@@ -198,7 +202,6 @@ update_tank :: proc(tank : ^Tank, delta_time : f32) {
 
 		tank.old_wheel_positions[i] = current_position
 		tank.wheel_positions[i] = new_position
-		// fmt.println(linalg.length(position - old_position))
 	}
 
 	for _ in 0..<CONSTRAINT_ITERATIONS {

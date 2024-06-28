@@ -3,7 +3,7 @@ package input
 
 import "vendor:glfw"
 
-import "../window"
+import "shrubs:window"
 
 input_keys : [Key] InputKeyState
 
@@ -73,21 +73,17 @@ glfw_key_proc :: proc "c" (window: glfw.WindowHandle, key, scancode, action, mod
 	case glfw.KEY_SPACE: 	input_key = .Space
 	}
 
-	if input_key != .Invalid {
-		state := &input_keys[input_key]
-		if action == glfw.PRESS && state^ != .Is_Down {
-			state^ = .Went_Down
-		}
-		if action == glfw.RELEASE && state^ != .Is_Up {
-			state^ = .Went_Up
-		}
+	state := &input_keys[input_key]
+	if action == glfw.PRESS && state^ != .Is_Down {
+		state^ = .Went_Down
+	}
+	if action == glfw.RELEASE && state^ != .Is_Up {
+		state^ = .Went_Up
 	}
 
-
-	if (mods & glfw.MOD_ALT) != {} { key_modifiers += {.Alt} }
-	if (mods & glfw.MOD_CONTROL) != {} { key_modifiers += {.Ctrl} }
-	if (mods & glfw.MOD_SHIFT) != {} { key_modifiers += {.Shift} }
-	
+	if (mods & glfw.MOD_ALT) == glfw.MOD_ALT { key_modifiers += {.Alt} }
+	if (mods & glfw.MOD_CONTROL) == glfw.MOD_CONTROL { key_modifiers += {.Ctrl} }
+	if (mods & glfw.MOD_SHIFT) == glfw.MOD_SHIFT { key_modifiers += {.Shift} }
 }
 
 glfw_mouse_proc :: proc "c" (window: glfw.WindowHandle, button, action, mods: i32) {

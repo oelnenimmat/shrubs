@@ -2,7 +2,8 @@
 As described by
 https://catlikecoding.com/unity/tutorials/pseudorandom-noise/hashing/
 
-read that more carefully for extra cpu-optimization hints
+read that more carefully for extra cpu-optimization hints and other stuff
+this is a very quick implementation for very limited and try-outty use case
 */
 
 package game

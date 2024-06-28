@@ -1,17 +1,17 @@
 /*
-Input filter system. All raw input from platform such as keyboard and mouse are filtered
-here so that the task of managing overlapping input needs becomes easier. Also,
-now we can from here support different input profiles, and whoever uses said input
-can focus on doing what it has to do.
+Todo(Leo): All get input functions are now DEBUG, as I'm not yet ready to make 
+proper decisions. These might work fine, and we will see that in time, but
+these are now reminding that this still needs more thought, and the usage
+code is also aware of this.
 
-Todo(Leo): maybe its not so easy to draw line between system and its input filtering, so
-more thought needs to be spend on this.
+Also, might be that we need to some sort of click counting or whatever, time
+will tell :)
 */
 
 package input
 
-import "../common"
-import "../window"
+import "shrubs:common"
+import "shrubs:window"
 
 import "core:fmt"
 
@@ -33,45 +33,74 @@ Key :: enum {
 	Escape, Space,
 }
 
+
 DEBUG_get_key_axis :: proc(negative, positive : Key) -> f32 {
-	return axis_value_from_bool(key_is_down(negative), key_is_down(positive))
+	return f32(
+		cast(int)DEBUG_get_key_held(positive) - 
+		cast(int)DEBUG_get_key_held(negative)
+	)
 }
 
-// INPUT STRUCTS ------------------------------------------
-// Todo(Leo): these are not really good, do something else. Still, the overlapping use of 
-// input should be taken care of
-/*
-Use these structs to read input. They can technically be written outside, but no
-reason to do so. As more systems come to be, add new ones here and in 'update' make
-sure that any overlapping keybindings make sense.
-*/
+// Todo(Leo): I'm a little hesitant on "pressed", as it might mean to
+// someone (like me) that the key is being pressed down longterm, what
+// held is supposed to be, but this should be clear enough in the context.
+DEBUG_get_key_pressed :: proc(key: Key, mods: KeyModifiers = {}) -> bool {
+	went_down 	:= input_keys[key] == .Went_Down
+	mods_agree 	:= (mods & key_modifiers) == mods
 
-/*
-Todo(Leo):
-There is a structural issue here that this file tries to be two separate things at once
- a) generic input interface
- b) higher level input filter
-Please, pick one
- a) simpler and more flexible, but easy to double use some inputs for different things at same time
- b) more structured but not too easy to do quick fixes
-
-camera and playback below belongs to group b) and mouse to group a)
-*/
-
-camera : struct {
-	move : vec3,
-	look : vec2,
-	reset : bool,
+	return went_down && mods_agree
 }
 
+DEBUG_get_key_held :: proc(key: Key, mods: KeyModifiers = {}) -> bool {
+	state 		:= input_keys[key]
+	is_down 	:= state == .Is_Down || state == .Went_Down
+	mods_agree 	:= (mods & key_modifiers) == mods
+
+	return is_down && mods_agree
+}
+
+DEBUG_get_key_released :: proc(key: Key, mods: KeyModifiers = {}) -> bool {
+	went_up 	:= input_keys[key] == .Went_Up
+	mods_agree 	:= (mods & key_modifiers) == mods
+
+	return went_up && mods_agree
+}
+
+DEBUG_get_mouse_movement :: proc(axis : int) -> f32 {
+	assert(axis == 0 || axis == 1)
+	return mouse.movement[axis]
+}
+
+DEBUG_get_mouse_position :: proc(axis : int) -> f32 {
+	assert(axis == 0 || axis == 1)
+	return mouse.position[axis]
+}
+
+// Todo(Leo): I'm a little hesitant on "pressed", as it might mean to
+// someone (like me) that the key is being pressed down longterm, what
+// held is supposed to be, but this should be clear enough in the context.
+DEBUG_get_mouse_button_pressed :: proc(button : int) -> bool {
+	button_state := mouse.button_states[button]
+	return button_state == .Went_Down
+}
+
+DEBUG_get_mouse_button_held :: proc(button : int) -> bool {
+	button_state := mouse.button_states[button]
+	return button_state == .Is_Down || button_state == .Went_Down
+}
+
+DEBUG_get_mouse_button_released :: proc(button : int) -> bool {
+	button_state := mouse.button_states[button]
+	return button_state == .Went_Up 	
+}
+
+@private
 mouse : struct {
 	position : vec2,
 	movement : vec2,
 	button_states : [3]InputKeyState,
 	locked : bool
 }
-
-// CONTROL INTERFACE --------------------------------------
 
 initialize :: proc() {
 	glfw_internal_initialize()
@@ -85,10 +114,10 @@ initialize :: proc() {
 
 terminate :: proc() { /* Nothing now, but add here if needed :) */ }
 
-update :: proc() {
+begin_frame :: proc() {
 
 	// DEVELOPER MODE??? ------------------------------------------------------
-	if key_went_down(.Escape) {
+	if DEBUG_get_key_pressed(.Escape) {
 		mouse.locked = !mouse.locked
 		glfw_lock_mouse(mouse.locked)
 		mouse.movement = {0, 0}
@@ -104,48 +133,10 @@ update :: proc() {
 	mouse.position = {f32(new_mouse_position.x), f32(new_mouse_position.y)}
 
 	mouse.button_states = secret_mouse_button_states
+}
 
+end_frame :: proc() {
 
-	// APPLICATION EVENTS -----------------------------------------------------
-	events.application.exit = key_went_down_mods(.Q, {.Ctrl})
-
-
-	// CAMERA -----------------------------------------------------------------
-	/*
-	Shortly:
-		- positive x to right
-		- positive y to up
-		- negative z to forward
-	*/
-
-	left_down 		:= key_is_down(.A) || key_is_down(.Left)
-	right_down 		:= key_is_down(.D) || key_is_down(.Right)
-
-	back_down 		:= key_is_down(.S) || key_is_down(.Down)
-	forward_down 	:= key_is_down(.W) || key_is_down(.Up)
-
-	down_down 		:= key_is_down(.F)
-	up_down 		:= key_is_down(.R)
-
-
-	look_left_right := mouse.movement.x * 0.005
-	look_down_up := mouse.movement.y * 0.005
-
-	camera = {
-		move = {
-			axis_value_from_bool(left_down, right_down),
-			axis_value_from_bool(back_down, forward_down),
-			axis_value_from_bool(down_down, up_down),
-		},
-		look = { look_left_right, look_down_up },
-		reset = key_went_down_mods(.R, {.Ctrl}),
-	}
-
-
-	// ------------------------------------------------------------------------
-
-	// Input is used for this frame, reset.
-	// todo(leo): does not work really :)
 	// Before polling for new events, we must advance "Went_X" key states from
 	// previous frame to "Is_X" state
 	for _, i in input_keys {
@@ -163,63 +154,4 @@ update :: proc() {
 	}
 
 	key_modifiers = {}
-}
-
-mouse_button_went_down :: proc(button : int) -> bool {
-	button_state := mouse.button_states[button]
-	return button_state == .Went_Down
-}
-
-mouse_button_is_down :: proc(button : int) -> bool {
-	button_state := mouse.button_states[button]
-	return button_state == .Is_Down || button_state == .Went_Down
-}
-
-mouse_button_went_up :: proc(button : int) -> bool {
-	button_state := mouse.button_states[button]
-	return button_state == .Went_Up 	
-}
-
-key_is_down :: proc(key: Key) -> bool {
-	state := input_keys[key]
-	return state == .Is_Down || state == .Went_Down
-}
-
-key_went_down :: proc(key: Key) -> bool {
-	state := input_keys[key]
-	return state == .Went_Down
-}
-
-key_went_up :: proc(key: Key) -> bool {
-	state := input_keys[key]
-	return state == .Went_Up
-}
-
-key_is_down_mods :: proc(key: Key, mods: KeyModifiers) -> bool {
-	state 		:= input_keys[key]
-	is_down 	:= state == .Is_Down || state == .Went_Down
-	mods_agree 	:= mods == key_modifiers
-
-	return is_down && mods_agree
-}
-
-key_went_down_mods :: proc(key: Key, mods: KeyModifiers) -> bool {
-	went_down 	:= input_keys[key] == .Went_Down
-	mods_agree 	:= mods == key_modifiers
-
-	return went_down && mods_agree
-}
-
-key_went_up_mods :: proc(key: Key, mods: KeyModifiers) -> bool {
-	went_up 	:= input_keys[key] == .Went_Up
-	mods_agree 	:= mods == key_modifiers
-
-	return went_up && mods_agree
-}
-
-// HELPERS ------------------------------------------------
-
-@private
-axis_value_from_bool :: proc(negative, positive: bool) -> f32 {
-	return f32(cast(int)positive - cast(int)negative)
 }
