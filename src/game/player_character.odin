@@ -14,16 +14,21 @@ Todo/ideas:
 // +private
 package game
 
+import "core:fmt"
 import "core:math"
 import "core:math/linalg"
 import "core:math/linalg/glsl"
 
-import "../input"
+import "shrubs:debug"
+import "shrubs:input"
+import "shrubs:physics"
 
 PLAYER_CHARACTER_MOVE_SPEED :: 2.0
 
 PlayerCharacter :: struct {
-	base_position 	: vec3,
+	physics_position : vec3,
+	old_physics_position : vec3,
+
 	pan, tilt 		: f32,
 	head_height 	: f32,
 }
@@ -31,52 +36,108 @@ PlayerCharacter :: struct {
 create_player_character :: proc() -> PlayerCharacter {
 	pc : PlayerCharacter
 	pc.head_height = 1.8
+	pc.physics_position = {0, 0, 5}
+	pc.old_physics_position = pc.physics_position
+
 	return pc
 }
 
 update_player_character :: proc(pc : ^PlayerCharacter, cam : ^Camera, delta_time : f32) {
+	
+	// Gather input
 	move_right_input 	:= input.DEBUG_get_key_axis(.A, .D)
 	move_forward_input 	:= input.DEBUG_get_key_axis(.S, .W)
-	HACK_z_input 		:= input.DEBUG_get_key_axis(.F, .R)
+	
+	HACK_move_head_up_input := input.DEBUG_get_key_axis(.F, .R)
 
 	look_right_input 	:= input.DEBUG_get_mouse_movement(0) * 0.005
 	look_up_input 		:= input.DEBUG_get_mouse_movement(1) * 0.005
 
+	jump_input := input.DEBUG_get_key_pressed(.Space)
+
 	using linalg
 
-	x_sensitivity := f32(-1)
-	y_sensitivity := f32(-1)
+	// Find view directions
+	pc.pan 	= mod(pc.pan - look_right_input, 2 * math.PI)
+	pc.tilt = clamp(pc.tilt - look_up_input, -1.3, 1.3)
 
-	pc.pan += look_right_input * x_sensitivity
-	pc.pan = mod(pc.pan, 2 * math.PI)
-
-	pc.tilt += look_up_input * y_sensitivity
-	pc.tilt = clamp(pc.tilt, -1.3, 1.3)
-
-	tilt := quaternion_angle_axis_f32(pc.tilt, OBJECT_RIGHT)
-	pan := quaternion_angle_axis_f32(pc.pan, OBJECT_UP)
-
-	view_rotation 	:= pan * tilt
+	view_rotation 	:= quaternion_angle_axis_f32(pc.pan, OBJECT_UP) *
+						quaternion_angle_axis_f32(pc.tilt, OBJECT_RIGHT)
 	view_right 		:= normalize(mul(view_rotation, OBJECT_RIGHT))
 	view_forward 	:= normalize(mul(view_rotation, OBJECT_FORWARD))
 	view_up 		:= normalize(mul(view_rotation, OBJECT_UP))
 
-	flat_right 		:= linalg.normalize(vec3{view_right.x, view_right.y, 0})
-	flat_forward 	:= linalg.normalize(vec3{view_forward.x, view_forward.y, 0})
+	flat_right 		:= normalize(vec3{view_right.x, view_right.y, 0})
+	flat_forward 	:= normalize(vec3{view_forward.x, view_forward.y, 0})
 
-	movement_vector := 	move_right_input * flat_right +
-						move_forward_input * flat_forward
+	// Move
+	move_vector := move_right_input * flat_right +
+					move_forward_input * flat_forward
+	move_step := PLAYER_CHARACTER_MOVE_SPEED * delta_time
+	pc.physics_position += move_vector * move_step
+	pc.old_physics_position += move_vector * move_step
 
-	pc.base_position += movement_vector * PLAYER_CHARACTER_MOVE_SPEED * delta_time 
-	pc.base_position.z = sample_height (pc.base_position.x, pc.base_position.y)
+	pc.head_height += HACK_move_head_up_input * PLAYER_CHARACTER_MOVE_SPEED * delta_time
+
+	// Physicsy
+	current_physics_position := pc.physics_position
+	old_physics_position := pc.old_physics_position
+	new_physics_position := current_physics_position + 
+							(current_physics_position - old_physics_position) + 
+							vec3{0, 0, -physics.GRAVITATIONAL_ACCELERATION} * delta_time * delta_time
+
+	pc.old_physics_position = current_physics_position
+	pc.physics_position 	= new_physics_position
+
+	// Collide/constrain
+	min_z := sample_height(pc.physics_position.x, pc.physics_position.y)
+	GROUNDING_SKIN_WIDTH :: 0.02
+	grounded := pc.physics_position.z < (min_z + GROUNDING_SKIN_WIDTH)
+
+	pc.physics_position.z = max(min_z, pc.physics_position.z)
+
 	
-	pc.head_height += HACK_z_input * PLAYER_CHARACTER_MOVE_SPEED * delta_time
+	// Start using physics colliders
+	{
+		collider_height := f32(2)
+		collider_radius := f32(0.5)
+		collider_position := pc.physics_position + vec3{0, 0, 0.5 * collider_height}
 
-	cam.position = pc.base_position + OBJECT_UP * pc.head_height
+		collider := physics.CapsuleCollider { collider_position, collider_radius, collider_height }
 
-	tilt = quaternion_angle_axis_f32(pc.tilt, OBJECT_RIGHT)
-	pan = quaternion_angle_axis_f32(pc.pan, OBJECT_UP)
+		for c in physics.collide(&collider) {
+			correction := c.direction * c.depth
+			pc.physics_position += correction
 
-	camera.rotation = pan * tilt
+			velocity_vector := pc.physics_position - pc.old_physics_position
+			velocity_vector -= linalg.projection(velocity_vector, c.direction)
+			pc.old_physics_position = pc.physics_position - velocity_vector
+		}
 
+		// ground collider is slimmer to not hit walls and slightly below
+		ground_collider := collider
+		ground_collider.position.z -= 0.1 + GROUNDING_SKIN_WIDTH
+		ground_collider.radius -= 0.1
+		ground_collisions := physics.collide(&ground_collider)
+		if ground_collisions != nil {
+			grounded = true
+		}
+		for c in ground_collisions {
+			pc.physics_position += c.velocity
+			pc.old_physics_position += c.velocity
+		}
+	}
+
+	// No sliding on the ground
+	if grounded {
+		pc.old_physics_position.xy = pc.physics_position.xy
+
+		if jump_input {
+			pc.physics_position.z += 0.025
+		}
+	}
+
+	// Set camera position
+	cam.position = pc.physics_position + OBJECT_UP * pc.head_height
+	cam.rotation = view_rotation
 }

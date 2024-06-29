@@ -5,12 +5,14 @@ The actual core application main file. Initialize, terminate and
 update all systems from this file
 */
 
-import "shrubs:common"
-import "shrubs:window"
-import "shrubs:graphics"
-import "shrubs:input"
-import "shrubs:gui"
 import "shrubs:assets"
+import "shrubs:common"
+import "shrubs:debug"
+import "shrubs:graphics"
+import "shrubs:gui"
+import "shrubs:input"
+import "shrubs:physics"
+import "shrubs:window"
 
 import "core:math"
 import "core:math/linalg"
@@ -56,12 +58,14 @@ application : struct {
 }
 
 initialize :: proc() {
+	// Todo(Leo): some of this stuff seems to bee "application" or "engine" and not "game"
 	window.initialize(WINDOW_WIDTH, WINDOW_HEIGHT, APPLICATION_NAME)
 	input.initialize()
-	graphics.initialize()	
+	graphics.initialize()
 	gui.initialize()
+	debug.initialize(256)
+	physics.initialize()
 
-	initialize_debug_drawing(256)
 
 	{
 		positions, normals, elements := assets.NOT_MEMORY_SAFE_gltf_load_node("assets/shrubs.glb", "mock_coordinate_pillar")
@@ -116,8 +120,9 @@ terminate :: proc() {
 	destroy_terrain(&terrain)
 	destroy_grass(&grass)
 
-	terminate_debug_drawing()
 
+	physics.terminate()
+	debug.terminate()
 	gui.terminate()
 	graphics.terminate()
 	input.terminate()
@@ -130,6 +135,12 @@ does_want_to_quit :: proc() -> bool {
 
 update :: proc(delta_time: f64) {
 
+	///////////////////////////////////////////////////////////////////////////
+	// PREPARE FOR GAME UPDATE 
+	// Todo(Leo): this doesn't feel like "game" thing, more "application" or "engine"
+	// clear the temp allocator here
+	free_all(context.temp_allocator)
+
 	// note(Leo): in main we have delta time as f64, but for the most part
 	// we now use f32 for rendering reasons, so it is more straightforward
 	// to just use f32 everywhere here
@@ -140,8 +151,11 @@ update :: proc(delta_time: f64) {
 	window.begin_frame()
 	input.begin_frame()
 	gui.begin_frame()
+	debug.new_frame()
 
-	debug_drawing_new_frame()
+	// Todo(Leo): physics.tick()???? Maybe physics update can be done from here??
+	physics.begin_frame()
+
 
 	if input.DEBUG_get_key_pressed(.Q, {.Ctrl}) {
 		application.wants_to_quit = true
@@ -157,10 +171,15 @@ update :: proc(delta_time: f64) {
 	// visuals_set_gradient 
 	// MOCKUP_do_gui(&gui.gui_state.mu_ctx)
 
-	update_player_character(&player_character, &camera, delta_time)
-	update_tank(&tank, delta_time)
+	// test collider
+	physics.submit_colliders([]physics.BoxCollider{{{2, 4, 2}, quaternion(1), {2, 2, 1}}})
 
-	// debug_draw_sphere({2, 2, 2}, 1, DEBUG_RED)
+	// tank submits colliders that player needs to use, so that need to update first
+	// Todo(Leo): maybe have a collider handle that is just updated or something, but this
+	// works now, when things are not too complicated. Also there will be a need to think
+	// about the order of execution
+	update_tank(&tank, delta_time)
+	update_player_character(&player_character, &camera, delta_time)
 
 	///////////////////////////////////////////////////////////////////////////
 	// END OF UPDATE
@@ -206,7 +225,7 @@ update :: proc(delta_time: f64) {
 
 	// NEXT PIPELINE
 	graphics.setup_debug_pipeline(projection_matrix, view_matrix)
-	render_debug_drawing()
+	debug.render()
 
 
 	// NEXT PIPELINE

@@ -1,6 +1,7 @@
 package game
 
 import "shrubs:assets"
+import "shrubs:debug"
 import "shrubs:graphics"
 import "shrubs:input"
 import "shrubs:physics"
@@ -30,7 +31,7 @@ TANK_SPEED :: 2.5
 // Even a small number seems to work fine :)
 // Todo(Leo): move all this to physics package, were going to do
 // more, probably
-CONSTRAINT_ITERATIONS :: 3
+TANK_CONSTRAINT_ITERATIONS :: 3
 
 FL :: 0
 MFL :: 1
@@ -56,6 +57,10 @@ Tank :: struct {
 	wheel_spins 		: [TANK_WHEEL_COUNT]f32,
 
 	body_transform : mat4,
+
+	// Todo(Leo): not initialized properly
+	body_position : vec3,
+	old_body_position : vec3,
 
 	// rendering
 	body_mesh	: graphics.Mesh,
@@ -134,7 +139,6 @@ transform_position :: proc(transform : mat4, v : vec3) -> vec3 {
 }
 
 update_tank :: proc(tank : ^Tank, delta_time : f32) {
-	gravity_acceleration := vec3{0, 0, -physics.GRAVITATIONAL_ACCELERATION}
 
 	move_input := input.DEBUG_get_key_axis(.K, .I)
 	turn_input := -input.DEBUG_get_key_axis(.J, .L)
@@ -154,14 +158,6 @@ update_tank :: proc(tank : ^Tank, delta_time : f32) {
 	}
 	center /= f32(TANK_WHEEL_COUNT)
 
-	debug_draw_sphere(center, 0.3, DEBUG_RED)
-	debug_draw_sphere(center + forward, 0.15, DEBUG_BLUE)
-	debug_draw_sphere(center + up, 0.15, DEBUG_BLUE)
-
-	debug_draw_sphere(tank.wheel_positions[RL] + up, 0.2, DEBUG_BLACK)
-	debug_draw_sphere(tank.wheel_positions[RR] + up, 0.2, DEBUG_RED)
-	debug_draw_sphere(tank.wheel_positions[FL] + up, 0.2, DEBUG_GREEN)
-	debug_draw_sphere(tank.wheel_positions[FR] + up, 0.2, DEBUG_YELLOW)
 
 	angle := turn_input * delta_time
 	rotation := linalg.quaternion_angle_axis(angle, up)
@@ -193,6 +189,7 @@ update_tank :: proc(tank : ^Tank, delta_time : f32) {
 	// should use fixed, but this is probably same issue as moving this to
 	// physics package
 	// accelerate by gravity
+	gravity_acceleration := vec3{0, 0, -physics.GRAVITATIONAL_ACCELERATION}
 	for i in 0..<TANK_WHEEL_COUNT {
 		current_position 	:= tank.wheel_positions[i]
 		old_position 		:= tank.old_wheel_positions[i]
@@ -204,7 +201,7 @@ update_tank :: proc(tank : ^Tank, delta_time : f32) {
 		tank.wheel_positions[i] = new_position
 	}
 
-	for _ in 0..<CONSTRAINT_ITERATIONS {
+	for _ in 0..<TANK_CONSTRAINT_ITERATIONS {
 
 		// Constrain to ground
 		for i in 0..<TANK_WHEEL_COUNT {
@@ -243,6 +240,24 @@ update_tank :: proc(tank : ^Tank, delta_time : f32) {
 	}
 	tank.body_transform = linalg.matrix4_translate_f32(center + 0.2 * up) * base_rotation
 
+	tank.old_body_position = tank.body_position
+	tank.body_position = center
+	body_velocity := tank.body_position - tank.old_body_position
+
+	debug.draw_wire_sphere(center, 0.3, debug.RED)
+	debug.draw_wire_sphere(center + forward, 0.15, debug.BLUE)
+	debug.draw_wire_sphere(center + up, 0.15, debug.BLUE)
+
+	base_rotation_q := linalg.quaternion_from_matrix4(base_rotation)
+	debug.draw_wire_cube(tank.wheel_positions[RL] + up, base_rotation_q, vec3(0.2), debug.BLACK)
+	debug.draw_wire_cube(tank.wheel_positions[RR] + up, base_rotation_q, vec3(0.2), debug.RED)
+	debug.draw_wire_cube(tank.wheel_positions[FL] + up, base_rotation_q, vec3(0.2), debug.GREEN)
+	debug.draw_wire_cube(tank.wheel_positions[FR] + up, base_rotation_q, vec3(0.2), debug.YELLOW)
+
+	physics.submit_colliders(
+		[]physics.BoxCollider{{center + (0.2 + 0.15) * up, base_rotation_q, vec3{2, 3.5, 0.3}}},
+		[]vec3{vec3(body_velocity)},
+	)
 
 	// spin wheels
 	for i in 0..<TANK_WHEEL_COUNT {

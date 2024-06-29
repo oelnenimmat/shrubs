@@ -17,6 +17,27 @@ dmat4 :: linalg.Matrix4f64
 Rect_i32 :: struct { x, y, w, h : i32 }
 Color_u8_rgba :: [4]u8
 
+// RIGHT 		:: vec3 {1, 0, 0}
+// FORWARD 	:: vec3 {0, 1, 0}
+// UP 			:: vec3 {0, 0, 1}
+
+// LEFT 		:: vec3 {-1, 0, 0}
+// BACK 		:: vec3 {0, -1, 0}
+// DOWN 		:: vec3 {0, 0, -1}
+
+matrix4_mul_point :: proc(mat : mat4, p : vec3) -> vec3 {
+	return (mat * vec4 {p.x, p.y, p.z, 1}).xyz
+}
+
+matrix4_mul_vector :: proc(mat : mat4, v : vec3) -> vec3 {
+	return (mat * vec4 {v.x, v.y, v.z, 0}).xyz
+}
+
+matrix4_mul_rotation :: proc(mat : mat4, r : quaternion) -> quaternion {
+	return linalg.quaternion_from_matrix4(mat) * r
+}
+
+
 // Maybe these need to be tested, maybe not?
 @(warning = "Not tested")
 dvec3_to_vec3 :: proc(v : dvec3) -> vec3 {
