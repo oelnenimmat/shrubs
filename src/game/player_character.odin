@@ -79,15 +79,17 @@ update_player_character :: proc(pc : ^PlayerCharacter, cam : ^Camera, delta_time
 
 	pc.head_height += HACK_move_head_up_input * PLAYER_CHARACTER_MOVE_SPEED * delta_time
 
-	// Physicsy
-	current_physics_position := pc.physics_position
-	old_physics_position := pc.old_physics_position
-	new_physics_position := current_physics_position + 
-							(current_physics_position - old_physics_position) + 
-							vec3{0, 0, -physics.GRAVITATIONAL_ACCELERATION} * delta_time * delta_time
+	// Physicsy -> apply forces
+	for _ in 0..<physics.ticks_this_frame() {
+		current_physics_position := pc.physics_position
+		old_physics_position := pc.old_physics_position
+		new_physics_position := current_physics_position + 
+								(current_physics_position - old_physics_position) + 
+								vec3{0, 0, -physics.GRAVITATIONAL_ACCELERATION} * physics.DELTA_TIME * physics.DELTA_TIME
 
-	pc.old_physics_position = current_physics_position
-	pc.physics_position 	= new_physics_position
+		pc.old_physics_position = current_physics_position
+		pc.physics_position 	= new_physics_position
+	}
 
 	// Collide/constrain
 	min_z := sample_height(pc.physics_position.x, pc.physics_position.y)
@@ -133,7 +135,8 @@ update_player_character :: proc(pc : ^PlayerCharacter, cam : ^Camera, delta_time
 		pc.old_physics_position.xy = pc.physics_position.xy
 
 		if jump_input {
-			pc.physics_position.z += 0.025
+			// Todo(Leo): this is very dependent on physics.DELTA_TIME and GRAVITATIONAL_ACCELERATION
+			pc.physics_position.z += physics.GRAVITATIONAL_ACCELERATION * physics.DELTA_TIME * 0.5
 		}
 	}
 

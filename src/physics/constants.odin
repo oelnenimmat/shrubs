@@ -1,3 +1,4 @@
 package physics
 
+DELTA_TIME :: 0.01
 GRAVITATIONAL_ACCELERATION :: 10

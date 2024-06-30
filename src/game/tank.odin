@@ -33,14 +33,14 @@ TANK_SPEED :: 2.5
 // more, probably
 TANK_CONSTRAINT_ITERATIONS :: 3
 
-FL :: 0
-MFL :: 1
-MRL :: 2
-RL :: 3
-FR :: 4
-MFR :: 5
-MRR :: 6
-RR :: 7
+L1 :: 0
+L2 :: 1
+L3 :: 2
+L4 :: 3
+R1 :: 4
+R2 :: 5
+R3 :: 6
+R4 :: 7
 
 TANK_WHEEL_COUNT :: 8
 
@@ -70,64 +70,66 @@ Tank :: struct {
 create_tank :: proc() -> Tank {
 	t := Tank{}
 
-	t.wheel_positions[FL] = {4, 7, 5}
-	t.wheel_positions[FR] = {6, 7, 5}
-	t.wheel_positions[RL] = {4, 4, 5}
-	t.wheel_positions[RR] = {6, 4, 5}
-	t.wheel_positions[MRL] = {4, 5, 5}
-	t.wheel_positions[MRR] = {6, 5, 5}
-	t.wheel_positions[MFL] = {4, 6, 5}
-	t.wheel_positions[MFR] = {6, 6, 5}
-	t.old_wheel_positions = t.wheel_positions 
-
-
 	width := TANK_HULL_WIDTH + TANK_WHEEL_WIDTH
 	length := f32(3)
-	t.wheel_constraints[0] = {FL, FR, width}
-	t.wheel_constraints[1] = {FR, RR, length}
-	t.wheel_constraints[2] = {RR, RL, width}
-	t.wheel_constraints[3] = {RL, FL, length}
+	
+	// local wheel positions
+	hw := width / 2
+	row_1 := length / 2
+	row_2 := row_1 - length / 3
+	row_3 := row_2 - length / 3
+	row_4 := row_3 - length / 3
+	l1 := vec3{-hw, row_1, 0}
+	l2 := vec3{-hw, row_2, 0}
+	l3 := vec3{-hw, row_3, 0}
+	l4 := vec3{-hw, row_4, 0}
+	r1 := vec3{hw, row_1, 0}
+	r2 := vec3{hw, row_2, 0}
+	r3 := vec3{hw, row_3, 0}
+	r4 := vec3{hw, row_4, 0}
+
+	center := vec3{5, 5, 5}
+
+	t.wheel_positions[L1] = center + l1
+	t.wheel_positions[L2] = center + l2
+	t.wheel_positions[L3] = center + l3
+	t.wheel_positions[L4] = center + l4
+	t.wheel_positions[R1] = center + r1
+	t.wheel_positions[R2] = center + r2
+	t.wheel_positions[R3] = center + r3
+	t.wheel_positions[R4] = center + r4
+	t.old_wheel_positions = t.wheel_positions 
+
+	t.wheel_constraints[0] = {L1, R1, width}
+	t.wheel_constraints[1] = {R1, R4, length}
+	t.wheel_constraints[2] = {R4, L4, width}
+	t.wheel_constraints[3] = {L4, L1, length}
 
 	big_cross_length := math.sqrt(width*width + length*length)
-	t.wheel_constraints[4] = {FL, RR, big_cross_length}
-	t.wheel_constraints[5] = {FR, RL, big_cross_length}
+	t.wheel_constraints[4] = {L1, R4, big_cross_length}
+	t.wheel_constraints[5] = {R1, L4, big_cross_length}
 
 	small_cross_length := math.sqrt(width*width + (length/3) * (length/3))
-	t.wheel_constraints[6] = {RL, MRR, small_cross_length}
-	t.wheel_constraints[7] = {RR, MRL, small_cross_length}
-	t.wheel_constraints[8] = {MRR, MFL, small_cross_length}
-	t.wheel_constraints[9] = {MRL, MFR, small_cross_length}
-	t.wheel_constraints[10] = {MFL, FR, small_cross_length}
-	t.wheel_constraints[11] = {MFR, FL, small_cross_length}
+	t.wheel_constraints[6] = {L4, R3, small_cross_length}
+	t.wheel_constraints[7] = {R4, L3, small_cross_length}
+	t.wheel_constraints[8] = {R3, L2, small_cross_length}
+	t.wheel_constraints[9] = {L3, R2, small_cross_length}
+	t.wheel_constraints[10] = {L2, R1, small_cross_length}
+	t.wheel_constraints[11] = {R2, L1, small_cross_length}
 	
-	t.wheel_constraints[12] = {MRL, MRR, width}
-	t.wheel_constraints[13] = {MFL, MFR, width}
+	t.wheel_constraints[12] = {L3, R3, width}
+	t.wheel_constraints[13] = {L2, R2, width}
 
 	small_length := f32(1)
-	t.wheel_constraints[14] = {RL, MRL, small_length}
-	t.wheel_constraints[15] = {MRL, MFL, small_length}
-	t.wheel_constraints[16] = {MFL, FL, small_length}
-	t.wheel_constraints[17] = {RR, MRR, small_length}
-	t.wheel_constraints[18] = {MRR, MFR, small_length}
-	t.wheel_constraints[19] = {MFR, FR, small_length}
+	t.wheel_constraints[14] = {L4, L3, small_length}
+	t.wheel_constraints[15] = {L3, L2, small_length}
+	t.wheel_constraints[16] = {L2, L1, small_length}
+	t.wheel_constraints[17] = {R4, R3, small_length}
+	t.wheel_constraints[18] = {R3, R2, small_length}
+	t.wheel_constraints[19] = {R2, R1, small_length}
 
-	{
-		positions, normals, elements := assets.NOT_MEMORY_SAFE_gltf_load_node("assets/tank.glb", "tank_body")
-		t.body_mesh = graphics.create_mesh(positions, normals, nil, elements)
-
-		delete(positions)
-		delete(normals)
-		delete(elements)
-	}
-
-	{
-		positions, normals, elements := assets.NOT_MEMORY_SAFE_gltf_load_node("assets/tank.glb", "tank_wheel")
-		t.wheel_mesh = graphics.create_mesh(positions, normals, nil, elements)
-
-		delete(positions)
-		delete(normals)
-		delete(elements)
-	}
+	t.body_mesh = TEMP_load_mesh_gltf("assets/tank.glb", "tank_body")
+	t.wheel_mesh = TEMP_load_mesh_gltf("assets/tank.glb", "tank_wheel")
 
 	return t
 }
@@ -144,12 +146,12 @@ update_tank :: proc(tank : ^Tank, delta_time : f32) {
 	turn_input := -input.DEBUG_get_key_axis(.J, .L)
 
 	step := TANK_SPEED * delta_time * move_input
-	forward_left 	:= linalg.normalize(tank.wheel_positions[FL] - tank.wheel_positions[RL])
-	forward_right 	:= linalg.normalize(tank.wheel_positions[FR] - tank.wheel_positions[RR])
+	forward_left 	:= linalg.normalize(tank.wheel_positions[L1] - tank.wheel_positions[L4])
+	forward_right 	:= linalg.normalize(tank.wheel_positions[R1] - tank.wheel_positions[R4])
 	forward 		:= (forward_left + forward_right) * 0.5
 
-	across_RL_to_FR := tank.wheel_positions[FR] - tank.wheel_positions[RL]
-	across_RR_to_FL := tank.wheel_positions[FL] - tank.wheel_positions[RR]
+	across_RL_to_FR := tank.wheel_positions[R1] - tank.wheel_positions[L4]
+	across_RR_to_FL := tank.wheel_positions[L1] - tank.wheel_positions[R4]
 	up := linalg.normalize(linalg.cross(across_RL_to_FR, across_RR_to_FL))
 
 	center : vec3
@@ -190,15 +192,17 @@ update_tank :: proc(tank : ^Tank, delta_time : f32) {
 	// physics package
 	// accelerate by gravity
 	gravity_acceleration := vec3{0, 0, -physics.GRAVITATIONAL_ACCELERATION}
-	for i in 0..<TANK_WHEEL_COUNT {
-		current_position 	:= tank.wheel_positions[i]
-		old_position 		:= tank.old_wheel_positions[i]
-		new_position 		:= current_position + 
-								(current_position - old_position) * 0.99 + 
-								gravity_acceleration * delta_time * delta_time
+	for _ in 0..<physics.ticks_this_frame() {
+		for i in 0..<TANK_WHEEL_COUNT {
+			current_position 	:= tank.wheel_positions[i]
+			old_position 		:= tank.old_wheel_positions[i]
+			new_position 		:= current_position + 
+									(current_position - old_position) * 0.99 + 
+									gravity_acceleration * physics.DELTA_TIME * physics.DELTA_TIME
 
-		tank.old_wheel_positions[i] = current_position
-		tank.wheel_positions[i] = new_position
+			tank.old_wheel_positions[i] = current_position
+			tank.wheel_positions[i] = new_position
+		}
 	}
 
 	for _ in 0..<TANK_CONSTRAINT_ITERATIONS {
@@ -249,10 +253,10 @@ update_tank :: proc(tank : ^Tank, delta_time : f32) {
 	debug.draw_wire_sphere(center + up, 0.15, debug.BLUE)
 
 	base_rotation_q := linalg.quaternion_from_matrix4(base_rotation)
-	debug.draw_wire_cube(tank.wheel_positions[RL] + up, base_rotation_q, vec3(0.2), debug.BLACK)
-	debug.draw_wire_cube(tank.wheel_positions[RR] + up, base_rotation_q, vec3(0.2), debug.RED)
-	debug.draw_wire_cube(tank.wheel_positions[FL] + up, base_rotation_q, vec3(0.2), debug.GREEN)
-	debug.draw_wire_cube(tank.wheel_positions[FR] + up, base_rotation_q, vec3(0.2), debug.YELLOW)
+	debug.draw_wire_cube(tank.wheel_positions[L4] + up, base_rotation_q, vec3(0.2), debug.BLACK)
+	debug.draw_wire_cube(tank.wheel_positions[R4] + up, base_rotation_q, vec3(0.2), debug.RED)
+	debug.draw_wire_cube(tank.wheel_positions[L1] + up, base_rotation_q, vec3(0.2), debug.GREEN)
+	debug.draw_wire_cube(tank.wheel_positions[R1] + up, base_rotation_q, vec3(0.2), debug.YELLOW)
 
 	physics.submit_colliders(
 		[]physics.BoxCollider{{center + (0.2 + 0.15) * up, base_rotation_q, vec3{2, 3.5, 0.3}}},

@@ -3,6 +3,7 @@ package physics
 import "core:mem"
 import "core:fmt"
 import "core:runtime"
+import "core:math"
 import "core:math/linalg"
 
 import "shrubs:common"
@@ -46,6 +47,14 @@ Physics :: struct {
 	aabbs 				: [dynamic]AABB,
 	submitted_colliders : [dynamic]SubmittedCollider,
 	velocities 			: [dynamic]vec3,
+
+	// Todo(Leo): I am very worried about precision issues on this
+	// but for now should work as we are still very much testing phase
+	// total_time : f32,
+
+	// Todo(Leo): this should work instead, while avoiding precision issues :)
+	left_over_time : f32,
+	ticks_this_frame : int,
 }
 
 @private
@@ -58,6 +67,10 @@ initialize :: proc (/* capacities etc. */) {
 	p.aabbs 				= make([dynamic]AABB)
 	p.submitted_colliders 	= make([dynamic]SubmittedCollider)
 	p.velocities 			= make([dynamic]vec3)
+}
+
+ticks_this_frame :: proc () -> int {
+	return physics.ticks_this_frame
 }
 
 terminate :: proc () {
@@ -106,12 +119,16 @@ submit_colliders :: proc(new_colliders : []$T, velocities : []vec3 = nil) {
 	}
 }
 
-begin_frame :: proc() {
+begin_frame :: proc(delta_time : f32) {
 	p := &physics
 
 	resize(&p.aabbs, 0)
 	resize(&p.submitted_colliders, 0)
 	resize(&p.velocities, 0)
+
+	delta_time := delta_time + p.left_over_time
+	p.ticks_this_frame 	= int(delta_time / DELTA_TIME)
+	p.left_over_time 	= math.mod(delta_time, DELTA_TIME)
 }
 
 is_colliding :: proc(a : ^$A, b : ^$B) -> bool {

@@ -31,24 +31,20 @@ WINDOW_HEIGHT :: 540
 
 APPLICATION_NAME :: "Shrubs"
 
-
 // Todo(Leo): All the components should not be here in the wild,
 // can easily lead into spaghetti and/or confusion. Some more 
 // service like things like camera are fine
 
-// Components/actors/systems?
+// Actors??
 player_character 	: PlayerCharacter
 camera 				: Camera
-terrain 			: Terrain
+tank 				: Tank
 
-// Scenery
-grass : Grass
-tank : Tank
+scene : Scene
 
 // Resources
-test_mesh 			: graphics.Mesh
+stone_mesh 			: graphics.Mesh
 pillar_mesh 		: graphics.Mesh
-debug_sphere_mesh 	: graphics.Mesh
 
 grass_field_texture : graphics.Texture
 white_texture 		: graphics.Texture
@@ -66,40 +62,14 @@ initialize :: proc() {
 	debug.initialize(256)
 	physics.initialize()
 
-
-	{
-		positions, normals, elements := assets.NOT_MEMORY_SAFE_gltf_load_node("assets/shrubs.glb", "mock_coordinate_pillar")
-		pillar_mesh = graphics.create_mesh(positions, normals, nil, elements)
-
-		delete(positions)
-		delete(normals)
-		delete(elements)
-	}
-
-	{
-		positions, normals, elements := assets.NOT_MEMORY_SAFE_gltf_load_node("assets/shrubs.glb", "mock_shrub")
-		test_mesh = graphics.create_mesh(positions, normals, nil, elements)
-
-		delete(positions)
-		delete(normals)
-		delete(elements)
-	}
-
-	{
-		positions, normals, elements := assets.NOT_MEMORY_SAFE_gltf_load_node("assets/shapes.glb", "shape_sphere")
-		debug_sphere_mesh = graphics.create_mesh(positions, normals, nil, elements)
-
-		delete(positions)
-		delete(normals)
-		delete(elements)
-	}
+	pillar_mesh = TEMP_load_mesh_gltf("assets/shrubs.glb", "mock_coordinate_pillar")
+	stone_mesh = TEMP_load_mesh_gltf("assets/shrubs.glb", "mock_shrub")
 
 	camera 				= create_camera()
 	tank 				= create_tank()
 	player_character 	= create_player_character()
 
-	terrain = create_terrain()
-	grass 	= create_grass()
+	scene = load_scene()
 
 	// grass_field_image := assets.load_color_image("assets/cgshare-book-grass-01.jpg")
 	// grass_field_image := assets.load_color_image("assets/callum_andrews_ghibli_grass.png")
@@ -117,9 +87,7 @@ initialize :: proc() {
 terminate :: proc() {
 	// Todo(Leo): not really necessary at this point, but I keep these here
 	// to remeber that destroying stuff is at times actually necessary.
-	destroy_terrain(&terrain)
-	destroy_grass(&grass)
-
+	unload_scene(&scene)
 
 	physics.terminate()
 	debug.terminate()
@@ -154,7 +122,7 @@ update :: proc(delta_time: f64) {
 	debug.new_frame()
 
 	// Todo(Leo): physics.tick()???? Maybe physics update can be done from here??
-	physics.begin_frame()
+	physics.begin_frame(delta_time)
 
 
 	if input.DEBUG_get_key_pressed(.Q, {.Ctrl}) {
@@ -212,13 +180,13 @@ update :: proc(delta_time: f64) {
 	graphics.set_basic_material({0.4, 0.35, 0.35}, &white_texture)
 	for p in shrub_positions {
 		model_matrix := linalg.matrix4_translate_f32(p)
-		graphics.draw_mesh(&test_mesh, model_matrix)
+		graphics.draw_mesh(&stone_mesh, model_matrix)
 	}
 
 	graphics.set_basic_material({0.4, 0.4, 0.4}, &grass_field_texture)
-	for p, i in terrain.positions {
+	for p, i in scene.terrain.positions {
 		model_matrix := linalg.matrix4_translate_f32(p)
-		graphics.draw_mesh(&terrain.meshes[i], model_matrix)
+		graphics.draw_mesh(&scene.terrain.meshes[i], model_matrix)
 	}
 
 	render_tank(&tank)
@@ -242,7 +210,7 @@ update :: proc(delta_time: f64) {
 		{0, 1, 0}, wind_amount
 	)
 	graphics.set_grass_material(&grass_field_texture)
-	graphics.draw_mesh_instanced(&grass.mesh, &grass.instances)
+	graphics.draw_mesh_instanced(&scene.grass.mesh, &scene.grass.instances)
 
 	// gui.render()
 	graphics.render()
