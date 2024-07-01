@@ -34,4 +34,16 @@ TEMP_load_mesh_gltf :: proc(mesh_file_name, mesh_node_name : cstring) -> graphic
 	return mesh
 }
 
+// Todo(Leo): similar to TEMP_load_mesh_gltf
+TEMP_load_color_texture :: proc(filename : cstring) -> graphics.Texture {
+	image := assets.load_color_image(filename)
+	defer assets.free_loaded_color_image(&image)
+	texture := graphics.create_color_texture(
+		image.width,
+		image.height,
+		image.pixels,
+	)
+	return texture
+}
+
 TEMP_ColliderTag :: enum { None = 0, Tank }

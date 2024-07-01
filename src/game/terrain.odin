@@ -8,14 +8,14 @@ import "core:math/linalg"
 import "core:math/rand"
 
 // Squares!!! for now..
-TERRAIN_CHUNK_COUNT :: 5 // x 3
+TERRAIN_CHUNK_COUNT :: 5 // x 5
 TERRAIN_CHUNK_SIZE :: 10 // x 10
 
 GRASS_DENSITY_PER_UNIT :: 10
 
 Terrain :: struct {
-	positions : []vec3,
-	meshes : []graphics.Mesh,
+	positions 		: []vec3,
+	meshes 			: []graphics.Mesh,
 }
 
 create_terrain :: proc() -> Terrain {
@@ -104,14 +104,10 @@ create_grass :: proc() -> Grass {
 
 	g.mesh = create_grass_blade_mesh()
 
-	world_side_length := f32(TERRAIN_CHUNK_COUNT * TERRAIN_CHUNK_SIZE)
-	w := 0.5 * world_side_length
-
-	count := int(world_side_length * GRASS_DENSITY_PER_UNIT)
-
-	fmt.println("grass count:", count * count)
-
-	g.instances = generate_grass_positions({-w, -w, 0}, {w, w, 0}, count)
+	world_side_length 	:= f32(TERRAIN_CHUNK_COUNT * TERRAIN_CHUNK_SIZE)
+	w 					:= 0.5 * world_side_length
+	count 				:= int(world_side_length * GRASS_DENSITY_PER_UNIT)
+	g.instances 		= generate_grass_positions({-w, -w, 0}, {w, w, 0}, count)
 
 	return g
 }

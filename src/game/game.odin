@@ -48,10 +48,6 @@ tank 				: Tank
 scene : Scene
 
 // Resources
-stone_mesh 			: graphics.Mesh
-pillar_mesh 		: graphics.Mesh
-
-grass_field_texture : graphics.Texture
 white_texture 		: graphics.Texture
 
 application : struct {
@@ -67,26 +63,17 @@ initialize :: proc() {
 	debug.initialize(256)
 	physics.initialize()
 
-	pillar_mesh = TEMP_load_mesh_gltf("assets/shrubs.glb", "mock_coordinate_pillar")
-	stone_mesh = TEMP_load_mesh_gltf("assets/shrubs.glb", "mock_shrub")
+	// Common assets
+	white_texture = graphics.create_color_texture(1, 1, []common.Color_u8_rgba{{255, 255, 255, 255}})
 
+	// Scene independent systems
 	camera 				= create_camera()
 	tank 				= create_tank()
 	player_character 	= create_player_character()
 
-	scene = load_scene()
+	// Scene
+	load_scene(&scene)
 
-	// grass_field_image := assets.load_color_image("assets/cgshare-book-grass-01.jpg")
-	// grass_field_image := assets.load_color_image("assets/callum_andrews_ghibli_grass.png")
-	grass_field_image := assets.load_color_image("assets/blue_grass.png")
-	defer assets.free_loaded_color_image(&grass_field_image)
-	grass_field_texture = graphics.create_color_texture(
-		grass_field_image.width,
-		grass_field_image.height,
-		grass_field_image.pixels,
-	)
-
-	white_texture = graphics.create_color_texture(1, 1, []common.Color_u8_rgba{{255, 255, 255, 255}})
 }
 
 terminate :: proc() {
@@ -173,22 +160,13 @@ update :: proc(delta_time: f64) {
 		ambient_color,
 	)
 
-	graphics.set_basic_material({0.5, 0.5, 0.6}, &white_texture)
-	graphics.draw_mesh(&pillar_mesh, mat4(1))
-
-	shrub_positions := []vec3{
-		{3, 0, 0.5},
-		{2.8, 1, 0.5},
-		{0, 2, 0.5},
-		{1, 3, 0.5},
-	}
-	graphics.set_basic_material({0.4, 0.35, 0.35}, &white_texture)
-	for p in shrub_positions {
-		model_matrix := linalg.matrix4_translate_f32(p)
-		graphics.draw_mesh(&stone_mesh, model_matrix)
+	for sp in scene.set_pieces {
+		graphics.set_basic_material(sp.color, sp.texture)
+		model_matrix := linalg.matrix4_translate_f32(sp.position)
+		graphics.draw_mesh(sp.mesh, model_matrix)
 	}
 
-	graphics.set_basic_material({0.4, 0.4, 0.4}, &grass_field_texture)
+	graphics.set_basic_material({0.4, 0.4, 0.4}, &scene.grass_field_texture)
 	for p, i in scene.terrain.positions {
 		model_matrix := linalg.matrix4_translate_f32(p)
 		graphics.draw_mesh(&scene.terrain.meshes[i], model_matrix)
@@ -214,7 +192,7 @@ update :: proc(delta_time: f64) {
 		ambient_color,
 		{0, 1, 0}, wind_amount
 	)
-	graphics.set_grass_material(&grass_field_texture)
+	graphics.set_grass_material(&scene.grass_field_texture)
 	graphics.draw_mesh_instanced(&scene.grass.mesh, &scene.grass.instances)
 
 	// gui.render()
