@@ -29,7 +29,8 @@ PlayerCharacter :: struct {
 	physics_position : vec3,
 	old_physics_position : vec3,
 
-	pan, tilt 		: f32,
+	view_forward 	: vec3,
+
 	head_height 	: f32,
 }
 
@@ -39,8 +40,21 @@ create_player_character :: proc() -> PlayerCharacter {
 	pc.physics_position = {0, 0, 5}
 	pc.old_physics_position = pc.physics_position
 
+	pc.view_forward = OBJECT_FORWARD
+
 	return pc
 }
+
+// //https://stackoverflow.com/questions/3684269/component-of-a-quaternion-rotation-around-an-axis
+// swing_twist_decomposition :: proc(rotation : quaternion, direction : vec3) -> (swing, twist : quaternion) {
+// 	angle, rotation_axis := linalg.angle_axis_from_quaternion(rotation)
+// 	p := linalg.projection(rotation_axis, direction)
+// 	t := cast(^vec4) &twist
+// 	t^ = {real(rotation), p.x, p.y, p.z}
+// 	twist = linalg.normalize(twist)
+// 	return
+// }
+
 
 update_player_character :: proc(pc : ^PlayerCharacter, cam : ^Camera, delta_time : f32) {
 	
@@ -57,18 +71,23 @@ update_player_character :: proc(pc : ^PlayerCharacter, cam : ^Camera, delta_time
 
 	using linalg
 
-	// Find view directions
-	pc.pan 	= mod(pc.pan - look_right_input, 2 * math.PI)
-	pc.tilt = clamp(pc.tilt - look_up_input, -1.3, 1.3)
+	// Todo(Leo): for now we have flat plane as a world, but this will prob
+	// change. To move along the plane, we need to know what is the local
+	// up at that point of the world.
+	world_local_up := OBJECT_UP
 
-	view_rotation 	:= quaternion_angle_axis_f32(pc.pan, OBJECT_UP) *
-						quaternion_angle_axis_f32(pc.tilt, OBJECT_RIGHT)
-	view_right 		:= normalize(mul(view_rotation, OBJECT_RIGHT))
-	view_forward 	:= normalize(mul(view_rotation, OBJECT_FORWARD))
-	view_up 		:= normalize(mul(view_rotation, OBJECT_UP))
+	view_right 		:= normalize(cross(pc.view_forward, world_local_up))
+	view_forward 	:= pc.view_forward
+	view_up 		:= normalize(cross(view_right, pc.view_forward))
 
-	flat_right 		:= normalize(vec3{view_right.x, view_right.y, 0})
-	flat_forward 	:= normalize(vec3{view_forward.x, view_forward.y, 0})
+	pan 	:= quaternion_angle_axis_f32(-look_right_input, world_local_up)
+	tilt 	:= quaternion_angle_axis_f32(-look_up_input, view_right)
+
+	pc.view_forward = normalize(mul(tilt * pan, view_forward))
+
+	// Project view vectors on local up (just z-axis for now) to move on a flat plane
+	flat_right 		:= normalize(view_right - projection(view_right, world_local_up))
+	flat_forward 	:= normalize(view_forward - projection(view_forward, world_local_up))
 
 	// Move
 	move_vector := move_right_input * flat_right +
@@ -125,8 +144,22 @@ update_player_character :: proc(pc : ^PlayerCharacter, cam : ^Camera, delta_time
 			grounded = true
 		}
 		for c in ground_collisions {
-			pc.physics_position += c.velocity
-			pc.old_physics_position += c.velocity
+			if cast(TEMP_ColliderTag)c.tag == .Tank {
+				tank_position_change := tank.body_position - tank.old_body_position
+
+				tank_rotation_change := normalize(quaternion_inverse(tank.old_body_rotation) * tank.body_rotation)
+				pc.view_forward = mul(tank_rotation_change, pc.view_forward)
+
+				pc_local_position := pc.physics_position - tank.body_position
+				rotation_matrix := matrix4_from_quaternion(tank_rotation_change)
+
+				pc_local_position = matrix4_mul_point(rotation_matrix, pc_local_position)
+				pc_position := pc_local_position + tank.body_position
+
+				diff := pc_position - pc.physics_position + tank_position_change
+				pc.physics_position += diff
+				pc.old_physics_position += diff
+			}
 		}
 	}
 
@@ -140,7 +173,23 @@ update_player_character :: proc(pc : ^PlayerCharacter, cam : ^Camera, delta_time
 		}
 	}
 
+	debug.draw_wire_sphere(pc.physics_position, 0.2, debug.RED)
+
 	// Set camera position
-	cam.position = pc.physics_position + OBJECT_UP * pc.head_height
-	cam.rotation = view_rotation
+	{
+		r := view_right
+		f := view_forward
+		u := view_up
+		m := mat4{
+			r.x, f.x, u.x, 0,
+			r.y, f.y, u.y, 0,
+			r.z, f.z, u.z, 0,
+			0, 0, 0, 1,
+		}
+		view_rotation := quaternion_from_matrix4(m)
+
+		cam.position = pc.physics_position + world_local_up * pc.head_height
+		cam.rotation = view_rotation
+
+	}
 }

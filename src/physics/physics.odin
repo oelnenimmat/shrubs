@@ -23,6 +23,7 @@ Collision :: struct {
 	 direction 	: vec3, 	// direction to move the least amount to get untangled
 	 // normal 	: vec3, 	// not necessarily same as the min move out direction
 	 velocity 	: vec3,
+	 tag 		: int,
 }
 
 // todo(Leo): for now, we usually don't need to loop submitted colliders, so it is okay
@@ -47,6 +48,7 @@ Physics :: struct {
 	aabbs 				: [dynamic]AABB,
 	submitted_colliders : [dynamic]SubmittedCollider,
 	velocities 			: [dynamic]vec3,
+	collider_tags 		: [dynamic]int,
 
 	// Todo(Leo): I am very worried about precision issues on this
 	// but for now should work as we are still very much testing phase
@@ -78,27 +80,31 @@ terminate :: proc () {
 	delete (p.aabbs)
 	delete (p.submitted_colliders)
 	delete (p.velocities)
+	delete (p.collider_tags)
 }
 
-submit_colliders :: proc(new_colliders : []$T, velocities : []vec3 = nil) {
+submit_colliders :: proc(new_colliders : []$T, velocities : []vec3 = nil, tags : []int = nil) {
 	p := &physics
 
 	old_len := len(p.aabbs)
 	assert(old_len == len(p.submitted_colliders))
 	assert(old_len == len(p.velocities))
+	assert(old_len == len(p.collider_tags))
 	
 	new_len := len(new_colliders)
 	assert(velocities == nil || len(velocities) == new_len)
+	assert(tags == nil || len(tags) == new_len)
 
 	resize(&p.aabbs, old_len + new_len)
 	resize(&p.submitted_colliders, old_len + new_len)
 	resize(&p.velocities, old_len + new_len)
+	resize(&p.collider_tags, old_len + new_len)
 	for i in 0..<new_len {
 		p.aabbs[old_len + i] 				= get_aabb(&new_colliders[i])
 		p.submitted_colliders[old_len + i] 	= new_colliders[i]
 		p.velocities[old_len + i] 			= vec3(0) if velocities == nil else velocities[i]
+		p.collider_tags[old_len + i] 		= 0 if tags == nil else tags[i]
 	}
-
 
 	when T == BoxCollider {
 		for bc in new_colliders {
@@ -125,6 +131,7 @@ begin_frame :: proc(delta_time : f32) {
 	resize(&p.aabbs, 0)
 	resize(&p.submitted_colliders, 0)
 	resize(&p.velocities, 0)
+	resize(&p.collider_tags, 0)
 
 	delta_time := delta_time + p.left_over_time
 	p.ticks_this_frame 	= int(delta_time / DELTA_TIME)
@@ -212,6 +219,7 @@ collide :: proc(collider : ^$Collider) -> []Collision {
 
 		if did_collide {
 			collision.velocity = p.velocities[i]
+			collision.tag = p.collider_tags[i]
 			append(&collisions, collision)
 		}
 	}

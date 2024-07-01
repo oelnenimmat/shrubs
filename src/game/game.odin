@@ -26,6 +26,11 @@ mat3 		:: common.mat3
 mat4 		:: common.mat4
 quaternion 	:: common.quaternion
 
+matrix4_mul_point 		:: common.matrix4_mul_point
+matrix4_mul_vector 		:: common.matrix4_mul_vector
+matrix4_mul_rotation 	:: common.matrix4_mul_rotation
+
+
 WINDOW_WIDTH :: 960
 WINDOW_HEIGHT :: 540
 

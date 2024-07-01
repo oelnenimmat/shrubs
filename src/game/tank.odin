@@ -57,10 +57,14 @@ Tank :: struct {
 	wheel_spins 		: [TANK_WHEEL_COUNT]f32,
 
 	body_transform : mat4,
+	body_transform_difference : mat4,
 
 	// Todo(Leo): not initialized properly
 	body_position : vec3,
 	old_body_position : vec3,
+
+	body_rotation : quaternion,
+	old_body_rotation : quaternion,
 
 	// rendering
 	body_mesh	: graphics.Mesh,
@@ -242,17 +246,22 @@ update_tank :: proc(tank : ^Tank, delta_time : f32) {
 		right.z, forward.z, up.z, 0,
 		0, 0, 0, 1,
 	}
+	old_body_transform := tank.body_transform
 	tank.body_transform = linalg.matrix4_translate_f32(center + 0.2 * up) * base_rotation
+	tank.body_transform_difference = linalg.inverse(old_body_transform) * tank.body_transform
 
 	tank.old_body_position = tank.body_position
 	tank.body_position = center
-	body_velocity := tank.body_position - tank.old_body_position
+	// body_velocity := tank.body_position - tank.old_body_position
+
+	base_rotation_q 		:= linalg.quaternion_from_matrix4(base_rotation)
+	tank.old_body_rotation 	= tank.body_rotation
+	tank.body_rotation 		= base_rotation_q
 
 	debug.draw_wire_sphere(center, 0.3, debug.RED)
 	debug.draw_wire_sphere(center + forward, 0.15, debug.BLUE)
 	debug.draw_wire_sphere(center + up, 0.15, debug.BLUE)
 
-	base_rotation_q := linalg.quaternion_from_matrix4(base_rotation)
 	debug.draw_wire_cube(tank.wheel_positions[L4] + up, base_rotation_q, vec3(0.2), debug.BLACK)
 	debug.draw_wire_cube(tank.wheel_positions[R4] + up, base_rotation_q, vec3(0.2), debug.RED)
 	debug.draw_wire_cube(tank.wheel_positions[L1] + up, base_rotation_q, vec3(0.2), debug.GREEN)
@@ -260,7 +269,9 @@ update_tank :: proc(tank : ^Tank, delta_time : f32) {
 
 	physics.submit_colliders(
 		[]physics.BoxCollider{{center + (0.2 + 0.15) * up, base_rotation_q, vec3{2, 3.5, 0.3}}},
-		[]vec3{vec3(body_velocity)},
+		// []vec3{vec3(body_velocity)},
+		nil,
+		[]int{int(TEMP_ColliderTag.Tank)}
 	)
 
 	// spin wheels

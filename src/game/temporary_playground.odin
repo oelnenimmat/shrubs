@@ -18,6 +18,7 @@ package game
 
 import "shrubs:assets"
 import "shrubs:graphics"
+import "shrubs:physics"
 
 // Todo(Leo): I do not think assets package should own the memory, as
 // there might be cases where we want to keep the the mesh info on CPU
@@ -32,3 +33,5 @@ TEMP_load_mesh_gltf :: proc(mesh_file_name, mesh_node_name : cstring) -> graphic
 
 	return mesh
 }
+
+TEMP_ColliderTag :: enum { None = 0, Tank }
