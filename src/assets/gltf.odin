@@ -10,7 +10,12 @@ vec2 :: linalg.Vector2f32
 vec3 :: linalg.Vector3f32
 
 // todo(Leo): it seems like cgltf memory is not handled properly
-NOT_MEMORY_SAFE_gltf_load_node :: proc (filename : cstring, node_name : cstring) -> (positions : []vec3, normals : []vec3, indices : [] u16) {
+NOT_MEMORY_SAFE_gltf_load_node :: proc (filename : cstring, node_name : cstring) -> (
+	positions : []vec3, 
+	normals : []vec3,
+	texcoords : []vec2,
+	indices : [] u16
+) {
 
 	options : cgltf.options = {}
 
@@ -142,11 +147,14 @@ NOT_MEMORY_SAFE_gltf_load_node :: proc (filename : cstring, node_name : cstring)
 
 	positions = make([]vec3, vertex_count)
 	normals = make([]vec3, vertex_count)
-	indices = make([]u16, index_count)
+	texcoords = make([]vec2, vertex_count)
 
 	copy_slice(positions, position_src_data[0:vertex_count])
 	copy_slice(normals, normal_src_data[0:vertex_count])
+	copy_slice(texcoords, texcoord_src_data[0:vertex_count])
 
+	indices = make([]u16, index_count)
+	
 	if index_accessor.component_type == .r_16u {
 		copy_slice(indices, (cast([^]u16)index_src_ptr)[0:index_count])
 	} else {

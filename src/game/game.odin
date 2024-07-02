@@ -15,6 +15,7 @@ import "shrubs:physics"
 import "shrubs:window"
 
 import "core:math"
+import "core:reflect"
 import "core:math/linalg"
 import mu "vendor:microui"
 
@@ -30,6 +31,7 @@ matrix4_mul_point 		:: common.matrix4_mul_point
 matrix4_mul_vector 		:: common.matrix4_mul_vector
 matrix4_mul_rotation 	:: common.matrix4_mul_rotation
 
+IS_ACTUALLY_EDITOR :: true
 
 WINDOW_WIDTH :: 960
 WINDOW_HEIGHT :: 540
@@ -45,7 +47,7 @@ player_character 	: PlayerCharacter
 camera 				: Camera
 tank 				: Tank
 
-scene : Scene
+scene : ^Scene
 
 // Resources
 white_texture 		: graphics.Texture
@@ -79,14 +81,19 @@ initialize :: proc() {
 	player_character 	= create_player_character()
 
 	// Scene
-	load_scene(&scene)
+	if IS_ACTUALLY_EDITOR {
+		load_editor_state()
+		scene = load_scene(editor.loaded_scene_name)
+	}
 
 }
 
 terminate :: proc() {
+	save_editor_state()
+
 	// Todo(Leo): not really necessary at this point, but I keep these here
 	// to remeber that destroying stuff is at times actually necessary.
-	unload_scene(&scene)
+	unload_scene(scene)
 
 	physics.terminate()
 	debug.terminate()
@@ -263,6 +270,21 @@ MOCKUP_do_gui :: proc() {
 					} 
 
 	if mu.window(ctx, "Controls and Settings", rectangle, {.NO_CLOSE, .NO_RESIZE}) {
+		if .ACTIVE in mu.header(ctx, "Scenes", {.EXPANDED}) {
+			gui.indent(ctx)
+
+			mu.label(ctx, "Load scene")
+			for name in SceneName {
+				if .SUBMIT in mu.button(ctx, reflect.enum_string(name)) {
+					unload_scene(scene)
+					scene = load_scene(name)
+					editor.loaded_scene_name = name
+				}
+			}
+
+			gui.unindent(ctx)
+		}
+
 		if .ACTIVE in mu.header(ctx, "Playback", {.EXPANDED}) {
 			gui.indent(ctx)
 			

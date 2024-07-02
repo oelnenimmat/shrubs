@@ -69,6 +69,14 @@ create_mesh :: proc(
 	return mesh
 }
 
+destroy_mesh :: proc(mesh : ^Mesh) {
+	gl.DeleteBuffers(1, &mesh.vbo)
+	gl.DeleteBuffers(1, &mesh.ebo)
+	gl.DeleteBuffers(1, &mesh.vao)
+
+	mesh^ = {}
+}
+
 draw_mesh :: proc(mesh : ^Mesh, model : mat4) {
 	model := model
 
@@ -125,8 +133,8 @@ create_color_texture :: proc(
 	gl.GenTextures(1, &name)
 	// todo(Leo): Maybe pick and reserve a slot for all housekeeping name activites such as this. maybe
 	gl.BindTexture(gl.TEXTURE_2D, name)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter_mode)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter_mode)
 	
@@ -165,7 +173,7 @@ create_alpha_only_texture :: proc(
 	return { name }
 }
 
-destroy_texture :: proc(texture : Texture) {
+destroy_texture :: proc(texture : ^Texture) {
 	name := texture.opengl_name
 	gl.DeleteTextures(1, &name)
 }

@@ -46,20 +46,22 @@ initialize :: proc(capacity : int) {
 	dd.draws = make([]DrawCall, capacity)
 
 	{
-		positions, normals, elements := assets.NOT_MEMORY_SAFE_gltf_load_node("assets/shapes.glb", "shape_sphere")
+		positions, normals, texcoords, elements := assets.NOT_MEMORY_SAFE_gltf_load_node("assets/shapes.glb", "shape_sphere")
 		dd.sphere_mesh = graphics.create_mesh(positions, normals, nil, elements)
 
 		delete(positions)
 		delete(normals)
+		delete(texcoords)
 		delete(elements)
 	}
 
 	{
-		positions, normals, elements := assets.NOT_MEMORY_SAFE_gltf_load_node("assets/shapes.glb", "shape_cube")
+		positions, normals, texcoords, elements := assets.NOT_MEMORY_SAFE_gltf_load_node("assets/shapes.glb", "shape_cube")
 		dd.cube_mesh = graphics.create_mesh(positions, normals, nil, elements)
 
 		delete(positions)
 		delete(normals)
+		delete(texcoords)
 		delete(elements)
 	}
 }

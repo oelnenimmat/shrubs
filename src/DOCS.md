@@ -12,7 +12,7 @@ odin run src -out:shrubs.exe -collection:shrubs=src
 
 If a debug build is needed for debugger, just add `-debug` option. The `-collection:shrubs=src` is needed to use the "engine" code nicely all around.
 
-## Conventions
+## Coding Conventions
 
 Here are listed some naming conventions. They are to some extent quite arbitrary, but using same convention throughout the project minimizes mental friction to understand what is happening.
 

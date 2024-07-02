@@ -24,11 +24,12 @@ import "shrubs:physics"
 // there might be cases where we want to keep the the mesh info on CPU
 // ram after uploading it into GPU ram.  
 TEMP_load_mesh_gltf :: proc(mesh_file_name, mesh_node_name : cstring) -> graphics.Mesh {
-	positions, normals, elements := assets.NOT_MEMORY_SAFE_gltf_load_node(mesh_file_name, mesh_node_name)
-	mesh := graphics.create_mesh(positions, normals, nil, elements)
+	positions, normals, texcoords, elements := assets.NOT_MEMORY_SAFE_gltf_load_node(mesh_file_name, mesh_node_name)
+	mesh := graphics.create_mesh(positions, normals, texcoords, elements)
 
 	delete(positions)
 	delete(normals)
+	delete(texcoords)
 	delete(elements)
 
 	return mesh
