@@ -38,3 +38,19 @@ graphics and gui, and they don't have an assosiated object returned, although re
 initialize :: proc (...) { /* create whatever necessary resources */ }
 terminate :: proc() { /* free resource */ }
 ```
+
+### Indentation
+
+Use tabs to indent. Every programmer has their own preference on how much to indent (correct answer is 4, btw) and using tab instead of multiple spaces allows everyone to set the tab width to whatever they want to in their text editor settings (if you cannot do this in you favourite editor, it is time for a new favourite editor).
+
+### Commenting
+
+(This paragraph should be re-written, its a quick and little vague) Avoid commenting in the end of the line. Sometimes, when it is a super short comment that adds a small nuance in understanding, this is acceptable. Other times, when comment is at all longer, jus put it on top of the line it refers to. This way, there is always (or at least most of the time) just one idea per line, and reading is less confusing. Also, typically comments act as sort of title or foreshadow to the line or section they refer to, so also from that point of view it is better to put comment first.
+
+Prefix todo comments with `Todo(Name): `, like 
+
+```
+// Todo(Leo): this piece of crap needs to rewritten. I needed a quick solution, 
+// but is is neither clear or efficient.
+HACK_do_an_important_operation :: proc (seven_pointers : []rawptr) { ... }
+```

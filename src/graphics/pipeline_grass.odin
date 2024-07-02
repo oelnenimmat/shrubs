@@ -79,6 +79,8 @@ setup_grass_pipeline :: proc(
 
 	gl.Disable(gl.CULL_FACE)
 	gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
+	gl.Disable(gl.BLEND)
+	gl.Enable(gl.DEPTH_TEST)
 
 	// no need for model matrix
 }

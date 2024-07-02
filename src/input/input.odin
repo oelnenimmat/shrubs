@@ -99,14 +99,18 @@ mouse : struct {
 	position : vec2,
 	movement : vec2,
 	button_states : [3]InputKeyState,
-	locked : bool
+}
+
+lock_mouse :: proc(locked : bool) {
+	glfw_lock_mouse(locked)
+
+	mouse.movement = {0, 0}
+	mouse_position := glfw_get_mouse_position()
+	mouse.position = {f32(mouse_position.x), f32(mouse_position.y)}
 }
 
 initialize :: proc() {
 	glfw_internal_initialize()
-
-	mouse.locked = true
-	glfw_lock_mouse(mouse.locked)
 
 	initial_mouse_position := glfw_get_mouse_position()
 	mouse.position = {f32(initial_mouse_position.x), f32(initial_mouse_position.y)}
@@ -115,18 +119,6 @@ initialize :: proc() {
 terminate :: proc() { /* Nothing now, but add here if needed :) */ }
 
 begin_frame :: proc() {
-
-	// DEVELOPER MODE??? ------------------------------------------------------
-	if DEBUG_get_key_pressed(.Escape) {
-		mouse.locked = !mouse.locked
-		glfw_lock_mouse(mouse.locked)
-		mouse.movement = {0, 0}
-
-		mouse_position := glfw_get_mouse_position()
-		mouse.position = {f32(mouse_position.x), f32(mouse_position.y)}
-	}
-
-	// MOUSE ------------------------------------------------------------------
 	new_mouse_position := glfw_get_mouse_position()
 	mouse.movement.x = f32(new_mouse_position.x) - mouse.position.x 
 	mouse.movement.y = f32(new_mouse_position.y) - mouse.position.y 

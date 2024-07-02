@@ -44,6 +44,7 @@ graphics_context : struct {
 	basic_pipeline 	: BasicPipeline,
 	grass_pipeline 	: GrassPipeline,
 	debug_pipeline 	: DebugPipeline,
+	gui_pipeline 	: GuiPipeline,
 
 	// Per draw uniform locations. These are set whenever a new pipeline
 	// is bound/setupped, and used in draw_XXX functions
@@ -76,6 +77,7 @@ initialize :: proc() {
 	gc.basic_pipeline 	= create_basic_pipeline()
 	gc.grass_pipeline 	= create_grass_pipeline()
 	gc.debug_pipeline 	= create_debug_pipeline()
+	gc.gui_pipeline 	= create_gui_pipeline()
 
 	// Todo(Leo): there might be issue here that this could be called before
 	// setting up the opengl stuff and then something going haywire, seems to work now

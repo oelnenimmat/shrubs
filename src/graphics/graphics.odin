@@ -1,6 +1,6 @@
 package graphics
 
-import "../common"
+import "shrubs:common"
 
 import "core:fmt"
 import "core:math/linalg"
@@ -11,4 +11,5 @@ vec4 :: common.vec4
 mat4 :: common.mat4
 
 Color_u8_rgba :: common.Color_u8_rgba
-
+Rect_i32 :: common.Rect_i32
+Rect_f32 :: common.Rect_f32

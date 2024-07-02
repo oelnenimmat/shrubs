@@ -84,7 +84,9 @@ setup_basic_pipeline :: proc (
 
 	gl.Enable(gl.CULL_FACE)
 	gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
-
+	gl.Disable(gl.BLEND)
+	gl.Enable(gl.DEPTH_TEST)
+	
 	// set per draw locations for mesh rendering
 	graphics_context.model_matrix_location = pl.model_matrix_location
 

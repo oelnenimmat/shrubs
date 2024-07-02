@@ -91,17 +91,35 @@ Texture :: struct {
 	opengl_name : u32
 }
 
+TextureFilterMode :: enum { Nearest, Linear }
+
+@private
+opengl_texture_filter_mode :: proc(fm : TextureFilterMode) -> i32 {
+	switch fm {
+		case .Nearest: return gl.NEAREST
+		case .Linear: return gl.LINEAR
+	}
+
+	return 0
+}
+
 use_texture :: proc(texture : Texture, slot := 0) {
 	gl.ActiveTexture(gl.TEXTURE0 + u32(slot))
 	gl.Enable(gl.TEXTURE_2D)
 	gl.BindTexture(gl.TEXTURE_2D, texture.opengl_name)
 }
 
-create_color_texture :: proc(width, height : int, pixels : []common.Color_u8_rgba) -> Texture {
+create_color_texture :: proc(
+	width, height : int,
+	pixels : []common.Color_u8_rgba,
+	filter_mode : TextureFilterMode,
+) -> Texture {
 
 	pixel_count := width * height
 	assert(pixel_count == len(pixels))
 	pixel_data := (cast([^]u8)raw_data(pixels))[0:pixel_count]
+
+	filter_mode := opengl_texture_filter_mode(filter_mode)
 
 	name : u32
 	gl.GenTextures(1, &name)
@@ -109,10 +127,38 @@ create_color_texture :: proc(width, height : int, pixels : []common.Color_u8_rgb
 	gl.BindTexture(gl.TEXTURE_2D, name)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter_mode)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter_mode)
 	
 	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, i32(width), i32(height), 0, gl.RGBA, gl.UNSIGNED_BYTE, raw_data(pixel_data))
+
+	gl.BindTexture(gl.TEXTURE_2D, 0)
+
+	return { name }
+}
+
+create_alpha_only_texture :: proc(
+	width, height : int, 
+	pixels : []u8,
+	filter_mode : TextureFilterMode,
+) -> Texture {
+
+	pixel_count := width * height
+	assert(pixel_count == len(pixels))
+	pixel_data := (cast([^]u8)raw_data(pixels))[0:pixel_count]
+
+	filter_mode := opengl_texture_filter_mode(filter_mode)
+
+	name : u32
+	gl.GenTextures(1, &name)
+	// todo(Leo): Maybe pick and reserve a slot for all housekeeping name activites such as this. maybe
+	gl.BindTexture(gl.TEXTURE_2D, name)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter_mode)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter_mode)
+	
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.ALPHA, i32(width), i32(height), 0, gl.ALPHA, gl.UNSIGNED_BYTE, raw_data(pixel_data))
 
 	gl.BindTexture(gl.TEXTURE_2D, 0)
 

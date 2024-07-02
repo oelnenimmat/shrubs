@@ -56,6 +56,9 @@ setup_debug_pipeline :: proc (projection, view : mat4) {
 
 	gl.Disable(gl.CULL_FACE)
 	gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
+	gl.Disable(gl.BLEND)
+	gl.Enable(gl.DEPTH_TEST)
+	
 }
 
 // This is called once for each change of material

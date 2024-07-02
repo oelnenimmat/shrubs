@@ -42,6 +42,7 @@ TEMP_load_color_texture :: proc(filename : cstring) -> graphics.Texture {
 		image.width,
 		image.height,
 		image.pixels,
+		.Linear,
 	)
 	return texture
 }
