@@ -4,7 +4,7 @@ import "core:fmt"
 import "core:os"
 import "core:encoding/json"
 
-EDITOR_STATE_SAVE_FILE_NAME :: "editor_state.json"
+EDITOR_STATE_SAVE_FILE_NAME :: "local/editor_state.json"
 
 EditorState :: struct {
 	loaded_scene_name : SceneName
@@ -30,7 +30,7 @@ load_editor_state :: proc() {
 	if success {
 		json.unmarshal(data, &editor)
 	} else {
-		fmt.println("[EDITOR LOAD ERROR]")
+		fmt.println("Editor file did not exist or smth, creating new one next time application is closed.")
 	}
 
 	fmt.println("Editor state loaded")
