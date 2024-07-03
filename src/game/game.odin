@@ -50,7 +50,8 @@ tank 				: Tank
 scene : ^Scene
 
 // Resources
-white_texture 		: graphics.Texture
+white_texture 	: graphics.Texture
+capsule_mesh 	: graphics.Mesh
 
 application : struct {
 	wants_to_quit 	: bool,
@@ -66,19 +67,20 @@ initialize :: proc() {
 	debug.initialize(256)
 	physics.initialize()
 
-	// Application is started in game mode
-	application.mode = .Game
-	input.lock_mouse(true)
-
-	// Common assets
+	// Common resources
 	white_texture = graphics.create_color_texture(
 		1, 1, []common.Color_u8_rgba{{255, 255, 255, 255}}, .Nearest,
 	)
+
+	capsule_mesh = TEMP_load_mesh_gltf("assets/shapes.glb", "shape_capsule")
 
 	// Scene independent systems
 	camera 				= create_camera()
 	tank 				= create_tank()
 	player_character 	= create_player_character()
+
+	// Application is started in edit mode
+	application.mode = .Edit
 
 	// Scene
 	if IS_ACTUALLY_EDITOR {
@@ -136,8 +138,15 @@ update :: proc(delta_time: f64) {
 	}
 
 	if input.DEBUG_get_key_pressed(.Escape) {
+
 		application.mode = .Edit if application.mode == .Game else .Game
-		input.lock_mouse(application.mode == .Game)
+
+		switch application.mode {
+		case .Edit:
+			input.lock_mouse(editor.mode == .FlyView)
+		case .Game:
+			input.lock_mouse(true)
+		}
 	}
 
 	if application.mode == .Edit {
@@ -197,6 +206,13 @@ update :: proc(delta_time: f64) {
 	}
 
 	render_tank(&tank)
+
+
+	// Player character as a capsule for debug purposes
+	graphics.set_basic_material({0.6, 0.2, 0.4}, &white_texture)
+	model_matrix := linalg.matrix4_translate_f32(player_character.physics_position + OBJECT_UP) *
+					linalg.matrix4_scale_f32(2)
+	graphics.draw_mesh(&capsule_mesh, model_matrix)
 
 	// NEXT PIPELINE
 	graphics.setup_debug_pipeline(projection_matrix, view_matrix)

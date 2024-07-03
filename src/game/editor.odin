@@ -72,6 +72,11 @@ update_editor_camera :: proc(camera : ^Camera, delta_time : f32) {
 		input.lock_mouse(editor.mode == .FlyView)
 	}
 
+	// Camera gets sometimes annoingly tilted, this is the siml
+	if input.DEBUG_get_key_pressed(.R, {.Ctrl}) {
+		editor.camera_view_forward = OBJECT_FORWARD
+		editor.camera_view_up = OBJECT_UP
+	}
 
 	if editor.mode == .FlyView {
 
@@ -102,8 +107,8 @@ update_editor_camera :: proc(camera : ^Camera, delta_time : f32) {
 		pan 	:= quaternion_angle_axis_f32(-look.x, world_local_up)
 		tilt 	:= quaternion_angle_axis_f32(-look.y, right)
 
-		editor.camera_view_forward = normalize(mul(tilt * pan, forward))
-		editor.camera_view_up = normalize(mul(tilt * pan, up))
+		editor.camera_view_forward = normalize(mul(pan * tilt, forward))
+		editor.camera_view_up = normalize(mul(pan * tilt, up))
 		
 		movement := right * move.x + forward * move.y + world_local_up * move.z
 		editor.camera_position += movement * EDITOR_CAMERA_MOVE_SPEED * delta_time

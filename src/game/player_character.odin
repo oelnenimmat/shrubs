@@ -83,7 +83,7 @@ update_player_character :: proc(pc : ^PlayerCharacter, cam : ^Camera, delta_time
 	pan 	:= quaternion_angle_axis_f32(-look_right_input, world_local_up)
 	tilt 	:= quaternion_angle_axis_f32(-look_up_input, view_right)
 
-	pc.view_forward = normalize(mul(tilt * pan, view_forward))
+	pc.view_forward = normalize(mul(pan * tilt, view_forward))
 
 	// Project view vectors on local up (just z-axis for now) to move on a flat plane
 	flat_right 		:= normalize(view_right - projection(view_right, world_local_up))
@@ -168,7 +168,7 @@ update_player_character :: proc(pc : ^PlayerCharacter, cam : ^Camera, delta_time
 		pc.old_physics_position.xy = pc.physics_position.xy
 
 		if jump_input {
-			// Todo(Leo): this is very dependent on physics.DELTA_TIME and GRAVITATIONAL_ACCELERATION
+			// Todo(Leo): this is very dependent on physics.DELTA_TIME and GRAVITATIONAL_ACCELERATION. Duh, obviously
 			pc.physics_position.z += physics.GRAVITATIONAL_ACCELERATION * physics.DELTA_TIME * 0.5
 		}
 	}
@@ -188,7 +188,9 @@ update_player_character :: proc(pc : ^PlayerCharacter, cam : ^Camera, delta_time
 		}
 		view_rotation := quaternion_from_matrix4(m)
 
-		cam.position = pc.physics_position + world_local_up * pc.head_height
+		// Move eyes a tiny bit outside
+		eye_depth := f32(0.15)
+		cam.position = pc.physics_position + world_local_up * pc.head_height + view_forward * eye_depth 
 		cam.rotation = view_rotation
 
 	}
