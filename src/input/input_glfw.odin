@@ -71,6 +71,7 @@ glfw_key_proc :: proc "c" (window: glfw.WindowHandle, key, scancode, action, mod
 	
 	case glfw.KEY_ESCAPE: 	input_key = .Escape
 	case glfw.KEY_SPACE: 	input_key = .Space
+	case glfw.KEY_TAB: 		input_key = .Tab
 	}
 
 	state := &input_keys[input_key]

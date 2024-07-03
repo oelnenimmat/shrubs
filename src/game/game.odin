@@ -161,6 +161,8 @@ update :: proc(delta_time: f64) {
 		// about the order of execution
 		update_tank(&tank, delta_time)
 		update_player_character(&player_character, &camera, delta_time)
+	} else if application.mode == .Edit {
+		update_editor_camera(&camera, delta_time)
 	}
 
 	///////////////////////////////////////////////////////////////////////////

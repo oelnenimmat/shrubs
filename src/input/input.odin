@@ -30,7 +30,7 @@ Key :: enum {
 
 	Left, Right, Down, Up,
 
-	Escape, Space,
+	Escape, Space, Tab,
 }
 
 
