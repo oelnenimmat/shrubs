@@ -23,7 +23,7 @@ import "shrubs:debug"
 import "shrubs:input"
 import "shrubs:physics"
 
-PLAYER_CHARACTER_MOVE_SPEED :: 2.0
+PLAYER_CHARACTER_MOVE_SPEED :: 6.0
 
 PlayerCharacter :: struct {
 	physics_position : vec3,

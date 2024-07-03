@@ -1,7 +1,10 @@
+# Compiler output
 *.exe
 *.pdb
 
+# Helper commmands
 *.cmd
 
+# Selected directories
 /local
 /assets

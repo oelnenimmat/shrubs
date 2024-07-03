@@ -105,7 +105,7 @@ TextureFilterMode :: enum { Nearest, Linear }
 opengl_texture_filter_mode :: proc(fm : TextureFilterMode) -> i32 {
 	switch fm {
 		case .Nearest: return gl.NEAREST
-		case .Linear: return gl.LINEAR
+		case .Linear: return gl.LINEAR_MIPMAP_LINEAR
 	}
 
 	return 0
@@ -125,7 +125,6 @@ create_color_texture :: proc(
 
 	pixel_count := width * height
 	assert(pixel_count == len(pixels))
-	pixel_data := (cast([^]u8)raw_data(pixels))[0:pixel_count]
 
 	filter_mode := opengl_texture_filter_mode(filter_mode)
 
@@ -137,9 +136,13 @@ create_color_texture :: proc(
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter_mode)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter_mode)
-	
-	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, i32(width), i32(height), 0, gl.RGBA, gl.UNSIGNED_BYTE, raw_data(pixel_data))
 
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, i32(width), i32(height), 0, gl.RGBA, gl.UNSIGNED_BYTE, raw_data(pixels))
+
+	if filter_mode == gl.LINEAR_MIPMAP_LINEAR {
+		gl.GenerateMipmap(gl.TEXTURE_2D)
+	}
+	
 	gl.BindTexture(gl.TEXTURE_2D, 0)
 
 	return { name }
@@ -153,7 +156,6 @@ create_alpha_only_texture :: proc(
 
 	pixel_count := width * height
 	assert(pixel_count == len(pixels))
-	pixel_data := (cast([^]u8)raw_data(pixels))[0:pixel_count]
 
 	filter_mode := opengl_texture_filter_mode(filter_mode)
 
@@ -166,7 +168,11 @@ create_alpha_only_texture :: proc(
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter_mode)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter_mode)
 	
-	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.ALPHA, i32(width), i32(height), 0, gl.ALPHA, gl.UNSIGNED_BYTE, raw_data(pixel_data))
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.ALPHA, i32(width), i32(height), 0, gl.ALPHA, gl.UNSIGNED_BYTE, raw_data(pixels))
+
+	if filter_mode == gl.LINEAR_MIPMAP_LINEAR {
+		gl.GenerateMipmap(gl.TEXTURE_2D)
+	}
 
 	gl.BindTexture(gl.TEXTURE_2D, 0)
 
