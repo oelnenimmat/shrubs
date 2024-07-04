@@ -16,9 +16,17 @@ GRASS_DENSITY_PER_UNIT :: 10
 Terrain :: struct {
 	positions 		: []vec3,
 	meshes 			: []graphics.Mesh,
+
+	grass_placement_map : ^graphics.Texture,
+	grass_field_texture : ^graphics.Texture,
+	road_texture : ^graphics.Texture,
 }
 
-create_terrain :: proc() -> Terrain {
+create_terrain :: proc(
+	grass_placement_map : ^graphics.Texture,
+	grass_field_texture : ^graphics.Texture,
+	road_texture : ^graphics.Texture,
+) -> Terrain {
 	t : Terrain
 
 	chunk_count := TERRAIN_CHUNK_COUNT * TERRAIN_CHUNK_COUNT
@@ -36,10 +44,19 @@ create_terrain :: proc() -> Terrain {
 		x := f32(chunk_x) * TERRAIN_CHUNK_SIZE + min_chunk_min_corner
 		y := f32(chunk_y) * TERRAIN_CHUNK_SIZE + min_chunk_min_corner
 
+		uv_offset := vec2 {
+			f32(chunk_x) / f32(TERRAIN_CHUNK_COUNT),
+			f32(chunk_y) / f32(TERRAIN_CHUNK_COUNT),
+		}
+
 		t.positions[i] = {x, y, 0}
-		t.meshes[i] = create_static_terrain_mesh(t.positions[i].xy)
+		t.meshes[i] = create_static_terrain_mesh(t.positions[i].xy, uv_offset)
 	}
 
+	t.grass_placement_map = grass_placement_map
+	t.grass_field_texture = grass_field_texture
+	t.road_texture = road_texture
+	
 	return t
 }
 
@@ -47,6 +64,9 @@ destroy_terrain :: proc(terrain : ^Terrain) {
 	delete (terrain.positions)
 
 	// Todo(Leo): also delete all the meshes from graphics
+	for mesh in &terrain.meshes {
+		graphics.destroy_mesh(&mesh)
+	}
 	delete (terrain.meshes)
 
 	terrain^ = {}
@@ -95,11 +115,12 @@ create_grass_blade_mesh :: proc() -> graphics.Mesh {
 }
 
 Grass :: struct {
-	instances 	: graphics.InstanceBuffer,
-	mesh 		: graphics.Mesh,
+	instances 		: graphics.InstanceBuffer,
+	mesh 			: graphics.Mesh,
+	placement_map 	: ^graphics.Texture,
 }
 
-create_grass :: proc() -> Grass {
+create_grass :: proc(placement_map : ^graphics.Texture) -> Grass {
 	g : Grass
 
 	g.mesh = create_grass_blade_mesh()
@@ -108,6 +129,8 @@ create_grass :: proc() -> Grass {
 	w 					:= 0.5 * world_side_length
 	count 				:= int(world_side_length * GRASS_DENSITY_PER_UNIT)
 	g.instances 		= generate_grass_positions({-w, -w, 0}, {w, w, 0}, count)
+
+	g.placement_map = placement_map
 
 	return g
 }
@@ -136,7 +159,7 @@ generate_grass_positions :: proc(min, max : vec3, count_per_dimension : int) -> 
 	cell_size_y := (max.y - min.y) / f32(count_per_dimension)
 
 	buffer := graphics.create_instance_buffer(cell_count, size_of(GrassInstanceData))
-	
+/*	
 	instance_memory := (cast([^]GrassInstanceData) graphics.get_instance_buffer_writeable_memory(&buffer))[0:cell_count]
 
 	for i in 0..<cell_count {
@@ -160,13 +183,13 @@ generate_grass_positions :: proc(min, max : vec3, count_per_dimension : int) -> 
 			(y - min.y) / (max.y - min.y),
 		}
 	}
-
+*/
 	return buffer
 }
 
 sample_height :: proc(x, y : f32) -> f32 {
 	
-	WORLD_SEED 			:: 562
+	WORLD_SEED 			:: 563
 	WORLD_TO_GRID_SCALE :: 0.1
 	TERRAIN_Z_SCALE 	:: 5
 
@@ -174,17 +197,17 @@ sample_height :: proc(x, y : f32) -> f32 {
 	x := x * WORLD_TO_GRID_SCALE
 	y := y * WORLD_TO_GRID_SCALE
 
-	return value_noise_2D(x, y) * TERRAIN_Z_SCALE
+	return value_noise_2D(x, y, WORLD_SEED) * TERRAIN_Z_SCALE
 }
 
-create_static_terrain_mesh :: proc(min_corner_position : vec2) -> graphics.Mesh {
+create_static_terrain_mesh :: proc(min_corner_position : vec2, uv_offset : vec2) -> graphics.Mesh {
 	
-	world_size := 10
-	
+	// world_size := TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_COUNT
+
 	// per dimension
 	quad_count_1D := 10
 	quad_count := quad_count_1D * quad_count_1D
-	quad_size := f32(world_size) / f32(quad_count_1D)
+	quad_size := f32(TERRAIN_CHUNK_SIZE) / f32(quad_count_1D)
 
 	// VERTICES
 	vertex_count := (quad_count_1D + 1) * (quad_count_1D + 1)
@@ -208,8 +231,8 @@ create_static_terrain_mesh :: proc(min_corner_position : vec2) -> graphics.Mesh 
 
 		z := sample_height(x + min_corner_position.x, y + min_corner_position.y)
 
-		u := f32(cell_x) / f32(quad_count_1D + 1)
-		v := f32(cell_y) / f32(quad_count_1D + 1)
+		u := f32(cell_x) / f32(quad_count_1D) / f32(TERRAIN_CHUNK_COUNT) + uv_offset.x
+		v := f32(cell_y) / f32(quad_count_1D) / f32(TERRAIN_CHUNK_COUNT) + uv_offset.y
 
 		positions[i] 	= {x, y, z}
 		normals[i] 		= {0, 0, 1}

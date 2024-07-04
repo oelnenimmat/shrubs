@@ -8,11 +8,11 @@ this is a very quick implementation for very limited and try-outty use case
 
 package game
 
-PRIME_A : u32 : 0b10011110001101110111100110110001
-PRIME_B : u32 : 0b10000101111010111100101001110111
-PRIME_C : u32 : 0b11000010101100101010111000111101
-PRIME_D : u32 : 0b00100111110101001110101100101111
-PRIME_E : u32 : 0b00010110010101100110011110110001
+PRIME_A : u32 : 2654435761 //0b10011110001101110111100110110001
+PRIME_B : u32 : 2246822519 //0b10000101111010111100101001110111
+PRIME_C : u32 : 3266489917 //0b11000010101100101010111000111101
+PRIME_D : u32 : 668265263 //0b00100111110101001110101100101111
+PRIME_E : u32 : 374761393 //0b00010110010101100110011110110001
 
 SmallXXHash :: struct {
 	accumulator : u32
@@ -37,7 +37,7 @@ small_xx_hash_get_u32 :: proc(hash : SmallXXHash) -> u32 {
 }
 
 small_xx_hash_get_f32 :: proc(hash : SmallXXHash) -> f32 {
-	return f32(small_xx_hash_get_u32(hash)) / f32(max(u32))
+	return f32(small_xx_hash_get_u32(hash)) / 4294967295.0 //f32(max(u32))
 }
 
 rotate_left :: #force_inline proc(data : u32, steps : u32) -> u32 {

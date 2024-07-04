@@ -51,6 +51,7 @@ scene : ^Scene
 
 // Resources
 white_texture 	: graphics.Texture
+black_texture 	: graphics.Texture
 capsule_mesh 	: graphics.Mesh
 
 application : struct {
@@ -71,6 +72,11 @@ initialize :: proc() {
 	white_texture = graphics.create_color_texture(
 		1, 1, []common.Color_u8_rgba{{255, 255, 255, 255}}, .Nearest,
 	)
+
+	black_texture = graphics.create_color_texture(
+		1, 1, []common.Color_u8_rgba{{0, 0, 0, 255}}, .Nearest,
+	)
+
 
 	capsule_mesh = TEMP_load_mesh_gltf("assets/shapes.glb", "shape_capsule")
 
@@ -198,15 +204,8 @@ update :: proc(delta_time: f64) {
 		model_matrix := linalg.matrix4_translate_f32(sp.position)
 		graphics.draw_mesh(sp.mesh, model_matrix)
 	}
-
-	graphics.set_basic_material({0.4, 0.4, 0.4}, &scene.grass_field_texture)
-	for p, i in scene.terrain.positions {
-		model_matrix := linalg.matrix4_translate_f32(p)
-		graphics.draw_mesh(&scene.terrain.meshes[i], model_matrix)
-	}
-
+	
 	render_tank(&tank)
-
 
 	// Player character as a capsule for debug purposes
 	graphics.set_basic_material({0.6, 0.2, 0.4}, &white_texture)
@@ -215,9 +214,32 @@ update :: proc(delta_time: f64) {
 	graphics.draw_mesh(&capsule_mesh, model_matrix)
 
 	// NEXT PIPELINE
+	graphics.setup_terrain_pipeline(
+		projection_matrix,
+		view_matrix,
+		light_direction,
+		light_color,
+		ambient_color,
+	)
+	graphics.set_terrain_material(
+		scene.terrain.grass_placement_map,
+		scene.terrain.grass_field_texture,
+		scene.terrain.road_texture,
+	)
+	for p, i in scene.terrain.positions {
+		model_matrix := linalg.matrix4_translate_f32(p)
+		graphics.draw_mesh(&scene.terrain.meshes[i], model_matrix)
+	}
+
+	// NEXT PIPELINE
 	graphics.setup_debug_pipeline(projection_matrix, view_matrix)
 	debug.render()
 
+	// NEXT PIPELINE
+	graphics.dispatch_grass_placement_pipeline(
+		&scene.grass.instances, 
+		scene.grass.placement_map,
+	)
 
 	// NEXT PIPELINE
 	@static wind_time := f32 (0)
@@ -232,7 +254,7 @@ update :: proc(delta_time: f64) {
 		ambient_color,
 		{0, 1, 0}, wind_amount
 	)
-	graphics.set_grass_material(&scene.grass_field_texture)
+	graphics.set_grass_material(&scene.textures[.Grass_Field])
 	graphics.draw_mesh_instanced(&scene.grass.mesh, &scene.grass.instances)
 
 	// NEXT PIPELINE
@@ -349,8 +371,8 @@ MOCKUP_do_gui :: proc() {
 
 			mu.layout_row(ctx, label_and_two_elements_layout)
 			mu.label(ctx, "Distances")
-			if .SUBMIT in gui.texture_button(ctx, "", scene.grass_field_texture) { }
-			if .SUBMIT in gui.texture_button(ctx, "", scene.grass_field_texture) { }
+			if .SUBMIT in gui.texture_button(ctx, "", scene.textures[.Grass_Field]) { }
+			if .SUBMIT in gui.texture_button(ctx, "", scene.textures[.Grass_Field]) { }
 
 			// Todo(Leo): these are not implemented yet on the other side, requires changes to graphics
 			// mu.label(ctx, "Sizes")

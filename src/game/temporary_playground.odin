@@ -36,14 +36,14 @@ TEMP_load_mesh_gltf :: proc(mesh_file_name, mesh_node_name : cstring) -> graphic
 }
 
 // Todo(Leo): similar to TEMP_load_mesh_gltf
-TEMP_load_color_texture :: proc(filename : cstring) -> graphics.Texture {
+TEMP_load_color_texture :: proc(filename : cstring, filter_mode := graphics.TextureFilterMode.Linear) -> graphics.Texture {
 	image := assets.load_color_image(filename)
 	defer assets.free_loaded_color_image(&image)
 	texture := graphics.create_color_texture(
 		image.width,
 		image.height,
 		image.pixels,
-		.Linear,
+		filter_mode,
 	)
 	return texture
 }

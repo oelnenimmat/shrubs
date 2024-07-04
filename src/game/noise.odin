@@ -3,7 +3,7 @@ package game
 import "core:math"
 import "core:math/linalg"
 
-value_noise_2D :: proc(x, y : f32) -> f32 {
+value_noise_2D :: proc(x, y : f32, seed : i32) -> f32 {
 	ix0 := i32(math.floor(x))
 	ix1 := ix0 + 1
 	tx 	:= math.smoothstep(f32(0), f32(1), x - f32(ix0))
@@ -12,9 +12,11 @@ value_noise_2D :: proc(x, y : f32) -> f32 {
 	iy1 := iy0 + 1
 	ty 	:= math.smoothstep(f32(0), f32(1), y - f32(iy0))
 
+	h := small_xx_hash_make(seed)
+
 	// hX
-	h0 := small_xx_hash_make(ix0)
-	h1 := small_xx_hash_make(ix1)
+	h0 := small_xx_hash_eat	(h, ix0)
+	h1 := small_xx_hash_eat	(h, ix1)
 
 	// hXY
 	h00 := small_xx_hash_eat(h0, iy0)

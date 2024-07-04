@@ -41,10 +41,12 @@ graphics_context : struct {
 	virtual_frame_in_use_fences : [VIRTUAL_FRAME_COUNT]gl.sync_t,
 
 	// Pipelines :)
-	basic_pipeline 	: BasicPipeline,
-	grass_pipeline 	: GrassPipeline,
-	debug_pipeline 	: DebugPipeline,
-	gui_pipeline 	: GuiPipeline,
+	basic_pipeline 				: BasicPipeline,
+	grass_pipeline 				: GrassPipeline,
+	terrain_pipeline			: TerrainPipeline,
+	grass_placement_pipeline 	: GrassPlacementPipeline,
+	debug_pipeline 				: DebugPipeline,
+	gui_pipeline 				: GuiPipeline,
 
 	// Per draw uniform locations. These are set whenever a new pipeline
 	// is bound/setupped, and used in draw_XXX functions
@@ -74,10 +76,12 @@ initialize :: proc() {
 	gc := &graphics_context
 	gc^ = {}
 
-	gc.basic_pipeline 	= create_basic_pipeline()
-	gc.grass_pipeline 	= create_grass_pipeline()
-	gc.debug_pipeline 	= create_debug_pipeline()
-	gc.gui_pipeline 	= create_gui_pipeline()
+	gc.basic_pipeline 			= create_basic_pipeline()
+	gc.grass_pipeline 			= create_grass_pipeline()
+	gc.terrain_pipeline 		= create_terrain_pipeline()
+	gc.grass_placement_pipeline = create_grass_placement_pipeline()
+	gc.debug_pipeline 			= create_debug_pipeline()
+	gc.gui_pipeline 			= create_gui_pipeline()
 
 	// Todo(Leo): there might be issue here that this could be called before
 	// setting up the opengl stuff and then something going haywire, seems to work now
@@ -131,6 +135,13 @@ begin_frame :: proc() {
 }
 
 // PLATFORM INTERNAL USAGE ----------------------------------------------------
+
+@private
+set_texture_2D :: proc(texture : ^Texture, slot : u32) {
+	gl.ActiveTexture(gl.TEXTURE0 + slot)
+	gl.Enable(gl.TEXTURE_2D)
+	gl.BindTexture(gl.TEXTURE_2D, texture.opengl_name)
+}
 
 @private
 resize_framebuffer :: proc "c" (width, height: int) {
@@ -226,6 +237,33 @@ create_shader_program :: proc(vertex_source, fragment_source : cstring) -> u32 {
 
 	gl.DeleteShader(vertex_shader)
 	gl.DeleteShader(fragment_shader)
+
+	return program
+}
+
+@private
+create_compute_shader_program :: proc(compute_source : cstring) -> u32 {
+	program := gl.CreateProgram()
+
+	compute_shader := make_shader(compute_source, gl.COMPUTE_SHADER)
+
+	gl.AttachShader(program, compute_shader)
+	gl.LinkProgram(program)
+
+	success : i32
+	gl.GetProgramiv(program, gl.LINK_STATUS, &success)
+	if success == 0 {
+		info_log_buffer := make([]u8, 1024, context.temp_allocator)
+		defer delete(info_log_buffer, context.temp_allocator)
+
+		info_log_length : i32 = 0
+		gl.GetProgramInfoLog(program, cast(i32) len(info_log_buffer), &info_log_length, raw_data(info_log_buffer))
+		fmt.printf("SHADER PROGRAM ERROR: %s\n", transmute(string)info_log_buffer[:info_log_length])	
+	} else {
+		fmt.println("Shader Program created succesfully")
+	}
+
+	gl.DeleteShader(compute_shader)
 
 	return program
 }

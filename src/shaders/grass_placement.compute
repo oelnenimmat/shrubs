@@ -1,0 +1,150 @@
+#version 450
+
+///////////////////////////////////////////////////////////////////////////////
+// Noise section, move this to a different file so everyone can use
+
+const uint PRIME_A = 2654435761;
+const uint PRIME_B = 2246822519;
+const uint PRIME_C = 3266489917;
+const uint PRIME_D = 668265263;
+const uint PRIME_E = 374761393;
+
+uint hash_make (int seed) {
+	return uint(seed) + PRIME_E;
+}
+
+uint rotate_left(uint data, uint steps) {
+	return (data << steps) | (data >> (32 - steps));
+}
+
+uint hash_eat (uint hash, int data) {
+	return rotate_left(hash + uint(data) * PRIME_C, 17) * PRIME_D;
+}
+
+uint hash_get_uint (uint hash) {
+	uint avalanche = hash;
+	avalanche = avalanche ^ (avalanche >> 15);
+	avalanche *= PRIME_B;
+	avalanche = avalanche ^ (avalanche >> 13);
+	avalanche *= PRIME_C;
+	avalanche = avalanche ^ (avalanche >> 16);
+	return avalanche;
+}
+
+float hash_get_float (uint hash) {
+	return float(hash_get_uint(hash)) / 4294967295.0;
+}
+
+float value_noise_2D(float x, float y, int seed) {
+	int ix0 = int(floor(x));
+	int ix1 = ix0 + 1;
+	float tx = smoothstep(0, 1, x - ix0);
+
+	int iy0 = int(floor(y));
+	int iy1 = iy0 + 1;
+	float ty = smoothstep(0, 1, y - iy0);
+
+	uint h = hash_make(seed);
+
+	uint h0 = hash_eat(h, ix0);
+	uint h1 = hash_eat(h, ix1);
+
+	uint h00 = hash_eat(h0, iy0);
+	uint h10 = hash_eat(h1, iy0);
+	uint h01 = hash_eat(h0, iy1);
+	uint h11 = hash_eat(h1, iy1);
+
+	float v00 = hash_get_float(h00);
+	float v10 = hash_get_float(h10);
+	float v01 = hash_get_float(h01);
+	float v11 = hash_get_float(h11);
+
+	float v0 = mix(v00, v10, tx);
+	float v1 = mix(v01, v11, tx);
+
+	float v = mix(v0, v1, ty);
+
+	return v;
+}
+
+// End noise section
+///////////////////////////////////////////////////////////////////////////////
+
+const float pi = 3.14159265359;
+
+layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+uniform sampler2D placement_texture;
+
+// x: world_seed;
+// y: world_to_grid_scale;
+// z: terrain_z_scale;
+uniform vec4 noise_params;
+
+// xy: world min corner position xy
+// zw: world size xy
+uniform vec4 world_params;
+
+// x: base_height
+// y: height_variation
+// z: blades_per_dimension;
+uniform vec4 grass_params;
+
+
+struct GrassInstanceData {
+	vec4 position;
+	vec2 field_uv;
+	float height;
+	float rotation;
+};
+
+layout (std430, binding = 0) buffer grass {
+	GrassInstanceData instances [];
+};
+
+float sample_height (float x, float y) {
+	// transform to grid scale
+	x *= noise_params.y;
+	y *= noise_params.y;
+
+	return value_noise_2D(x, y, int(noise_params.x)) * noise_params.z;
+}
+
+void main() {
+	uint index = gl_GlobalInvocationID.x + 
+				uint(grass_params.z) * gl_GlobalInvocationID.y;
+	uint cell_x = gl_GlobalInvocationID.x;
+	uint cell_y = gl_GlobalInvocationID.y;
+
+	uint hash = hash_make(int(index));
+	uint hx = hash_eat(hash, int(cell_x));
+	uint hy = hash_eat(hash, int(cell_y));
+
+	vec2 cell_size = world_params.zw / grass_params.z;
+
+	float x = world_params.x + (cell_x + hash_get_float(hx)) * cell_size.x;
+	float y = world_params.y + (cell_y + hash_get_float(hy)) * cell_size.y;
+
+	vec2 uv = vec2(
+		(x - world_params.x) / world_params.z,
+		(y - world_params.y) / world_params.w
+	);
+
+	float z = sample_height(x, y);
+
+	// Eat some prime numbers to get variation, quite arbitrary, and could do without
+	float h = grass_params.x + grass_params.y * hash_get_float(hash_eat(hash, 13));
+	float r = hash_get_float(hash_eat(hash, 37)) * 2 * pi;
+
+	// Todo(Leo): this piece of code is supposed to remove unplaceable grass blades
+	// but for now we just scale them to zero. Please fix if possible.
+	float placement_value = textureLod(placement_texture, uv, 0).r;
+	if (placement_value < 0.5) {
+		h = 0.0;
+	}
+
+	instances[index].position 	= vec4(x, y, z, 0);
+	instances[index].height 	= h;
+	instances[index].rotation 	= r;
+	instances[index].field_uv 	= uv;
+}
