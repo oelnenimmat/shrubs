@@ -104,12 +104,17 @@ create_grass_blade_mesh :: proc() -> graphics.Mesh {
 
 	// Todo(Leo): make triangle strip, this is just normal triangles, as this is what we have now
 	// Todo(Leo): might be that we do not need this at all in the end, just generate things on gpu/vertex shader
+	// elements := []u16 {
+	// 	0, 1, 2, 2, 1, 3,
+	// 	2, 3, 4, 4, 3, 5,
+	// 	4, 5, 6, 6, 5, 7,
+	// 	6, 7, 8,
+	// }
 	elements := []u16 {
-		0, 1, 2, 2, 1, 3,
-		2, 3, 4, 4, 3, 5,
-		4, 5, 6, 6, 5, 7,
-		6, 7, 8,
+		0, 1, 2,
+		3, 4, 5, 6, 7, 8
 	}
+
 
 	return graphics.create_mesh(positions, normals, nil, elements) 
 }
@@ -127,7 +132,7 @@ create_grass :: proc(placement_map : ^graphics.Texture) -> Grass {
 
 	world_side_length 	:= f32(TERRAIN_CHUNK_COUNT * TERRAIN_CHUNK_SIZE)
 	w 					:= 0.5 * world_side_length
-	count 				:= int(world_side_length * GRASS_DENSITY_PER_UNIT)
+	count 				:= 512 //int(world_side_length * GRASS_DENSITY_PER_UNIT)
 	g.instances 		= generate_grass_positions({-w, -w, 0}, {w, w, 0}, count)
 
 	g.placement_map = placement_map

@@ -22,7 +22,7 @@ void main() {
 	
 	float splatter = texture(splatter_texture, texcoord).r;
 	vec3 surface = mix(
-		texture(road_texture, texcoord).rgb,
+		texture(road_texture, texcoord * 10).rgb,
 		texture(grass_texture, texcoord).rgb,
 		splatter
 	);

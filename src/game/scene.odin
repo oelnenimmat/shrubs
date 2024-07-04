@@ -16,6 +16,7 @@ TextureName :: enum {
 	Grass_Placement,
 	Rock,
 	Road,
+	Wind,
 }
 
 MeshName :: enum {
@@ -54,6 +55,10 @@ load_scene :: proc(scene_name : SceneName) -> ^Scene {
 	s^ = {}
 
 	s.name = scene_name
+
+	// http://kitfox.com/projects/perlinNoiseMaker/
+	// Todo(Leo): this is for all, so maybe make more public access
+	s.textures[.Wind] = TEMP_load_color_texture("assets/perlin_wind.png")
 
 	switch scene_name {
 	case .Green_Hills_Zone:

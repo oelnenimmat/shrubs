@@ -14,7 +14,7 @@ out vec4 out_color;
 
 void main() {
 
-	vec3 lighting 	= light_color * dot(-light_direction, normalize(surface_normal)) + ambient_color;
+	vec3 lighting 	= light_color * max(0, dot(-light_direction, normalize(surface_normal))) + ambient_color;
 	vec3 surface 	= surface_color * texture(surface_texture, texcoord).rgb;
 
 	vec3 color 		= lighting * surface;

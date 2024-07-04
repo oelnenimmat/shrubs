@@ -184,6 +184,7 @@ destroy_texture :: proc(texture : ^Texture) {
 	gl.DeleteTextures(1, &name)
 }
 
+/*
 draw_mesh_instanced :: proc(mesh : ^Mesh, ib : ^InstanceBuffer) {
 	gc := &graphics_context
 
@@ -208,6 +209,7 @@ draw_mesh_instanced :: proc(mesh : ^Mesh, ib : ^InstanceBuffer) {
 		ib.count,
 	)
 }
+*/
 
 InstanceBuffer :: struct {
 	count 			: i32,

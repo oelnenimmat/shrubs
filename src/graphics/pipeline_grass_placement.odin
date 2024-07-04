@@ -30,8 +30,14 @@ create_grass_placement_pipeline :: proc () -> GrassPlacementPipeline {
 	return pl
 }
 
-dispatch_grass_placement_pipeline :: proc (buffer : ^InstanceBuffer, placement_texture : ^Texture) {
+dispatch_grass_placement_pipeline :: proc (
+	buffer : ^InstanceBuffer, 
+	placement_texture : ^Texture,
+	blade_count : int,
+) {
 	pl := &graphics_context.grass_placement_pipeline
+
+	blade_count := u32(blade_count)
 
 	gl.UseProgram(pl.program)
 	gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, 0, buffer.buffer)
@@ -40,8 +46,9 @@ dispatch_grass_placement_pipeline :: proc (buffer : ^InstanceBuffer, placement_t
 
 	gl.Uniform4f(pl.noise_params_location, 563, 0.1, 5, 0)
 	gl.Uniform4f(pl.world_params_location, -25.0, -25.0, 50.0, 50.0)
-	gl.Uniform4f(pl.grass_params_location, 0.8, 0.4, 512, 0)
+	gl.Uniform4f(pl.grass_params_location, 0.4, 0.2, f32(blade_count), 0)
 
-	gl.DispatchCompute(16, 16, 1)
+	// 512 blades per side, work group is 32 x 32
+	gl.DispatchCompute(blade_count / 32, blade_count / 32, 1)
 	gl.MemoryBarrier(gl.ALL_BARRIER_BITS)
 }

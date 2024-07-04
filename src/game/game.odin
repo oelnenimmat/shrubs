@@ -49,6 +49,8 @@ tank 				: Tank
 
 scene : ^Scene
 
+grass_blade_count := 256
+
 // Resources
 white_texture 	: graphics.Texture
 black_texture 	: graphics.Texture
@@ -185,9 +187,9 @@ update :: proc(delta_time: f64) {
 
 	graphics.begin_frame()
 
-	light_direction := linalg.normalize(vec3{1, 2, -10})
-	light_color := vec3{1.0, 0.95, 0.85}
-	ambient_color := vec3{0.3, 0.35, 0.4} * 3
+	light_direction := linalg.normalize(vec3{0, 0, -5})
+	light_color := vec3{1.0, 0.95, 0.85} * 1.5
+	ambient_color := vec3{0.3, 0.35, 0.4}
 
 	projection_matrix, view_matrix := camera_get_projection_and_view_matrices(&camera)
 
@@ -239,12 +241,24 @@ update :: proc(delta_time: f64) {
 	graphics.dispatch_grass_placement_pipeline(
 		&scene.grass.instances, 
 		scene.grass.placement_map,
+		grass_blade_count,
 	)
 
 	// NEXT PIPELINE
 	@static wind_time := f32 (0)
-	wind_time += delta_time
-	wind_amount := math.sin(wind_time) * 0.2
+	@static wind_on := true
+	@static wind_offset : vec2
+
+	if wind_on {
+		wind_time += delta_time
+		wind_offset.x += delta_time * 0.08
+		wind_offset.y += delta_time * 0.04
+	}
+	wind_amount := math.sin(wind_time) * 0.5
+
+	if input.DEBUG_get_key_pressed(.U) {
+		wind_on = !wind_on
+	}
 
 	graphics.setup_grass_pipeline(
 		projection_matrix, 
@@ -252,10 +266,11 @@ update :: proc(delta_time: f64) {
 		light_direction,
 		light_color,
 		ambient_color,
-		{0, 1, 0}, wind_amount
+		{0, 1, 0}, wind_amount,
+		wind_offset
 	)
-	graphics.set_grass_material(&scene.textures[.Grass_Field])
-	graphics.draw_mesh_instanced(&scene.grass.mesh, &scene.grass.instances)
+	graphics.set_grass_material(&scene.textures[.Grass_Field], &scene.textures[.Wind])
+	graphics.draw_grass(&scene.grass.mesh, &scene.grass.instances, grass_blade_count*grass_blade_count)
 
 	// NEXT PIPELINE
 	graphics.setup_gui_pipeline()
@@ -392,6 +407,17 @@ MOCKUP_do_gui :: proc() {
 			gui.unindent(ctx)
 		}
 		
+		if .ACTIVE in mu.header(ctx, "Grass!", {.EXPANDED}) {
+			gui.indent(ctx)
+			
+			mu.layout_row(ctx, two_elements_layout)
+			if .SUBMIT in mu.button(ctx, "64") { grass_blade_count = 64 }
+			if .SUBMIT in mu.button(ctx, "128") { grass_blade_count = 128 }
+			if .SUBMIT in mu.button(ctx, "256") { grass_blade_count = 256 }
+			if .SUBMIT in mu.button(ctx, "512") { grass_blade_count = 512 }
+			
+			gui.unindent(ctx)
+		}
 
 		// mu.layout_row(ctx, {content_width})
 		// if .ACTIVE in mu.header(ctx, "Particle Visual Settings", {.EXPANDED})

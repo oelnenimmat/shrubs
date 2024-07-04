@@ -17,10 +17,14 @@ GrassPipeline :: struct {
 	ambient_color_location : i32,
 
 	// wind
-	wind_location : i32,
+	wind_params_location : i32,
 
-	// Todo(Leo): these are not set properly quite yet
-	field_texture_slot : u32,
+	// textures
+	field_texture_location : i32,	
+	wind_texture_location : i32,	
+
+	field_texture_slot : u32,	
+	wind_texture_slot : u32,	
 }
 
 @private
@@ -41,8 +45,14 @@ create_grass_pipeline :: proc() -> GrassPipeline {
 	pl.light_color_location 		= gl.GetUniformLocation(pl.shader_program, "light_color")
 	pl.ambient_color_location 		= gl.GetUniformLocation(pl.shader_program, "ambient_color")
 
-	pl.wind_location = gl.GetUniformLocation(pl.shader_program, "wind_direction_amount")
+	pl.wind_params_location 		= gl.GetUniformLocation(pl.shader_program, "wind_params")
 
+	pl.field_texture_location = gl.GetUniformLocation(pl.shader_program, "field_texture")
+	pl.wind_texture_location = gl.GetUniformLocation(pl.shader_program, "wind_texture")
+
+	pl.field_texture_slot = 0
+	pl.wind_texture_slot = 1
+	
 	return pl
 }
 
@@ -51,8 +61,9 @@ setup_grass_pipeline :: proc(
 	light_direction : vec3,
 	light_color : vec3,
 	ambient_color : vec3,
-	wind_direction : vec3,
-	wind_amount : f32,
+	_ : vec3,
+	_ : f32,
+	wind_offset : vec2,
 ) {
 	projection := projection
 	view := view
@@ -74,21 +85,52 @@ setup_grass_pipeline :: proc(
 	gl.Uniform3fv(pl.ambient_color_location, 1, auto_cast &ambient_color)
 
 	// Wind
-	direction_amount := vec4{wind_direction.x, wind_direction.y, wind_direction.z, wind_amount}
-	gl.Uniform4fv(pl.wind_location, 1, auto_cast &direction_amount)	
+	gl.Uniform4f(pl.wind_params_location, wind_offset.x, wind_offset.y, 0.005, 0);
 
+	gl.Uniform1i(pl.field_texture_location, i32(pl.field_texture_slot))
+	gl.Uniform1i(pl.wind_texture_location, i32(pl.wind_texture_slot))
+
+	// Options
 	gl.Disable(gl.CULL_FACE)
 	gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
 	gl.Disable(gl.BLEND)
 	gl.Enable(gl.DEPTH_TEST)
 
+
+
 	// no need for model matrix
 }
 
-set_grass_material :: proc(field_texture : ^Texture) {
+set_grass_material :: proc(field_texture : ^Texture, wind_texture : ^Texture) {
 	pl := &graphics_context.grass_pipeline
 
-	gl.ActiveTexture(gl.TEXTURE0 + pl.field_texture_slot)
-	gl.Enable(gl.TEXTURE_2D)
-	gl.BindTexture(gl.TEXTURE_2D, field_texture.opengl_name)
+	set_texture_2D(field_texture, pl.field_texture_slot)
+	set_texture_2D(wind_texture, pl.wind_texture_slot)
+}
+
+draw_grass :: proc(mesh : ^Mesh, ib : ^InstanceBuffer, count : int) {
+	gc := &graphics_context
+
+	gl.BindVertexArray(mesh.vao)
+
+	// SETUP INSTANCE DATA BUFFER
+	gl.BindBuffer(gl.ARRAY_BUFFER, ib.buffer)
+	gl.VertexAttribPointer(2, 4, gl.FLOAT, gl.FALSE, 2 * size_of(vec4), uintptr(0))
+	gl.EnableVertexAttribArray(2)
+	gl.VertexAttribDivisor(2, 1)
+
+	gl.BindBuffer(gl.ARRAY_BUFFER, ib.buffer)
+	gl.VertexAttribPointer(3, 4, gl.FLOAT, gl.FALSE, 2 * size_of(vec4), uintptr(size_of(vec4)))
+	gl.EnableVertexAttribArray(3)
+	gl.VertexAttribDivisor(3, 1)
+
+	// Stupid Wild Ass Guess
+	SWAG_GRASS_VERTEX_COUNT :: 9
+
+	gl.DrawArraysInstanced(
+		gl.TRIANGLE_STRIP,
+		0,
+		SWAG_GRASS_VERTEX_COUNT,
+		i32(count),
+	)
 }
