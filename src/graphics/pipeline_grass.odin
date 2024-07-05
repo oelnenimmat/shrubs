@@ -19,6 +19,8 @@ GrassPipeline :: struct {
 	// wind
 	wind_params_location : i32,
 
+	debug_params_location : i32,
+
 	// textures
 	field_texture_location : i32,	
 	wind_texture_location : i32,	
@@ -47,6 +49,8 @@ create_grass_pipeline :: proc() -> GrassPipeline {
 
 	pl.wind_params_location 		= gl.GetUniformLocation(pl.shader_program, "wind_params")
 
+	pl.debug_params_location 		= gl.GetUniformLocation(pl.shader_program, "debug_params")
+
 	pl.field_texture_location = gl.GetUniformLocation(pl.shader_program, "field_texture")
 	pl.wind_texture_location = gl.GetUniformLocation(pl.shader_program, "wind_texture")
 
@@ -61,9 +65,9 @@ setup_grass_pipeline :: proc(
 	light_direction : vec3,
 	light_color : vec3,
 	ambient_color : vec3,
-	_ : vec3,
-	_ : f32,
 	wind_offset : vec2,
+	debug_params : vec4,
+	cull_back : bool,
 ) {
 	projection := projection
 	view := view
@@ -90,8 +94,16 @@ setup_grass_pipeline :: proc(
 	gl.Uniform1i(pl.field_texture_location, i32(pl.field_texture_slot))
 	gl.Uniform1i(pl.wind_texture_location, i32(pl.wind_texture_slot))
 
+	debug_params := debug_params
+	gl.Uniform4fv(pl.debug_params_location, 1, auto_cast &debug_params)
+
 	// Options
-	gl.Disable(gl.CULL_FACE)
+	if cull_back {
+		gl.Enable(gl.CULL_FACE)
+	} else {
+		gl.Disable(gl.CULL_FACE)
+	}
+
 	gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
 	gl.Disable(gl.BLEND)
 	gl.Enable(gl.DEPTH_TEST)

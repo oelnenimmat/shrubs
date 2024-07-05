@@ -10,14 +10,22 @@ layout (location = 6) uniform vec3 ambient_color;
 
 layout (location = 7) uniform sampler2D surface_texture;
 
+layout (location = 10) uniform vec4 debug_params;
+
 out vec4 out_color;
 
 void main() {
 
-	vec3 lighting 	= light_color * max(0, dot(-light_direction, normalize(surface_normal))) + ambient_color;
+	vec3 normal 	= normalize(surface_normal);
+	float ndotl 	= max(0, dot(-light_direction, normal));
+	vec3 lighting 	= light_color * ndotl + ambient_color;
 	vec3 surface 	= surface_color * texture(surface_texture, texcoord).rgb;
 
 	vec3 color 		= lighting * surface;
 
 	out_color = vec4(color, 1);
+
+	if (debug_params.x > 0.5) {
+		out_color = vec4(normal, 1);
+	}
 }

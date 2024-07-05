@@ -51,6 +51,9 @@ scene : ^Scene
 
 grass_blade_count := 256
 
+draw_normals := false
+grass_cull_back := false
+
 // post_processing : struct {
 // 	exposure : f32,
 // }
@@ -162,7 +165,7 @@ update :: proc(delta_time: f64) {
 	}
 
 	if application.mode == .Edit {
-		MOCKUP_do_gui()
+		editor_gui()
 	}
 
 	///////////////////////////////////////////////////////////////////////////
@@ -192,7 +195,10 @@ update :: proc(delta_time: f64) {
 	graphics.begin_frame()
 	graphics.bind_main_framebuffer()
 
-	light_direction := linalg.normalize(vec3{0, 5, -5})
+	debug_params := vec4{1 if draw_normals else 0, 0, 0, 0}
+
+	light_direction := linalg.normalize(vec3{0, 0, -5})
+	// light_direction := linalg.normalize(vec3{0, 5, -5})
 	light_color := vec3{1.0, 0.95, 0.85} * 1.5
 	ambient_color := vec3{0.3, 0.35, 0.4}
 
@@ -204,6 +210,7 @@ update :: proc(delta_time: f64) {
 		light_direction,
 		light_color,
 		ambient_color,
+		debug_params,
 	)
 
 	for sp in scene.set_pieces {
@@ -227,6 +234,7 @@ update :: proc(delta_time: f64) {
 		light_direction,
 		light_color,
 		ambient_color,
+		debug_params,
 	)
 	graphics.set_terrain_material(
 		scene.terrain.grass_placement_map,
@@ -271,8 +279,9 @@ update :: proc(delta_time: f64) {
 		light_direction,
 		light_color,
 		ambient_color,
-		{0, 1, 0}, wind_amount,
-		wind_offset
+		wind_offset,
+		debug_params,
+		grass_cull_back,
 	)
 	graphics.set_grass_material(&scene.textures[.Grass_Field], &scene.textures[.Wind])
 	graphics.draw_grass(&scene.grass.mesh, &scene.grass.instances, grass_blade_count*grass_blade_count)
@@ -297,14 +306,8 @@ update :: proc(delta_time: f64) {
 
 // This is a mockup, really probably each component (e.g. playback) should have
 // their corresponding parts there. Not sure though. 
-MOCKUP_do_gui :: proc() {
+editor_gui :: proc() {
 	ctx := gui.get_mu_context()
-
-	// val  : f32 =  1e6
-	// DEBUG limits
-	lo   : f32 :  1.0
-	hi   : f32 :  10
-	step : f32 :  0.0
 
 	// Careful! Window means here both application window and the gui window inside the application!
 	GUI_WINDOW_OUTER_PADDING 	:: 25
@@ -329,7 +332,6 @@ MOCKUP_do_gui :: proc() {
 						GUI_WINDOW_OUTER_PADDING, 
 						GUI_WINDOW_OUTER_PADDING,
 						FULL_CONTENT_WIDTH + 2*ctx.style.padding,
-						
 						// Very arbitrary value for now
 						500,
 					} 
@@ -380,6 +382,10 @@ MOCKUP_do_gui :: proc() {
 			mu.layout_row(ctx, label_and_element_layout)
 			mu.label(ctx, "Exposure")
 			mu.slider(ctx, &editor.exposure, 0, 3)
+
+			mu.layout_row(ctx, single_element_layout)
+			mu.checkbox(ctx, "Draw Normals", &draw_normals)
+			mu.checkbox(ctx, "Grass Cull Back", &grass_cull_back)
 
 			gui.unindent(ctx)
 		}

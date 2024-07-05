@@ -154,8 +154,9 @@ render :: proc() {
 				graphics.draw_gui_rect(screen_rect, normalize_texture_rect(icon_rect))
 
 			case ^mu.Command_Clip:
-				fmt.println("MU CLIP")
-				unreachable()
+				// Todo(Leo): I found out that checkbox brings here
+				// fmt.println("MU CLIP")
+				// unreachable()
 				/*
 				gl.Disable(gl.SCISSOR_TEST)
 				gl.Scissor(cmd.rect.x, cmd.rect.y, cmd.rect.w, cmd.rect.h)

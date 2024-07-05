@@ -137,7 +137,7 @@ load_scene :: proc(scene_name : SceneName) -> ^Scene {
 		s.grass = create_grass(&s.textures[.Grass_Placement])
 
 		set_pieces := []SetPiece {
-			{&s.meshes[.Big_Rock_1], &s.textures[.Rock], {0.5, 0.5, 0.6}, {-8, 11, 1}, },
+			{&s.meshes[.Big_Rock_1], &s.textures[.Rock], {1, 1, 1}, {-8, 11, 1}, },
 		}
 
 		s.set_pieces = make([]SetPiece, len(set_pieces))

@@ -133,7 +133,8 @@ void main() {
 	float z = sample_height(x, y);
 
 	// Eat some prime numbers to get variation, quite arbitrary, and could do without
-	float h = grass_params.x + grass_params.y * hash_get_float(hash_eat(hash, 13));
+	float h_noise = sample_height(x * 3, y * 3) / noise_params.z;
+	float h = grass_params.x + grass_params.y * hash_get_float(hash_eat(hash, 13)) + h_noise;
 	float r = hash_get_float(hash_eat(hash, 37)) * 2 * pi;
 
 	// Todo(Leo): this piece of code is supposed to remove unplaceable grass blades

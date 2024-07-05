@@ -40,11 +40,13 @@ void main() {
 	vec2 wind_uv 		= instance_position.xy * wind_params.z + wind_params.xy;
 	vec2 wind_amounts 	= textureLod(wind_texture, wind_uv, 0).xy;
 	wind_amounts 		= wind_amounts * 2 - vec2(1, 1);
-	float wind_amount 	= length(wind_amounts);
+	float wind_amount 	= length(wind_amounts) * 2;
 	vec2 wind_direction = normalize(wind_amounts);
 
-	float full_height = 1;
-	int segments = 4;
+	vec2 bend_direction = wind_direction;
+
+	float full_height 	= 1;
+	int segments 		= 4;
 
 	float height_percent = float(gl_VertexID / 2) / float(segments);
 
@@ -63,11 +65,12 @@ void main() {
 	// requires a cosine and a square root.
 	float length_correction = 1 + 2e-5 * pow(bend_angle * rad_to_deg, 2);
 
-	float arm_length = full_height / 2 * length_correction;
-	vec2 bezier_0 = vec2(0, 0);
-	vec2 bezier_1 = vec2(0, arm_length);
-	vec2 bezier_2 = vec2(
-		sin(bend_angle) * arm_length,
+	// 2d bezier, i.e. on YZ-plane
+	float arm_length 	= full_height / 2 * length_correction;
+	vec2 bezier_0 		= vec2(0, 0);
+	vec2 bezier_1 		= vec2(0, arm_length);
+	vec2 bezier_2 		= vec2(
+		-sin(bend_angle) * arm_length,
 		arm_length + cos(bend_angle) * arm_length
 	);
 
@@ -75,29 +78,36 @@ void main() {
 	vec2 bezier_12 = mix(bezier_1, bezier_2, height_percent);
 	vec2 bezier_012 = mix(bezier_01, bezier_12, height_percent);
 
+	// Bezier plane Y(x-component) maps to wind direction and Z(y-component)
+	// to the regular z-axis
+	float x = bezier_012.x * bend_direction.x;
+	float y = bezier_012.x * bend_direction.y;
 	float z = bezier_012.y;
-	float x = bezier_012.x * wind_direction.x;
-	float y = bezier_012.x * wind_direction.y;
 
-	float width_factor = 1 - pow(height_percent / (4*segment_height), 3);
-	float xx = (-(0.5 * width) + (gl_VertexID % 2) * width) * width_factor;
+	// width_factor curves the blade edge along the local unbended z and
+	// the the local_x is the vertex on the edge.
+	float width_factor 	= 1 - pow(height_percent / (4*segment_height), 3);
+	float local_x 		= (-(0.5 * width) + (gl_VertexID % 2) * width) * width_factor;
 
+	// Todo(Leo): we only use the matrix here, can inline
 	vec3 x_direction = rotation_matrix * vec3(1, 0, 0);
 	vec3 y_direction = rotation_matrix * vec3(0, 1, 0);
 
-	position_LS = vec3(x, y, z) + x_direction * xx;
+	vec3 front_facing_direction = normalize(-y_direction);
+
+	position_LS = vec3(x, y, z) + x_direction * local_x;
 	
 	vec2 nezier_normal = mix(
-		vec2(1, 0),
-		vec2(cos(bend_angle), sin(bend_angle)),
+		vec2(-1, 0),
+		vec2(-cos(bend_angle), -sin(bend_angle)),
 		height_percent
 	);
 
 	// as in non rotated blade
-	vec3 bended_normal = vec3(0, nezier_normal.x, -nezier_normal.y);
-	float ddd = dot(y_direction.xy, normalize(wind_direction.xy));
+	vec3 bended_normal = vec3(0, nezier_normal.x, nezier_normal.y);
+	float ddd = abs(dot(front_facing_direction.xy, bend_direction));
 
-	normal_LS = mix(y_direction, rotation_matrix * bended_normal, ddd);
+	normal_LS = mix(front_facing_direction, rotation_matrix * bended_normal, ddd);
 	
 	float scale 	= instance_height;
 	vec3 position 	= position_LS * scale + instance_position.xyz;

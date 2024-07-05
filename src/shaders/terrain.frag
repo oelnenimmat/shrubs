@@ -14,6 +14,8 @@ layout (location = 7) uniform sampler2D splatter_texture;
 layout (location = 8) uniform sampler2D grass_texture;
 layout (location = 9) uniform sampler2D road_texture;
 
+layout (location = 10) uniform vec4 debug_params;
+
 out vec4 out_color;
 
 void main() {
@@ -32,5 +34,9 @@ void main() {
 	vec3 color 		= lighting * surface;
 
 	out_color = vec4(color, 1);
+
+	if (debug_params.x > 0.5) {
+		out_color = vec4(normal, 1);
+	}
 	// out_color = vec4(ndotl.xxx, 1);
 }

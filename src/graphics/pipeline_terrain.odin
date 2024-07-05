@@ -24,6 +24,8 @@ TerrainPipeline :: struct {
 	grass_texture_location 		: i32,
 	road_texture_location 		: i32,
 
+	debug_params_location : i32,
+
 	// Todo(Leo): these are not set properly quite yet
 	// Should be now
 	splatter_texture_slot : u32,
@@ -59,6 +61,8 @@ create_terrain_pipeline :: proc() -> TerrainPipeline {
 	pl.grass_texture_location 		= gl.GetUniformLocation(pl.shader_program, "grass_texture")
 	pl.road_texture_location 		= gl.GetUniformLocation(pl.shader_program, "road_texture")
 
+	pl.debug_params_location = gl.GetUniformLocation(pl.shader_program, "debug_params")
+
 	pl.splatter_texture_slot = 0
 	pl.grass_texture_slot = 1
 	pl.road_texture_slot = 2
@@ -72,6 +76,7 @@ setup_terrain_pipeline :: proc (
 	light_direction : vec3,
 	light_color : vec3,
 	ambient_color : vec3,
+	debug_params : vec4,
 ) {
 	projection := projection
 	view := view
@@ -89,6 +94,9 @@ setup_terrain_pipeline :: proc (
 	gl.Uniform3fv(pl.light_direction_location, 1, auto_cast &light_direction)
 	gl.Uniform3fv(pl.light_color_location, 1, auto_cast &light_color)
 	gl.Uniform3fv(pl.ambient_color_location, 1, auto_cast &ambient_color)
+
+	debug_params := debug_params
+	gl.Uniform4fv(pl.debug_params_location, 1, auto_cast &debug_params)
 
 	gl.Enable(gl.CULL_FACE)
 	gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
