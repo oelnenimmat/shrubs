@@ -126,7 +126,8 @@ create_color_texture :: proc(
 	pixel_count := width * height
 	assert(pixel_count == len(pixels))
 
-	filter_mode := opengl_texture_filter_mode(filter_mode)
+	min_filter_mode := opengl_texture_filter_mode(filter_mode)
+	mag_filter_mode := gl.LINEAR if min_filter_mode == gl.LINEAR_MIPMAP_LINEAR else min_filter_mode
 
 	name : u32
 	gl.GenTextures(1, &name)
@@ -134,12 +135,12 @@ create_color_texture :: proc(
 	gl.BindTexture(gl.TEXTURE_2D, name)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter_mode)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter_mode)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, min_filter_mode)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, mag_filter_mode)
 
 	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, i32(width), i32(height), 0, gl.RGBA, gl.UNSIGNED_BYTE, raw_data(pixels))
 
-	if filter_mode == gl.LINEAR_MIPMAP_LINEAR {
+	if min_filter_mode == gl.LINEAR_MIPMAP_LINEAR {
 		gl.GenerateMipmap(gl.TEXTURE_2D)
 	}
 	
@@ -157,7 +158,8 @@ create_alpha_only_texture :: proc(
 	pixel_count := width * height
 	assert(pixel_count == len(pixels))
 
-	filter_mode := opengl_texture_filter_mode(filter_mode)
+	min_filter_mode := opengl_texture_filter_mode(filter_mode)
+	mag_filter_mode := gl.LINEAR if min_filter_mode == gl.LINEAR_MIPMAP_LINEAR else min_filter_mode
 
 	name : u32
 	gl.GenTextures(1, &name)
@@ -165,12 +167,12 @@ create_alpha_only_texture :: proc(
 	gl.BindTexture(gl.TEXTURE_2D, name)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter_mode)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter_mode)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, min_filter_mode)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, mag_filter_mode)
 	
 	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.ALPHA, i32(width), i32(height), 0, gl.ALPHA, gl.UNSIGNED_BYTE, raw_data(pixels))
 
-	if filter_mode == gl.LINEAR_MIPMAP_LINEAR {
+	if min_filter_mode == gl.LINEAR_MIPMAP_LINEAR {
 		gl.GenerateMipmap(gl.TEXTURE_2D)
 	}
 

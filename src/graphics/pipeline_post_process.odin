@@ -31,7 +31,7 @@ dispatch_post_process_pipeline :: proc(exposure : f32) {
 
 	gl.ActiveTexture(gl.TEXTURE0)
 	gl.Enable(gl.TEXTURE_2D)
-	gl.BindTexture(gl.TEXTURE_2D, graphics_context.main_color_attachment)
+	gl.BindTexture(gl.TEXTURE_2D, graphics_context.resolve_image)
 
 	gl.Uniform4f(pl.params_location, exposure, 0, 0, 0)
 

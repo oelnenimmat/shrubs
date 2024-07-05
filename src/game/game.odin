@@ -278,6 +278,7 @@ update :: proc(delta_time: f64) {
 	graphics.draw_grass(&scene.grass.mesh, &scene.grass.instances, grass_blade_count*grass_blade_count)
 
 	// NEXT PIPELINE
+	graphics.blit_to_resolve_image()
 	graphics.bind_screen_framebuffer()
 	graphics.dispatch_post_process_pipeline(editor.exposure)
 

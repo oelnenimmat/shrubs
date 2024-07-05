@@ -61,6 +61,9 @@ graphics_context : struct {
 	main_depth_attachment : u32,
 	main_framebuffer_width : i32,
 	main_framebuffer_height : i32,
+
+	resolve_framebuffer : u32,
+	resolve_image : u32,
 }
 
 // WHAT IS THIS ---------------------------------------------------------------
@@ -96,29 +99,83 @@ initialize :: proc() {
 	// Todo(Leo): there might be issue here that this could be called before
 	// setting up the opengl stuff and then something going haywire, seems to work now
 	glfw_resize_framebuffer_proc :: proc "c" (window: glfw.WindowHandle, width, height: i32) {
+		// Todo(Leo): re create the manual render target also
 		resize_framebuffer(int(width), int(height))
 	}
 	glfw.SetFramebufferSizeCallback(window.get_glfw_window_handle(), glfw_resize_framebuffer_proc)
+
 
 
 	// Generate the framebuffer for post processing
 	gl.GenFramebuffers(1, &gc.main_framebuffer)
 	gl.BindFramebuffer(gl.FRAMEBUFFER, gc.main_framebuffer)
 
-	gc.main_framebuffer_width = 1920
-	gc.main_framebuffer_height = 1080
+	gc.main_framebuffer_width = 1920 / 1
+	gc.main_framebuffer_height = 1080 / 1
 
-	gl.GenTextures(1, &gc.main_color_attachment)
-	gl.BindTexture(gl.TEXTURE_2D, gc.main_color_attachment)
-	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGB, i32(gc.main_framebuffer_width), i32(gc.main_framebuffer_height), 0, gl.RGB, gl.FLOAT, nil)
+	width := i32(gc.main_framebuffer_width)
+	height := i32(gc.main_framebuffer_height)
+
+	multisample_count := i32(2)
+
+	if multisample_count == 1 {
+		gl.GenRenderbuffers(1, &gc.main_color_attachment)
+		gl.BindRenderbuffer(gl.RENDERBUFFER, gc.main_color_attachment)
+		gl.RenderbufferStorage(gl.RENDERBUFFER, gl.RGB32F, width, height)
+		gl.FramebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, gc.main_color_attachment)
+
+		gl.GenRenderbuffers(1, &gc.main_depth_attachment)
+		gl.BindRenderbuffer(gl.RENDERBUFFER, gc.main_depth_attachment)
+		gl.RenderbufferStorage(gl.RENDERBUFFER, gl.DEPTH24_STENCIL8, width, height)
+		gl.FramebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_STENCIL_ATTACHMENT, gl.RENDERBUFFER, gc.main_depth_attachment)
+	} else {
+		gl.GenRenderbuffers(1, &gc.main_color_attachment)
+		gl.BindRenderbuffer(gl.RENDERBUFFER, gc.main_color_attachment)
+		gl.RenderbufferStorageMultisample(gl.RENDERBUFFER, multisample_count, gl.RGB32F, width, height)
+		gl.FramebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, gc.main_color_attachment)
+
+		gl.GenRenderbuffers(1, &gc.main_depth_attachment)
+		gl.BindRenderbuffer(gl.RENDERBUFFER, gc.main_depth_attachment)
+		gl.RenderbufferStorageMultisample(gl.RENDERBUFFER, multisample_count, gl.DEPTH24_STENCIL8, width, height)
+		gl.FramebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_STENCIL_ATTACHMENT, gl.RENDERBUFFER, gc.main_depth_attachment)
+	}
+
+	if gl.CheckFramebufferStatus(gl.FRAMEBUFFER) == gl.FRAMEBUFFER_COMPLETE {
+		fmt.println("Frambuffer GOOD!")
+	} else {
+		fmt.println("Frambuffer BAD!")
+	}
+
+	// status := gl.CheckFramebufferStatus(gl.FRAMEBUFFER)
+	// if status == gl.FRAMEBUFFER_COMPLETE {
+	// 	fmt.println("Frambuffer GOOD!")
+	// } else {
+	// 	fmt.println("Frambuffer BAD!", status)
+
+	// 	switch status {
+	// 		case gl.FRAMEBUFFER_UNDEFINED: fmt.println("GL_FRAMEBUFFER_UNDEFINED")
+	// 		case gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT: fmt.println("GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT")
+	// 		case gl.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT: fmt.println("GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT")
+	// 		case gl.FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER: fmt.println("GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER")
+	// 		case gl.FRAMEBUFFER_INCOMPLETE_READ_BUFFER: fmt.println("GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER")
+	// 		case gl.FRAMEBUFFER_UNSUPPORTED: fmt.println("GL_FRAMEBUFFER_UNSUPPORTED")
+	// 		case gl.FRAMEBUFFER_INCOMPLETE_MULTISAMPLE: fmt.println("GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE")
+	// 		case gl.FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS: fmt.println("GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS") 
+	// 		case: fmt.print("something else\n")
+	// 	}
+
+	// }
+
+	// Generate the framebuffer for post processing
+	gl.GenFramebuffers(1, &gc.resolve_framebuffer)
+	gl.BindFramebuffer(gl.FRAMEBUFFER, gc.resolve_framebuffer)
+
+	gl.GenTextures(1, &gc.resolve_image)
+	gl.BindTexture(gl.TEXTURE_2D, gc.resolve_image)
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGB32F, i32(gc.main_framebuffer_width), i32(gc.main_framebuffer_height), 0, gl.RGB, gl.FLOAT, nil)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-	gl.FramebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, gc.main_color_attachment, 0)
-
-	gl.GenRenderbuffers(1, &gc.main_depth_attachment)
-	gl.BindRenderbuffer(gl.RENDERBUFFER, gc.main_depth_attachment)
-	gl.RenderbufferStorage(gl.RENDERBUFFER, gl.DEPTH24_STENCIL8, i32(gc.main_framebuffer_width), i32(gc.main_framebuffer_height))
-	gl.FramebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_STENCIL_ATTACHMENT, gl.RENDERBUFFER, gc.main_depth_attachment)
+	gl.FramebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, gc.resolve_image, 0)
 
 	if gl.CheckFramebufferStatus(gl.FRAMEBUFFER) == gl.FRAMEBUFFER_COMPLETE {
 		fmt.println("Frambuffer GOOD!")
@@ -145,6 +202,20 @@ bind_screen_framebuffer :: proc() {
 	gl.Viewport(0, 0, i32(window_width), i32(window_height))
 
 	// No need to clear: we dont use depth buffering, and we always draw everywhere
+}
+
+blit_to_resolve_image :: proc() {
+	// Todo(Leo): instead, we should look into just sampling the multisample image
+	// in the post process shader
+	gc := &graphics_context
+
+	gl.BindFramebuffer(gl.READ_FRAMEBUFFER, gc.main_framebuffer)
+	gl.BindFramebuffer(gl.DRAW_FRAMEBUFFER, gc.resolve_framebuffer)
+
+	w := gc.main_framebuffer_width
+	h := gc.main_framebuffer_height
+
+	gl.BlitFramebuffer(0, 0, w, h, 0, 0, w, h, gl.COLOR_BUFFER_BIT, gl.LINEAR)
 }
 
 terminate :: proc() {
