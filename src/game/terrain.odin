@@ -207,8 +207,6 @@ sample_height :: proc(x, y : f32) -> f32 {
 
 create_static_terrain_mesh :: proc(min_corner_position : vec2, uv_offset : vec2) -> graphics.Mesh {
 	
-	// world_size := TERRAIN_CHUNK_SIZE * TERRAIN_CHUNK_COUNT
-
 	// per dimension
 	quad_count_1D := 10
 	quad_count := quad_count_1D * quad_count_1D
@@ -231,16 +229,20 @@ create_static_terrain_mesh :: proc(min_corner_position : vec2, uv_offset : vec2)
 		cell_x := i % (quad_count_1D + 1)
 		cell_y := i / (quad_count_1D + 1)
 
-		x := f32(cell_x) * quad_size
-		y := f32(cell_y) * quad_size	
+		local_x := f32(cell_x) * quad_size
+		local_y := f32(cell_y) * quad_size	
 
-		z := sample_height(x + min_corner_position.x, y + min_corner_position.y)
+		x := local_x + min_corner_position.x
+		y := local_y + min_corner_position.y
+
+		z := sample_height(x, y)
 
 		u := f32(cell_x) / f32(quad_count_1D) / f32(TERRAIN_CHUNK_COUNT) + uv_offset.x
 		v := f32(cell_y) / f32(quad_count_1D) / f32(TERRAIN_CHUNK_COUNT) + uv_offset.y
 
-		positions[i] 	= {x, y, z}
-		normals[i] 		= {0, 0, 1}
+		positions[i] 	= {local_x, local_y, z}
+		// set normals to zero for now, we accumulatecalculate them later
+		normals[i] 		= {0, 0, 0}
 		texcoords[i] 	= {u, v}
 	}
 
@@ -274,6 +276,27 @@ create_static_terrain_mesh :: proc(min_corner_position : vec2, uv_offset : vec2)
 		indices[t4] = u16(v4)
 		indices[t5] = u16(v5)
 	}
+
+	
+	for i := 0; i < index_count; i += 3 {
+		v0 := positions[indices[i + 0]]
+		v1 := positions[indices[i + 1]]
+		v2 := positions[indices[i + 2]]
+	
+		v01 := v1 - v0
+		v02 := v2 - v0
+
+		n := linalg.cross(v01, v02)
+
+		normals[indices[i + 0]] = n
+		normals[indices[i + 1]] = n
+		normals[indices[i + 2]] = n
+	}
+
+	for i := 0; i < vertex_count; i += 1 {
+		normals[i] = linalg.normalize(normals[i])
+	}
+	
 
 	mesh := graphics.create_mesh(positions, normals, texcoords, indices)
 	return mesh

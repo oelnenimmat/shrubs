@@ -22,6 +22,9 @@ editor : struct {
 	camera_view_forward : vec3,
 	camera_view_up 		: vec3,
 	camera_position 	: vec3,
+
+	// Todo(Leo): definetly not here, but this was easiest to serialize
+	exposure : f32,
 }
 
 save_editor_state :: proc() {

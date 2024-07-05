@@ -51,6 +51,10 @@ scene : ^Scene
 
 grass_blade_count := 256
 
+// post_processing : struct {
+// 	exposure : f32,
+// }
+
 // Resources
 white_texture 	: graphics.Texture
 black_texture 	: graphics.Texture
@@ -186,8 +190,9 @@ update :: proc(delta_time: f64) {
 	// END OF UPDATE
 
 	graphics.begin_frame()
+	graphics.bind_main_framebuffer()
 
-	light_direction := linalg.normalize(vec3{0, 0, -5})
+	light_direction := linalg.normalize(vec3{0, 5, -5})
 	light_color := vec3{1.0, 0.95, 0.85} * 1.5
 	ambient_color := vec3{0.3, 0.35, 0.4}
 
@@ -273,6 +278,10 @@ update :: proc(delta_time: f64) {
 	graphics.draw_grass(&scene.grass.mesh, &scene.grass.instances, grass_blade_count*grass_blade_count)
 
 	// NEXT PIPELINE
+	graphics.bind_screen_framebuffer()
+	graphics.dispatch_post_process_pipeline(editor.exposure)
+
+	// NEXT PIPELINE
 	graphics.setup_gui_pipeline()
 	gui.render()
 
@@ -340,69 +349,14 @@ MOCKUP_do_gui :: proc() {
 			gui.unindent(ctx)
 		}
 
-		if .ACTIVE in mu.header(ctx, "Playback", {.EXPANDED}) {
+		if .ACTIVE in mu.header(ctx, "Remember texture buttons", {.EXPANDED}) {
 			gui.indent(ctx)
 			
-			// PLAY / PAUSE
-			mu.layout_row(ctx, two_elements_layout) 
-			if .SUBMIT in mu.button(ctx, "Play") {  }
-			if .SUBMIT in mu.button(ctx, "Pause") {  }
-
-
-			// PLAYBACK SPEED
-			// Compute and string format playback speed.
-			// Todo(Leo): no need to make and destroy this every frame, just store somewhere, reset and reuse.
-			// Also consider expressing in days/s for smaller values or smth. Also make extra sure that this
-			// is fine as the defer will fire long before than the text is used (i.e. rendered).
-			// playback_speed_text_builder 		:= strings.builder_make_len(32)
-			// defer strings.builder_destroy(&playback_speed_text_builder)
-			// playback_speed_years_per_second 	:= settings.playback_time_scale / 3600 / 24 / 365.4
-			// fmt.sbprintf(&playback_speed_text_builder, "Playback speed: {:.3f} yr / s", playback_speed_years_per_second)
-
-			// mu.label(ctx, strings.to_string(playback_speed_text_builder))
-
-			mu.layout_row(ctx, two_elements_layout)
-			if .SUBMIT in mu.button(ctx, "Slower") {  }
-			if .SUBMIT in mu.button(ctx, "Faster") {  }
-
-			// SNAPSHOT
-			// mu.layout_row(ctx, single_element_layout) 
-			// snapshot_text_builder 	:= strings.builder_make_len(32)
-			// defer strings.builder_destroy(&snapshot_text_builder)
-			// current_snapshot_index 	:= playback_get_current_snapshot_index(&snapshot_interpolation) + 1
-			// snapshot_count 			:= playback_get_snapshot_count(&snapshot_interpolation)
-			// fmt.sbprintf(&snapshot_text_builder, "Snapshots {} to {} (of {})", current_snapshot_index, current_snapshot_index + 1, snapshot_count)
-			// mu.label(ctx, strings.to_string(snapshot_text_builder))
-
-
-			mu.layout_row(ctx, two_elements_layout)
-			if .SUBMIT in mu.button(ctx, "First") {  }
-			//if .SUBMIT in mu.button(ctx, "Previous") { input.events.playback.skip_to_previous = true }
-			if .SUBMIT in mu.button(ctx, "Next") {  }
-			
-			// _val := math.log(settings.playback_time_scale, 10)
-			// mu.slider(ctx, &_val, lo, hi, step, "%.1f", {.ALIGN_CENTER})
-			// settings.playback_time_scale = math.pow(10, _val)
-
 			mu.layout_row(ctx, label_and_two_elements_layout)
-			mu.label(ctx, "Distances")
+			mu.label(ctx, "Buttons")
 			if .SUBMIT in gui.texture_button(ctx, "", scene.textures[.Grass_Field]) { }
-			if .SUBMIT in gui.texture_button(ctx, "", scene.textures[.Grass_Field]) { }
+			if .SUBMIT in gui.texture_button(ctx, "", scene.textures[.Road]) { }
 
-			// Todo(Leo): these are not implemented yet on the other side, requires changes to graphics
-			// mu.label(ctx, "Sizes")
-			// if .SUBMIT in mu.button(ctx, "Smaller") { visuals_trigger_event(&snapshot_interpolation, .Smaller_Size)}
-			// if .SUBMIT in mu.button(ctx, "Bigger") { visuals_trigger_event(&snapshot_interpolation, .Bigger_Size)}
-
-
-
-			// mu.layout_row(ctx, single_element_layout) 
-			// info_text_builder := strings.builder_make_len(256)
-			// defer strings.builder_destroy(&info_text_builder)
-			// particle_count := playback_get_test_particle_count(&snapshot_interpolation)
-			// fmt.sbprintf(&info_text_builder, "INFO:\n")
-			// fmt.sbprintf(&info_text_builder, "Test particle count: {}\n", particle_count)
-			// mu.text(ctx, strings.to_string(info_text_builder))
 
 			gui.unindent(ctx)
 		}
@@ -419,60 +373,13 @@ MOCKUP_do_gui :: proc() {
 			gui.unindent(ctx)
 		}
 
-		// mu.layout_row(ctx, {content_width})
-		// if .ACTIVE in mu.header(ctx, "Particle Visual Settings", {.EXPANDED})
-		// {
-		// 	gui.indent(ctx)
-
-		// 	mu.layout_row(ctx, label_and_element_layout)
-	
-		// 	mu.label(ctx, "Data Channel")
-		// 	DATA_CHANNEL_POPUP_NAME :: "data channel popup"
-		// 	if .SUBMIT in mu.button(ctx, reflect.enum_string(snapshot_interpolation.data_channel_type)) {
-		// 		mu.open_popup(ctx, DATA_CHANNEL_POPUP_NAME)
-		// 	}
-
-		// 	if mu.begin_popup(ctx, DATA_CHANNEL_POPUP_NAME) {
-		// 		for type in DataChannelType {
-		// 			if .SUBMIT in mu.button(ctx, reflect.enum_string(type)) {
-		// 				visuals_set_data_channel(&snapshot_interpolation, type)
-		// 				mu.get_current_container(ctx).open = false
-		// 			}
-		// 		}
-		// 		mu.end_popup(ctx)
-		// 	}
-
-		// 	mu.label(ctx, "Coloring")
-		// 	GRADIENT_POPUP_NAME :: "gradient popup"
-		// 	if .SUBMIT in gui.texture_button(ctx, "", assets.gradient_textures[snapshot_interpolation.gradient_index]) {
-		// 		mu.open_popup(ctx, GRADIENT_POPUP_NAME)
-		// 	}
-
-		// 	if mu.begin_popup(ctx, GRADIENT_POPUP_NAME) {
-		// 		for i in 0..<len(assets.gradient_textures) {
-		// 			if .SUBMIT in gui.texture_button(ctx, "", assets.gradient_textures[i]) {
-		// 				visuals_set_gradient(&snapshot_interpolation, i)
-		// 				mu.get_current_container(ctx).open = false
-		// 			} 
-		// 		}
-		// 		mu.end_popup(ctx)
-		// 	}
-
-		// 	gui.unindent(ctx)
-		// }
-
-		if .ACTIVE in mu.header(ctx, "Developer") //, {.EXPANDED})
-		{
+		if .ACTIVE in mu.header(ctx, "Post Processing", {.EXPANDED}) {
 			gui.indent(ctx)
-			
-			mu.layout_row(ctx, single_element_layout) 
-			if .SUBMIT in mu.button(ctx, "camera preset 1") {  }
-			if .SUBMIT in mu.button(ctx, "camera preset 2") {  }
-			if .SUBMIT in mu.button(ctx, "camera preset 3") {  }
-			if .SUBMIT in mu.button(ctx, "camera preset p12 side") {  }
 
-			if .SUBMIT in mu.button(ctx, "print camera position") {  }
-			
+			mu.layout_row(ctx, label_and_element_layout)
+			mu.label(ctx, "Exposure")
+			mu.slider(ctx, &editor.exposure, 0, 3)
+
 			gui.unindent(ctx)
 		}
 	}

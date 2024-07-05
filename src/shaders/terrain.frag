@@ -18,7 +18,9 @@ out vec4 out_color;
 
 void main() {
 
-	vec3 lighting 	= light_color * dot(-light_direction, normalize(surface_normal)) + ambient_color;
+	vec3 normal 	= normalize(surface_normal);
+	float ndotl		= max(0, dot(-light_direction, normal));
+	vec3 lighting 	= light_color * ndotl + ambient_color;
 	
 	float splatter = texture(splatter_texture, texcoord).r;
 	vec3 surface = mix(
@@ -27,11 +29,8 @@ void main() {
 		splatter
 	);
 
-	// Todo(Leo): this is debug darkening, for darkenign reasons
-	surface *= vec3(0.4, 0.4, 0.4);
-	// vec3 surface 	= surface_color * texture(surface_texture, texcoord).rgb;
-
 	vec3 color 		= lighting * surface;
 
 	out_color = vec4(color, 1);
+	// out_color = vec4(ndotl.xxx, 1);
 }

@@ -47,11 +47,20 @@ graphics_context : struct {
 	grass_placement_pipeline 	: GrassPlacementPipeline,
 	debug_pipeline 				: DebugPipeline,
 	gui_pipeline 				: GuiPipeline,
+	post_process_pipeline 		: PostProcessPipeline,
 
 	// Per draw uniform locations. These are set whenever a new pipeline
 	// is bound/setupped, and used in draw_XXX functions
+	// Todo(Leo): instead, just move all draw stuff to pipelines, as they are very
+	// intimately coupled anyway
 	model_matrix_location : i32,
 
+	// Todo(Leo): this is virtual frame stuff
+	main_framebuffer : u32,
+	main_color_attachment : u32,
+	main_depth_attachment : u32,
+	main_framebuffer_width : i32,
+	main_framebuffer_height : i32,
 }
 
 // WHAT IS THIS ---------------------------------------------------------------
@@ -82,6 +91,7 @@ initialize :: proc() {
 	gc.grass_placement_pipeline = create_grass_placement_pipeline()
 	gc.debug_pipeline 			= create_debug_pipeline()
 	gc.gui_pipeline 			= create_gui_pipeline()
+	gc.post_process_pipeline	= create_post_process_pipeline()
 
 	// Todo(Leo): there might be issue here that this could be called before
 	// setting up the opengl stuff and then something going haywire, seems to work now
@@ -89,6 +99,52 @@ initialize :: proc() {
 		resize_framebuffer(int(width), int(height))
 	}
 	glfw.SetFramebufferSizeCallback(window.get_glfw_window_handle(), glfw_resize_framebuffer_proc)
+
+
+	// Generate the framebuffer for post processing
+	gl.GenFramebuffers(1, &gc.main_framebuffer)
+	gl.BindFramebuffer(gl.FRAMEBUFFER, gc.main_framebuffer)
+
+	gc.main_framebuffer_width = 1920
+	gc.main_framebuffer_height = 1080
+
+	gl.GenTextures(1, &gc.main_color_attachment)
+	gl.BindTexture(gl.TEXTURE_2D, gc.main_color_attachment)
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGB, i32(gc.main_framebuffer_width), i32(gc.main_framebuffer_height), 0, gl.RGB, gl.FLOAT, nil)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+	gl.FramebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, gc.main_color_attachment, 0)
+
+	gl.GenRenderbuffers(1, &gc.main_depth_attachment)
+	gl.BindRenderbuffer(gl.RENDERBUFFER, gc.main_depth_attachment)
+	gl.RenderbufferStorage(gl.RENDERBUFFER, gl.DEPTH24_STENCIL8, i32(gc.main_framebuffer_width), i32(gc.main_framebuffer_height))
+	gl.FramebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_STENCIL_ATTACHMENT, gl.RENDERBUFFER, gc.main_depth_attachment)
+
+	if gl.CheckFramebufferStatus(gl.FRAMEBUFFER) == gl.FRAMEBUFFER_COMPLETE {
+		fmt.println("Frambuffer GOOD!")
+	} else {
+		fmt.println("Frambuffer BAD!")
+	}
+}
+
+bind_main_framebuffer :: proc() {
+	gc := &graphics_context
+
+	gl.BindFramebuffer(gl.FRAMEBUFFER, gc.main_framebuffer)
+	gl.Viewport(0, 0, gc.main_framebuffer_width, gc.main_framebuffer_height)
+
+	// No need to really clear color buffer, right??
+	gl.ClearColor(0.1, 0.65, 0.95, 1.0)
+	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+}
+
+bind_screen_framebuffer :: proc() {
+	gl.BindFramebuffer(gl.FRAMEBUFFER, 0)
+
+	window_width, window_height := window.get_window_size()
+	gl.Viewport(0, 0, i32(window_width), i32(window_height))
+
+	// No need to clear: we dont use depth buffering, and we always draw everywhere
 }
 
 terminate :: proc() {
@@ -125,8 +181,9 @@ begin_frame :: proc() {
 	fence := gc.virtual_frame_in_use_fences[gc.virtual_frame_index]
 	gl.ClientWaitSync(fence, 0, max(u64))
 
-	gl.ClearColor(0.1, 0.65, 0.95, 1.0)
-	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+	// // No need to really clear color buffer, right??
+	// gl.ClearColor(0.1, 0.65, 0.95, 1.0)
+	// gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
 	// Todo(Leo): learn more if this is necessary or not. Also if it matters
 	// if this is before or after fence sync. https://stackoverflow.com/questions/2143240/opengl-glflush-vs-glfinish
@@ -146,19 +203,22 @@ set_texture_2D :: proc(texture : ^Texture, slot : u32) {
 @private
 resize_framebuffer :: proc "c" (width, height: int) {
 	// Note(leo): need context for assert and printf
-	context = runtime.default_context()
+	// context = runtime.default_context()
 
-	// Note(Leo): There should never be a reason to set window/framebuffer even close
-	// to max(i32)
-	assert(width < int(max(i32)))
-	assert(height < int(max(i32)))
+	// // Note(Leo): There should never be a reason to set window/framebuffer even close
+	// // to max(i32)
+	// assert(width < int(max(i32)))
+	// assert(height < int(max(i32)))
 
-	width := i32(width)
-	height := i32(height)
+	// width := i32(width)
+	// height := i32(height)
 
-	fmt.printf("OpenGL framebuffer resized (%i, %i)\n", width, height)
+	// fmt.printf("OpenGL framebuffer resized (%i, %i)\n", width, height)
 
-	gl.Viewport(0, 0, width, height)
+	// gl.Viewport(0, 0, width, height)
+
+	// gc := &graphics_context
+
 }
 
 // INTERNAL THINGS ------------------------------------------------------------
