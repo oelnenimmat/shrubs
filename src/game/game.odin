@@ -50,11 +50,11 @@ tank 				: Tank
 scene : ^Scene
 
 grass_blade_count := 512
+grass_segment_count := 3
 
 draw_normals := false
 draw_backfacing := false
-grass_flip_normals_xyz := true
-grass_rotate_normals := true
+grass_translucency := true
 grass_cull_back := false
 grass_cull_front := false
 
@@ -202,8 +202,8 @@ update :: proc(delta_time: f64) {
 	debug_params := vec4{
 		1 if draw_normals else 0,
 		1 if draw_backfacing else 0,
-		1 if grass_flip_normals_xyz else 0,
-		1 if grass_rotate_normals else 0,
+		1 if grass_translucency else 0,
+		0,
 	}
 
 	// light_direction := linalg.normalize(vec3{0, 0, -5})
@@ -294,7 +294,11 @@ update :: proc(delta_time: f64) {
 		grass_cull_front,
 	)
 	graphics.set_grass_material(&scene.textures[.Grass_Field], &scene.textures[.Wind])
-	graphics.draw_grass(&scene.grass.mesh, &scene.grass.instances, grass_blade_count*grass_blade_count)
+	graphics.draw_grass(
+		&scene.grass.instances,
+		grass_blade_count*grass_blade_count,
+		grass_segment_count,
+	)
 
 	// NEXT PIPELINE
 	graphics.blit_to_resolve_image()
@@ -334,8 +338,18 @@ editor_gui :: proc() {
 
 	single_element_layout := []i32 {content_width}
 	
-	equal_column_width 		:= i32(0.5 * f32(content_width)) - i32(math.ceil(f32(ctx.style.spacing) / 2))
-	two_elements_layout 	:= []i32{equal_column_width, equal_column_width}
+	two_columns_width 		:= i32(0.5 * f32(content_width)) - i32(math.ceil(f32(ctx.style.spacing) / 2))
+	two_left_over			:= content_width - (2 * two_columns_width + 1 * ctx.style.spacing)
+	two_elements_layout 	:= []i32{two_columns_width, two_columns_width + two_left_over}
+
+	three_columns_width 	:= i32(0.333 * f32(content_width)) - i32(math.ceil(0.667 * f32(ctx.style.spacing)))
+	three_left_over			:= content_width - (3 * three_columns_width + 2 * ctx.style.spacing)
+	three_columns_layout 	:= []i32{three_columns_width, three_columns_width, three_columns_width + three_left_over}
+
+	four_columns_width 		:= i32(0.25 * f32(content_width)) - i32(math.ceil(0.75 * f32(ctx.style.spacing)))
+	four_left_over			:= content_width - (4 * four_columns_width + 3 * ctx.style.spacing)
+	four_columns_layout		:= []i32{four_columns_width, four_columns_width, four_columns_width, four_columns_width + four_left_over}
+
 
 	_, window_height := window.get_window_size()
 	rectangle 	:= mu.Rect{
@@ -343,7 +357,7 @@ editor_gui :: proc() {
 						GUI_WINDOW_OUTER_PADDING,
 						FULL_CONTENT_WIDTH + 2*ctx.style.padding,
 						// Very arbitrary value for now
-						500,
+						600,
 					} 
 
 	if mu.window(ctx, "Controls and Settings", rectangle, {.NO_CLOSE, .NO_RESIZE}) {
@@ -376,12 +390,20 @@ editor_gui :: proc() {
 		if .ACTIVE in mu.header(ctx, "Grass!", {.EXPANDED}) {
 			gui.indent(ctx)
 			
-			mu.layout_row(ctx, two_elements_layout)
+			mu.label(ctx, "instance count")
+			mu.layout_row(ctx, four_columns_layout)
 			if .SUBMIT in mu.button(ctx, "64") { grass_blade_count = 64 }
 			if .SUBMIT in mu.button(ctx, "128") { grass_blade_count = 128 }
 			if .SUBMIT in mu.button(ctx, "256") { grass_blade_count = 256 }
 			if .SUBMIT in mu.button(ctx, "512") { grass_blade_count = 512 }
 			
+			mu.label(ctx, "segment count")
+			mu.layout_row(ctx, four_columns_layout)
+			if .SUBMIT in mu.button(ctx, "1") { grass_segment_count = 1 }
+			if .SUBMIT in mu.button(ctx, "3") { grass_segment_count = 3 }
+			if .SUBMIT in mu.button(ctx, "5") { grass_segment_count = 5 }
+			if .SUBMIT in mu.button(ctx, "7") { grass_segment_count = 7 }
+
 			gui.unindent(ctx)
 		}
 
@@ -395,8 +417,7 @@ editor_gui :: proc() {
 			mu.layout_row(ctx, single_element_layout)
 			mu.checkbox(ctx, "Draw Normals", &draw_normals)
 			mu.checkbox(ctx, "Draw Backfacing", &draw_backfacing)
-			mu.checkbox(ctx, "Flip Normals XYZ", &grass_flip_normals_xyz)
-			mu.checkbox(ctx, "Rotate Bended Normals", &grass_rotate_normals)
+			mu.checkbox(ctx, "Translucency", &grass_translucency)
 			mu.checkbox(ctx, "Grass Cull Back", &grass_cull_back)
 			mu.checkbox(ctx, "Grass Cull Front", &grass_cull_front)
 

@@ -92,10 +92,11 @@ uniform vec4 grass_params;
 
 
 struct GrassInstanceData {
-	vec4 position;
+	vec3 position;
+	float rotation;
 	vec2 field_uv;
 	float height;
-	float rotation;
+	float width;
 };
 
 layout (std430, binding = 0) buffer grass {
@@ -144,8 +145,9 @@ void main() {
 		h = 0.0;
 	}
 
-	instances[index].position 	= vec4(x, y, z, 0);
-	instances[index].height 	= h;
+	instances[index].position 	= vec3(x, y, z);
 	instances[index].rotation 	= r;
 	instances[index].field_uv 	= uv;
+	instances[index].height 	= h;
+	instances[index].width 		= 0.1;
 }

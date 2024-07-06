@@ -72,63 +72,13 @@ destroy_terrain :: proc(terrain : ^Terrain) {
 	terrain^ = {}
 }
 
-create_grass_blade_mesh :: proc() -> graphics.Mesh {
-	w := f32(0.1)
-	h := f32(0.25)
-
-	hw := w / 2
-
-	positions := []vec3{
-		{-hw, 			0, 0},
-		{hw, 			0, 0},
-		{-hw * 0.9375, 	0, h},
-		{hw * 0.9375, 	0, h},
-		{-hw * 0.75, 	0, 2*h},
-		{hw * 0.75, 	0, 2*h},
-		{-hw * 0.4375, 	0, 3*h},
-		{hw * 0.4375, 	0, 3*h},
-		{0, 			0, 4*h},
-	}
-
-	normals := []vec3 {
-		{0, 1, 0},
-		{0, 1, 0},
-		{0, 1, 0},
-		{0, 1, 0},
-		{0, 1, 0},
-		{0, 1, 0},
-		{0, 1, 0},
-		{0, 1, 0},
-		{0, 1, 0},
-	}
-
-	// Todo(Leo): make triangle strip, this is just normal triangles, as this is what we have now
-	// Todo(Leo): might be that we do not need this at all in the end, just generate things on gpu/vertex shader
-	// elements := []u16 {
-	// 	0, 1, 2, 2, 1, 3,
-	// 	2, 3, 4, 4, 3, 5,
-	// 	4, 5, 6, 6, 5, 7,
-	// 	6, 7, 8,
-	// }
-	elements := []u16 {
-		0, 1, 2,
-		3, 4, 5, 6, 7, 8
-	}
-
-
-	return graphics.create_mesh(positions, normals, nil, elements) 
-}
-
 Grass :: struct {
 	instances 		: graphics.InstanceBuffer,
-	mesh 			: graphics.Mesh,
 	placement_map 	: ^graphics.Texture,
 }
 
 create_grass :: proc(placement_map : ^graphics.Texture) -> Grass {
 	g : Grass
-
-	g.mesh = create_grass_blade_mesh()
 
 	world_side_length 	:= f32(TERRAIN_CHUNK_COUNT * TERRAIN_CHUNK_SIZE)
 	w 					:= 0.5 * world_side_length

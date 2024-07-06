@@ -19,6 +19,7 @@ GrassPipeline :: struct {
 	// wind
 	wind_params_location : i32,
 
+	segment_count_location : i32,
 	debug_params_location : i32,
 
 	// textures
@@ -49,6 +50,7 @@ create_grass_pipeline :: proc() -> GrassPipeline {
 
 	pl.wind_params_location 		= gl.GetUniformLocation(pl.shader_program, "wind_params")
 
+	pl.segment_count_location 		= gl.GetUniformLocation(pl.shader_program, "segment_count")
 	pl.debug_params_location 		= gl.GetUniformLocation(pl.shader_program, "debug_params")
 
 	pl.field_texture_location = gl.GetUniformLocation(pl.shader_program, "field_texture")
@@ -125,10 +127,9 @@ set_grass_material :: proc(field_texture : ^Texture, wind_texture : ^Texture) {
 	set_texture_2D(wind_texture, pl.wind_texture_slot)
 }
 
-draw_grass :: proc(mesh : ^Mesh, ib : ^InstanceBuffer, count : int) {
+draw_grass :: proc(ib : ^InstanceBuffer, instanc_count : int, segment_count : int) {
 	gc := &graphics_context
-
-	gl.BindVertexArray(mesh.vao)
+	pl := &graphics_context.grass_pipeline
 
 	// SETUP INSTANCE DATA BUFFER
 	gl.BindBuffer(gl.ARRAY_BUFFER, ib.buffer)
@@ -144,10 +145,14 @@ draw_grass :: proc(mesh : ^Mesh, ib : ^InstanceBuffer, count : int) {
 	// Stupid Wild Ass Guess
 	SWAG_GRASS_VERTEX_COUNT :: 9
 
+
+	gl.Uniform1i(pl.segment_count_location, i32(segment_count))
+	vertex_count := 3 + (segment_count - 1) * 2
+
 	gl.DrawArraysInstanced(
 		gl.TRIANGLE_STRIP,
 		0,
-		SWAG_GRASS_VERTEX_COUNT,
-		i32(count),
+		i32(vertex_count),
+		i32(instanc_count),
 	)
 }
