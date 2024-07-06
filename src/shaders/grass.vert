@@ -21,10 +21,15 @@ layout(location = 0) out vec3 surface_normal;
 layout(location = 1) out vec2 blade_texcoord;
 layout(location = 2) out vec2 field_texcoord;
 
-layout (location = 9) uniform int segment_count;
-// layout (location = 10) uniform vec4 debug_params;
+// x: segment count
+// y: lod
+layout (location = 9) uniform vec4 segment_count;
+layout (location = 10) uniform vec4 debug_params;
 
 void main() {
+
+	int x_id = gl_VertexID % 2;
+	int y_id = gl_VertexID / 2;
 
 	// LS: local space
 	vec3 vertex_position;
@@ -42,6 +47,13 @@ void main() {
 	// Todo(Leo): optimize by flipping around when are backfacing
 	vec3 x_direction = rotation_matrix * vec3(1, 0, 0);
 	vec3 y_direction = rotation_matrix * vec3(0, 1, 0);
+
+	if (debug_params.z > 0.5) {
+		if (dot(-y_direction, mat3(view) * vec3(0,1,0)) < 0) {
+			x_id = (x_id + 1) % 2;
+		}
+	}
+
 	// Todo(Leo): the rotation matrix is now only around z axis, so this wont matter
 	// this might change with the spherical planet thing
 	// vec3 z_direction = rotation_matrix * vec3(0, 0, 1);
@@ -54,7 +66,7 @@ void main() {
 	float wind_amount 	= length(wind_amounts) * 2;
 	vec2 wind_direction = normalize(wind_amounts);
 
-	float height_percent = float(gl_VertexID / 2) / float(segment_count);
+	float height_percent = float(y_id) / segment_count.x;
 
 	vec2 bend_direction = wind_direction;
 	float bend_angle 	= wind_amount * pi / 2; // [-1, 1] --> [-pi/2, pi/2]
@@ -90,7 +102,7 @@ void main() {
 	// width_factor curves the blade edge along the local unbended z and
 	// the the local_x is the vertex on the edge.
 	float width_factor 	= 1 - pow(height_percent, 3);
-	float local_x 		= (-(0.5 * instance_width) + (gl_VertexID % 2) * instance_width) * width_factor;
+	float local_x 		= (-(0.5 * instance_width) + x_id * instance_width) * width_factor;
 
 	vertex_position = vec3(x, y, z) + x_direction * local_x;
 	

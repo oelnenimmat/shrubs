@@ -100,22 +100,15 @@ setup_grass_pipeline :: proc(
 	debug_params := debug_params
 	gl.Uniform4fv(pl.debug_params_location, 1, auto_cast &debug_params)
 
-	// Options
-	if cull_back {
+	// Todo(Leo): optimize by yes culling and just flipping the mesh in vertex shader
+	if (cull_back) {
 		gl.Enable(gl.CULL_FACE)
-		gl.CullFace(gl.BACK)
-	} else if cull_front {
-		gl.Enable(gl.CULL_FACE)
-		gl.CullFace(gl.FRONT)
 	} else {
 		gl.Disable(gl.CULL_FACE)
 	}
-
 	gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
 	gl.Disable(gl.BLEND)
 	gl.Enable(gl.DEPTH_TEST)
-
-
 
 	// no need for model matrix
 }
@@ -127,7 +120,7 @@ set_grass_material :: proc(field_texture : ^Texture, wind_texture : ^Texture) {
 	set_texture_2D(wind_texture, pl.wind_texture_slot)
 }
 
-draw_grass :: proc(ib : ^InstanceBuffer, instanc_count : int, segment_count : int) {
+draw_grass :: proc(ib : ^InstanceBuffer, instance_count : int, segment_count : int, lod : int) {
 	gc := &graphics_context
 	pl := &graphics_context.grass_pipeline
 
@@ -142,17 +135,13 @@ draw_grass :: proc(ib : ^InstanceBuffer, instanc_count : int, segment_count : in
 	gl.EnableVertexAttribArray(3)
 	gl.VertexAttribDivisor(3, 1)
 
-	// Stupid Wild Ass Guess
-	SWAG_GRASS_VERTEX_COUNT :: 9
-
-
-	gl.Uniform1i(pl.segment_count_location, i32(segment_count))
+	gl.Uniform4f(pl.segment_count_location, f32(segment_count), f32(lod), 0, 0)
 	vertex_count := 3 + (segment_count - 1) * 2
 
 	gl.DrawArraysInstanced(
 		gl.TRIANGLE_STRIP,
 		0,
 		i32(vertex_count),
-		i32(instanc_count),
+		i32(instance_count),
 	)
 }

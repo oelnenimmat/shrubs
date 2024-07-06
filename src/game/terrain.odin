@@ -13,6 +13,9 @@ TERRAIN_CHUNK_SIZE :: 10 // x 10
 
 GRASS_DENSITY_PER_UNIT :: 10
 
+GRASS_CHUNK_WORLD_SIZE :: 10
+GRASS_BLADES_IN_CHUNK_1D :: 128
+
 Terrain :: struct {
 	positions 		: []vec3,
 	meshes 			: []graphics.Mesh,
@@ -73,17 +76,38 @@ destroy_terrain :: proc(terrain : ^Terrain) {
 }
 
 Grass :: struct {
-	instances 		: graphics.InstanceBuffer,
+	positions : []vec2,
+	instances : []graphics.InstanceBuffer,
+
 	placement_map 	: ^graphics.Texture,
 }
 
 create_grass :: proc(placement_map : ^graphics.Texture) -> Grass {
 	g : Grass
 
-	world_side_length 	:= f32(TERRAIN_CHUNK_COUNT * TERRAIN_CHUNK_SIZE)
-	w 					:= 0.5 * world_side_length
-	count 				:= 512 //int(world_side_length * GRASS_DENSITY_PER_UNIT)
-	g.instances 		= generate_grass_positions({-w, -w, 0}, {w, w, 0}, count)
+	capacity := GRASS_BLADES_IN_CHUNK_1D * GRASS_BLADES_IN_CHUNK_1D
+
+	// Todo(Leo): allocator!!!!
+	chunk_count_1D := 10
+	chunk_count_2D := chunk_count_1D * chunk_count_1D
+
+	chunk_size := f32(5)
+
+	g.positions = make([]vec2, chunk_count_2D)
+	g.instances = make([]graphics.InstanceBuffer, chunk_count_2D)
+
+	for i in 0..<chunk_count_2D {
+		x := f32(i % chunk_count_1D)
+		y := f32(i / chunk_count_1D)
+
+		g.positions[i] = {x * chunk_size - 25, y * chunk_size - 25}
+		g.instances[i] = graphics.create_instance_buffer(capacity, size_of(GrassInstanceData))
+	}
+
+	// world_side_length 	:= f32(TERRAIN_CHUNK_COUNT * TERRAIN_CHUNK_SIZE)
+	// w 					:= 0.5 * world_side_length
+	// count 				:= 512 //int(world_side_length * GRASS_DENSITY_PER_UNIT)
+	// g.instances 		= generate_grass_positions({-w, -w, 0}, {w, w, 0}, count)
 
 	g.placement_map = placement_map
 
@@ -92,6 +116,9 @@ create_grass :: proc(placement_map : ^graphics.Texture) -> Grass {
 
 destroy_grass :: proc(grass : ^Grass) {
 	// Todo(Leo): destroy mesh and instances
+	for ib in &grass.instances {
+		graphics.destroy_instance_buffer(&ib)
+	}
 
 	grass^ = {}
 }
@@ -107,39 +134,15 @@ GrassInstanceData :: struct #align(16) {
 }
 #assert(size_of(GrassInstanceData) == 32)
 
-generate_grass_positions :: proc(min, max : vec3, count_per_dimension : int) -> graphics.InstanceBuffer {
+GrassLodSettings :: struct {
+	instance_count : int,
+	segment_count : int,
+}
 
-	cell_count := count_per_dimension * count_per_dimension
-	cell_size_x := (max.x - min.x) / f32(count_per_dimension)
-	cell_size_y := (max.y - min.y) / f32(count_per_dimension)
-
-	buffer := graphics.create_instance_buffer(cell_count, size_of(GrassInstanceData))
-/*	
-	instance_memory := (cast([^]GrassInstanceData) graphics.get_instance_buffer_writeable_memory(&buffer))[0:cell_count]
-
-	for i in 0..<cell_count {
-		cell_x := i % count_per_dimension
-		cell_y := i / count_per_dimension
-
-		x := min.x + (f32(cell_x) + rand.float32()) * cell_size_x
-		y := min.y + (f32(cell_y) + rand.float32()) * cell_size_y
-		z := sample_height(x, y)
-
-		h := 0.9 + rand.float32() * 0.2
-		h *= 0.4
-		r := rand.float32() * 2 * math.PI
-
-		instance_memory[i].position = {x, y, z, 0}	
-		instance_memory[i].height = h	
-		instance_memory[i].rotation = r
-
-		instance_memory[i].field_uv = vec2{
-			(x - min.x) / (max.x - min.x),
-			(y - min.y) / (max.y - min.y),
-		}
-	}
-*/
-	return buffer
+grass_lod_settings := [3]GrassLodSettings {
+	{64, 5},
+	{48, 3},
+	{32, 1},
 }
 
 sample_height :: proc(x, y : f32) -> f32 {

@@ -72,7 +72,7 @@ float value_noise_2D(float x, float y, int seed) {
 
 const float pi = 3.14159265359;
 
-layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 
 uniform sampler2D placement_texture;
 
@@ -81,13 +81,18 @@ uniform sampler2D placement_texture;
 // z: terrain_z_scale;
 uniform vec4 noise_params;
 
+// xy: chunk min corner position xy
+// z: chunk size xy (Todo(Leo): constant?)
+// w: grass blades in chunk 1D (Todo(Leo): constant?)
+uniform vec4 chunk_params;
+
 // xy: world min corner position xy
-// zw: world size xy
+// z: world size xy
 uniform vec4 world_params;
 
 // x: base_height
 // y: height_variation
-// z: blades_per_dimension;
+// z: width
 uniform vec4 grass_params;
 
 
@@ -113,7 +118,7 @@ float sample_height (float x, float y) {
 
 void main() {
 	uint index = gl_GlobalInvocationID.x + 
-				uint(grass_params.z) * gl_GlobalInvocationID.y;
+				uint(chunk_params.w) * gl_GlobalInvocationID.y;
 	uint cell_x = gl_GlobalInvocationID.x;
 	uint cell_y = gl_GlobalInvocationID.y;
 
@@ -121,21 +126,21 @@ void main() {
 	uint hx = hash_eat(hash, int(cell_x));
 	uint hy = hash_eat(hash, int(cell_y));
 
-	vec2 cell_size = world_params.zw / grass_params.z;
+	vec2 cell_size = chunk_params.zz / chunk_params.w;
 
-	float x = world_params.x + (cell_x + hash_get_float(hx)) * cell_size.x;
-	float y = world_params.y + (cell_y + hash_get_float(hy)) * cell_size.y;
+	float x = chunk_params.x + (cell_x + hash_get_float(hx)) * cell_size.x;
+	float y = chunk_params.y + (cell_y + hash_get_float(hy)) * cell_size.y;
 
 	vec2 uv = vec2(
-		(x - world_params.x) / world_params.z,
-		(y - world_params.y) / world_params.w
+		(x + world_params.x) / world_params.z,
+		(y + world_params.y) / world_params.z
 	);
 
 	float z = sample_height(x, y);
 
 	// Eat some prime numbers to get variation, quite arbitrary, and could do without
-	float h_noise = sample_height(x * 3, y * 3) / noise_params.z;
-	float h = grass_params.x + grass_params.y * hash_get_float(hash_eat(hash, 13)) + h_noise;
+	// float h_noise = sample_height(x * 3, y * 3) / noise_params.z;
+	float h = grass_params.x + grass_params.y * (hash_get_float(hash_eat(hash, 13)));
 	float r = hash_get_float(hash_eat(hash, 37)) * 2 * pi;
 
 	// Todo(Leo): this piece of code is supposed to remove unplaceable grass blades
@@ -149,5 +154,5 @@ void main() {
 	instances[index].rotation 	= r;
 	instances[index].field_uv 	= uv;
 	instances[index].height 	= h;
-	instances[index].width 		= 0.1;
+	instances[index].width 		= grass_params.z;
 }

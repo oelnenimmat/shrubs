@@ -8,6 +8,7 @@ GrassPlacementPipeline :: struct {
 
 	placement_texture_location 	: i32,
 	noise_params_location 		: i32,
+	chunk_params_location 		: i32,
 	world_params_location 		: i32,
 	grass_params_location 		: i32,
 
@@ -24,6 +25,7 @@ create_grass_placement_pipeline :: proc () -> GrassPlacementPipeline {
 
 	pl.placement_texture_location = gl.GetUniformLocation(pl.program, "placement_texture")
 	pl.noise_params_location = gl.GetUniformLocation(pl.program, "noise_params")
+	pl.chunk_params_location = gl.GetUniformLocation(pl.program, "chunk_params")
 	pl.world_params_location = gl.GetUniformLocation(pl.program, "world_params")
 	pl.grass_params_location = gl.GetUniformLocation(pl.program, "grass_params")
 
@@ -31,9 +33,14 @@ create_grass_placement_pipeline :: proc () -> GrassPlacementPipeline {
 }
 
 dispatch_grass_placement_pipeline :: proc (
-	buffer : ^InstanceBuffer, 
-	placement_texture : ^Texture,
-	blade_count : int,
+	buffer 					: ^InstanceBuffer, 
+	placement_texture 		: ^Texture,
+	blade_count 			: int,
+	blade_height 			: f32,
+	blade_height_variation 	: f32,
+	blade_width 			: f32,
+	chunk_position 			: vec2,
+	chunk_size 				: f32,
 ) {
 	pl := &graphics_context.grass_placement_pipeline
 
@@ -45,10 +52,13 @@ dispatch_grass_placement_pipeline :: proc (
 	set_texture_2D(placement_texture, pl.placement_texture_slot)
 
 	gl.Uniform4f(pl.noise_params_location, 563, 0.1, 5, 0)
-	gl.Uniform4f(pl.world_params_location, -25.0, -25.0, 50.0, 50.0)
-	gl.Uniform4f(pl.grass_params_location, 0.4, 0.2, f32(blade_count), 0)
+	gl.Uniform4f(pl.chunk_params_location, chunk_position.x, chunk_position.y, chunk_size, f32(blade_count))
+	gl.Uniform4f(pl.world_params_location, -25.0, -25.0, 50.0, 0.0)
+	gl.Uniform4f(pl.grass_params_location, blade_height, blade_height_variation, blade_width, 0)
 
-	// 512 blades per side, work group is 32 x 32
-	gl.DispatchCompute(blade_count / 32, blade_count / 32, 1)
+	// work group is 16 x 16
+	gl.DispatchCompute(blade_count / 16, blade_count / 16, 1)
+
+	// Todo(Leo): actuaylly think about synchronizing, see e.g. tsushima grass video for more
 	gl.MemoryBarrier(gl.ALL_BARRIER_BITS)
 }

@@ -49,14 +49,22 @@ tank 				: Tank
 
 scene : ^Scene
 
-grass_blade_count := 512
+grass_blade_count := 32
 grass_segment_count := 3
 
+grass_blade_height := f32(0.5)
+grass_blade_height_variation := f32(0.1)
+grass_blade_width := f32(0.1)
+
+lod_enabled := -1
 draw_normals := false
 draw_backfacing := false
 grass_translucency := true
+draw_lod := false
 grass_cull_back := false
 grass_cull_front := false
+
+grass_chunk_size := f32(5)
 
 // post_processing : struct {
 // 	exposure : f32,
@@ -203,7 +211,7 @@ update :: proc(delta_time: f64) {
 		1 if draw_normals else 0,
 		1 if draw_backfacing else 0,
 		1 if grass_translucency else 0,
-		0,
+		1 if draw_lod else 0,
 	}
 
 	// light_direction := linalg.normalize(vec3{0, 0, -5})
@@ -236,6 +244,38 @@ update :: proc(delta_time: f64) {
 					linalg.matrix4_scale_f32(2)
 	graphics.draw_mesh(&capsule_mesh, model_matrix)
 
+	// compute grass lods
+	grass_lods 			: [100]int
+	lod_segment_counts 	: [100]int
+	lod_instance_counts : [100]int
+	lod_widths 			: [100]f32
+	lod_check_position 	:= player_character.physics_position
+	for lod, i in &grass_lods {
+		chunk_center := scene.grass.positions[i] + vec2(2.5)
+
+		to_player := lod_check_position.xy - chunk_center
+		distance_to_player := linalg.length(to_player) 
+	
+		if lod_enabled == -1 {
+			switch {
+				case distance_to_player < 7.5: lod = 0
+				case distance_to_player < 15: lod = 1
+				case: lod = 2
+			}
+		} else {
+			lod = lod_enabled
+		}
+
+		lod_instance_counts[i] = grass_lod_settings[lod].instance_count
+		lod_segment_counts[i] = grass_lod_settings[lod].segment_count
+		
+		switch lod {
+			case 0: lod_widths[i] = grass_blade_width
+			case 1: lod_widths[i] = grass_blade_width
+			case: lod_widths[i] = grass_blade_width * 1.5
+		}
+	}
+
 	// NEXT PIPELINE
 	graphics.setup_terrain_pipeline(
 		projection_matrix,
@@ -260,11 +300,21 @@ update :: proc(delta_time: f64) {
 	debug.render()
 
 	// NEXT PIPELINE
-	graphics.dispatch_grass_placement_pipeline(
-		&scene.grass.instances, 
-		scene.grass.placement_map,
-		grass_blade_count,
-	)
+	// semantics work differently in the compute shadder for now
+	blade_height_variation := grass_blade_height * grass_blade_height_variation
+	blade_height := grass_blade_height - 0.5 * blade_height_variation
+	for i in 0..<len(scene.grass.instances) {
+		graphics.dispatch_grass_placement_pipeline(
+			&scene.grass.instances[i], 
+			scene.grass.placement_map,
+			lod_instance_counts[i],
+			blade_height,
+			blade_height_variation,
+			lod_widths[i],
+			scene.grass.positions[i],
+			grass_chunk_size,
+		)
+	}
 
 	// NEXT PIPELINE
 	@static wind_time := f32 (0)
@@ -294,11 +344,15 @@ update :: proc(delta_time: f64) {
 		grass_cull_front,
 	)
 	graphics.set_grass_material(&scene.textures[.Grass_Field], &scene.textures[.Wind])
-	graphics.draw_grass(
-		&scene.grass.instances,
-		grass_blade_count*grass_blade_count,
-		grass_segment_count,
-	)
+
+	for i in 0..<len(scene.grass.instances) {
+		graphics.draw_grass(
+			&scene.grass.instances[i],
+			lod_instance_counts[i] * lod_instance_counts[i],
+			lod_segment_counts[i],
+			grass_lods[i],
+		)
+	}
 
 	// NEXT PIPELINE
 	graphics.blit_to_resolve_image()
@@ -357,7 +411,7 @@ editor_gui :: proc() {
 						GUI_WINDOW_OUTER_PADDING,
 						FULL_CONTENT_WIDTH + 2*ctx.style.padding,
 						// Very arbitrary value for now
-						600,
+						800,
 					} 
 
 	if mu.window(ctx, "Controls and Settings", rectangle, {.NO_CLOSE, .NO_RESIZE}) {
@@ -390,19 +444,21 @@ editor_gui :: proc() {
 		if .ACTIVE in mu.header(ctx, "Grass!", {.EXPANDED}) {
 			gui.indent(ctx)
 			
-			mu.label(ctx, "instance count")
+			mu.label(ctx, "LOD")
 			mu.layout_row(ctx, four_columns_layout)
-			if .SUBMIT in mu.button(ctx, "64") { grass_blade_count = 64 }
-			if .SUBMIT in mu.button(ctx, "128") { grass_blade_count = 128 }
-			if .SUBMIT in mu.button(ctx, "256") { grass_blade_count = 256 }
-			if .SUBMIT in mu.button(ctx, "512") { grass_blade_count = 512 }
-			
-			mu.label(ctx, "segment count")
-			mu.layout_row(ctx, four_columns_layout)
-			if .SUBMIT in mu.button(ctx, "1") { grass_segment_count = 1 }
-			if .SUBMIT in mu.button(ctx, "3") { grass_segment_count = 3 }
-			if .SUBMIT in mu.button(ctx, "5") { grass_segment_count = 5 }
-			if .SUBMIT in mu.button(ctx, "7") { grass_segment_count = 7 }
+			if .SUBMIT in mu.button(ctx, "auto") { lod_enabled = -1 }
+			if .SUBMIT in mu.button(ctx, "0") { lod_enabled = 0 }
+			if .SUBMIT in mu.button(ctx, "1") { lod_enabled = 1 }
+			if .SUBMIT in mu.button(ctx, "2") { lod_enabled = 2 }
+
+			mu.label(ctx, "Blade")
+			mu.layout_row(ctx, label_and_element_layout)
+			mu.label(ctx, "Height")
+			mu.slider(ctx, &grass_blade_height, 0, 2)
+			mu.label(ctx, "Variation")
+			mu.slider(ctx, &grass_blade_height_variation, 0, 2)
+			mu.label(ctx, "Width")
+			mu.slider(ctx, &grass_blade_width, 0, 0.3)
 
 			gui.unindent(ctx)
 		}
@@ -417,6 +473,7 @@ editor_gui :: proc() {
 			mu.layout_row(ctx, single_element_layout)
 			mu.checkbox(ctx, "Draw Normals", &draw_normals)
 			mu.checkbox(ctx, "Draw Backfacing", &draw_backfacing)
+			mu.checkbox(ctx, "Draw LOD", &draw_lod)
 			mu.checkbox(ctx, "Translucency", &grass_translucency)
 			mu.checkbox(ctx, "Grass Cull Back", &grass_cull_back)
 			mu.checkbox(ctx, "Grass Cull Front", &grass_cull_front)
