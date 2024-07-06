@@ -22,6 +22,8 @@ layout(location = 0) out vec3 surface_normal;
 layout(location = 1) out vec2 blade_texcoord;
 layout(location = 2) out vec2 field_texcoord;
 
+layout (location = 10) uniform vec4 debug_params;
+
 void main() {
 
 	// LS: local space
@@ -106,8 +108,14 @@ void main() {
 	// as in non rotated blade
 	vec3 bended_normal = vec3(0, nezier_normal.x, nezier_normal.y);
 	float ddd = abs(dot(front_facing_direction.xy, bend_direction));
+	if (dot(front_facing_direction.xy, bend_direction) > 0) {
+		bended_normal.z = -bended_normal.z;
+	}
+	if (debug_params.w > 0.5) {
+		bended_normal = rotation_matrix * bended_normal;
+	} 
 
-	normal_LS = mix(front_facing_direction, rotation_matrix * bended_normal, ddd);
+	normal_LS = mix(front_facing_direction, bended_normal, ddd);
 	
 	float scale 	= instance_height;
 	vec3 position 	= position_LS * scale + instance_position.xyz;

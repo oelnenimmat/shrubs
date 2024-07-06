@@ -68,6 +68,7 @@ setup_grass_pipeline :: proc(
 	wind_offset : vec2,
 	debug_params : vec4,
 	cull_back : bool,
+	cull_front : bool,
 ) {
 	projection := projection
 	view := view
@@ -100,6 +101,10 @@ setup_grass_pipeline :: proc(
 	// Options
 	if cull_back {
 		gl.Enable(gl.CULL_FACE)
+		gl.CullFace(gl.BACK)
+	} else if cull_front {
+		gl.Enable(gl.CULL_FACE)
+		gl.CullFace(gl.FRONT)
 	} else {
 		gl.Disable(gl.CULL_FACE)
 	}

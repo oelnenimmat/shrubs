@@ -91,6 +91,7 @@ setup_basic_pipeline :: proc (
 	gl.Uniform4fv(pl.debug_params_location, 1, auto_cast &debug_params)
 
 	gl.Enable(gl.CULL_FACE)
+	gl.CullFace(gl.BACK)
 	gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
 	gl.Disable(gl.BLEND)
 	gl.Enable(gl.DEPTH_TEST)

@@ -49,10 +49,14 @@ tank 				: Tank
 
 scene : ^Scene
 
-grass_blade_count := 256
+grass_blade_count := 512
 
 draw_normals := false
+draw_backfacing := false
+grass_flip_normals_xyz := true
+grass_rotate_normals := true
 grass_cull_back := false
+grass_cull_front := false
 
 // post_processing : struct {
 // 	exposure : f32,
@@ -195,10 +199,15 @@ update :: proc(delta_time: f64) {
 	graphics.begin_frame()
 	graphics.bind_main_framebuffer()
 
-	debug_params := vec4{1 if draw_normals else 0, 0, 0, 0}
+	debug_params := vec4{
+		1 if draw_normals else 0,
+		1 if draw_backfacing else 0,
+		1 if grass_flip_normals_xyz else 0,
+		1 if grass_rotate_normals else 0,
+	}
 
-	light_direction := linalg.normalize(vec3{0, 0, -5})
-	// light_direction := linalg.normalize(vec3{0, 5, -5})
+	// light_direction := linalg.normalize(vec3{0, 0, -5})
+	light_direction := linalg.normalize(vec3{0, 2, -5})
 	light_color := vec3{1.0, 0.95, 0.85} * 1.5
 	ambient_color := vec3{0.3, 0.35, 0.4}
 
@@ -264,8 +273,8 @@ update :: proc(delta_time: f64) {
 
 	if wind_on {
 		wind_time += delta_time
-		wind_offset.x += delta_time * 0.08
-		wind_offset.y += delta_time * 0.04
+		wind_offset.x += delta_time * 0.06
+		wind_offset.y += delta_time * 0.03
 	}
 	wind_amount := math.sin(wind_time) * 0.5
 
@@ -282,6 +291,7 @@ update :: proc(delta_time: f64) {
 		wind_offset,
 		debug_params,
 		grass_cull_back,
+		grass_cull_front,
 	)
 	graphics.set_grass_material(&scene.textures[.Grass_Field], &scene.textures[.Wind])
 	graphics.draw_grass(&scene.grass.mesh, &scene.grass.instances, grass_blade_count*grass_blade_count)
@@ -360,7 +370,6 @@ editor_gui :: proc() {
 			if .SUBMIT in gui.texture_button(ctx, "", scene.textures[.Grass_Field]) { }
 			if .SUBMIT in gui.texture_button(ctx, "", scene.textures[.Road]) { }
 
-
 			gui.unindent(ctx)
 		}
 		
@@ -385,7 +394,11 @@ editor_gui :: proc() {
 
 			mu.layout_row(ctx, single_element_layout)
 			mu.checkbox(ctx, "Draw Normals", &draw_normals)
+			mu.checkbox(ctx, "Draw Backfacing", &draw_backfacing)
+			mu.checkbox(ctx, "Flip Normals XYZ", &grass_flip_normals_xyz)
+			mu.checkbox(ctx, "Rotate Bended Normals", &grass_rotate_normals)
 			mu.checkbox(ctx, "Grass Cull Back", &grass_cull_back)
+			mu.checkbox(ctx, "Grass Cull Front", &grass_cull_front)
 
 			gui.unindent(ctx)
 		}

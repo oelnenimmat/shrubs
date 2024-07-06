@@ -35,7 +35,8 @@ dispatch_post_process_pipeline :: proc(exposure : f32) {
 
 	gl.Uniform4f(pl.params_location, exposure, 0, 0, 0)
 
-	gl.Disable(gl.CULL_FACE)
+	gl.Enable(gl.CULL_FACE)
+	gl.CullFace(gl.BACK)
 	gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
 	gl.Disable(gl.BLEND)
 	gl.Disable(gl.DEPTH_TEST)
