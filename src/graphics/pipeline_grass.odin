@@ -157,14 +157,19 @@ draw_grass :: proc(ib : ^InstanceBuffer, instance_count : int, segment_count : i
 
 	// SETUP INSTANCE DATA BUFFER
 	gl.BindBuffer(gl.ARRAY_BUFFER, ib.buffer)
-	gl.VertexAttribPointer(2, 4, gl.FLOAT, gl.FALSE, 2 * size_of(vec4), uintptr(0))
-	gl.EnableVertexAttribArray(2)
-	gl.VertexAttribDivisor(2, 1)
+	gl.VertexAttribPointer(0, 4, gl.FLOAT, gl.FALSE, 3 * size_of(vec4), uintptr(0))
+	gl.EnableVertexAttribArray(0)
+	gl.VertexAttribDivisor(0, 1)
 
 	gl.BindBuffer(gl.ARRAY_BUFFER, ib.buffer)
-	gl.VertexAttribPointer(3, 4, gl.FLOAT, gl.FALSE, 2 * size_of(vec4), uintptr(size_of(vec4)))
-	gl.EnableVertexAttribArray(3)
-	gl.VertexAttribDivisor(3, 1)
+	gl.VertexAttribPointer(1, 4, gl.FLOAT, gl.FALSE, 3 * size_of(vec4), uintptr(size_of(vec4)))
+	gl.EnableVertexAttribArray(1)
+	gl.VertexAttribDivisor(1, 1)
+
+	gl.BindBuffer(gl.ARRAY_BUFFER, ib.buffer)
+	gl.VertexAttribPointer(2, 4, gl.FLOAT, gl.FALSE, 3 * size_of(vec4), uintptr(2 * size_of(vec4)))
+	gl.EnableVertexAttribArray(2)
+	gl.VertexAttribDivisor(2, 1)
 
 	gl.Uniform4f(pl.segment_count_location, f32(segment_count), f32(lod), 0, 0)
 	vertex_count := 3 + (segment_count - 1) * 2

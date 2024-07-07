@@ -83,15 +83,8 @@ draw_mesh :: proc(mesh : ^Mesh, model : mat4) {
 	gc := &graphics_context
 
 	gl.UniformMatrix4fv(gc.model_matrix_location, 1, false, auto_cast &model)
-
 	gl.BindVertexArray(mesh.vao)
-
-	gl.DrawElements(
-		gl.TRIANGLES, 
-		mesh.index_count, 
-		gl.UNSIGNED_SHORT, 
-		nil, 
-	)
+	gl.DrawElements(gl.TRIANGLES, mesh.index_count, gl.UNSIGNED_SHORT, nil)
 }
 
 

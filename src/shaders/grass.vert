@@ -3,11 +3,13 @@
 const float pi = 3.14159265359;
 const float rad_to_deg = 180 / pi;
 
-layout(location = 2, component = 0) in vec3 instance_position;
-layout(location = 2, component = 3) in float instance_angle;
-layout(location = 3, component = 0) in vec2 instance_texcoord;
-layout(location = 3, component = 2) in float instance_height;
-layout(location = 3, component = 3) in float instance_width;
+layout(location = 0, component = 0) in vec3 instance_position;
+layout(location = 0, component = 3) in float instance_angle;
+layout(location = 1, component = 0) in vec2 instance_texcoord;
+layout(location = 1, component = 2) in float instance_height;
+layout(location = 1, component = 3) in float instance_width;
+layout(location = 2, component = 0) in float instance_bend;
+layout(location = 2, component = 1) in vec3 _unused;
 
 layout(location = 0) uniform mat4 projection;
 layout(location = 1) uniform mat4 view;
@@ -58,6 +60,7 @@ void main() {
 	vec3 z_direction = vec3(0, 0, 1);
 
 	// Wind
+	// Todo(Leo): wind here is actually just the turbulence
 	vec2 wind_uv 		= instance_position.xy * wind_params.z + wind_params.xy;
 	vec2 wind_amounts 	= textureLod(wind_texture, wind_uv, 0).xy;
 	wind_amounts 		= wind_amounts * 2 - vec2(1, 1);
@@ -70,8 +73,8 @@ void main() {
 	vec2 bend_direction = wind_direction;
 	float bend_angle 	= wind_amount * pi / 2; // [-1, 1] --> [-pi/2, pi/2]
 
-	// vec2 bend_direction = y_direction.xy;
-	// float bend_angle 	= 0.5 * pi / 2; // [-1, 1] --> [-pi/2, pi/2]
+	vec2 bend_direction_2 = y_direction.xy;
+	float bend_angle_2 	= instance_bend * pi / 2; // [-1, 1] --> [-pi/2, pi/2]
 
 
 	// Bezier curved blades shorten a little bit as they take a shortcut. This
@@ -83,6 +86,20 @@ void main() {
 	// requires a cosine and a square root.
 	float length_correction = 1 + 2e-5 * pow(bend_angle * rad_to_deg, 2);
 
+	// 3d bezier
+	float arm_length_3D = 0.5 * instance_height; // * length_correction
+	vec3 b0 = vec3(0, 0, 0);
+	vec3 b1 = vec3(0, 0, arm_length_3D);
+	vec3 b2 = vec3(	
+		(bend_direction.x * (-sin(bend_angle)) + bend_direction_2.x * (-sin(bend_angle_2))) * arm_length_3D,
+		(bend_direction.y * (-sin(bend_angle)) + bend_direction_2.y * (-sin(bend_angle_2))) * arm_length_3D,
+		(1 + cos(bend_angle)) * arm_length_3D
+	);
+
+	vec3 b01 = mix(b0, b1, height_percent);
+	vec3 b12 = mix(b1, b2, height_percent);
+	vec3 b012 = mix(b01, b12, height_percent);
+/*
 	// 2d bezier, i.e. on YZ-plane
 	float arm_length 	= 0.5 * instance_height * length_correction;
 	vec2 bezier_0 		= vec2(0, 0);
@@ -101,6 +118,10 @@ void main() {
 	float x = bezier_012.x * bend_direction.x;
 	float y = bezier_012.x * bend_direction.y;
 	float z = bezier_012.y;
+*/
+	float x = b012.x;
+	float y = b012.y;
+	float z = b012.z;
 
 	// width_factor curves the blade edge along the local unbended z and
 	// the the local_x is the vertex on the edge.

@@ -311,6 +311,7 @@ update :: proc(delta_time: f64) {
 			blade_height,
 			blade_height_variation,
 			lod_widths[i],
+			scene.grass.type.bend,
 			scene.grass.positions[i],
 			grass_chunk_size,
 		)
@@ -478,6 +479,8 @@ editor_gui :: proc() {
 			mu.slider(ctx, &scene.grass.type.height_variation, 0, 2)
 			mu.label(ctx, "Width")
 			mu.slider(ctx, &scene.grass.type.width, 0, 0.3)
+			mu.label(ctx, "Bend")
+			mu.slider(ctx, &scene.grass.type.bend, -1, 1)
 
 			mu.label(ctx, "Top Color")
 			gui.color_edit(ctx, "top color", transmute(^vec3)(&scene.grass.type.top_color))

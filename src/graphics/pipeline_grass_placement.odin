@@ -39,6 +39,7 @@ dispatch_grass_placement_pipeline :: proc (
 	blade_height 			: f32,
 	blade_height_variation 	: f32,
 	blade_width 			: f32,
+	blade_bend 				: f32,
 	chunk_position 			: vec2,
 	chunk_size 				: f32,
 ) {
@@ -54,7 +55,7 @@ dispatch_grass_placement_pipeline :: proc (
 	gl.Uniform4f(pl.noise_params_location, 563, 0.1, 5, 0)
 	gl.Uniform4f(pl.chunk_params_location, chunk_position.x, chunk_position.y, chunk_size, f32(blade_count))
 	gl.Uniform4f(pl.world_params_location, -25.0, -25.0, 50.0, 0.0)
-	gl.Uniform4f(pl.grass_params_location, blade_height, blade_height_variation, blade_width, 0)
+	gl.Uniform4f(pl.grass_params_location, blade_height, blade_height_variation, blade_width, blade_bend)
 
 	// work group is 16 x 16
 	gl.DispatchCompute(blade_count / 16, blade_count / 16, 1)

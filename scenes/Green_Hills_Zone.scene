@@ -14,12 +14,13 @@
 		],
 		"height": 0.37333333,
 		"height_variation": 0.18666667,
-		"width": 0.07600001
+		"width": 0.04600000,
+		"bend": 0.66666663
 	},
 	"lighting": {
 		"direction_polar": [
 			112.80000305,
-			-66.00000000
+			-76.80000305
 		],
 		"directional_color": [
 			1.00000000,
