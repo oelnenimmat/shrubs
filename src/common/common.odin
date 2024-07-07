@@ -49,6 +49,15 @@ vec3_to_dvec3 :: proc(v : vec3) -> dvec3 {
 	return {f64(v.x), f64(v.y), f64(v.z)}
 }
 
+u8_rgba_from_vec4 :: proc(color : vec4) -> Color_u8_rgba {
+	return {
+		u8(color.r * 255.999),
+		u8(color.g * 255.999),
+		u8(color.b * 255.999),
+		u8(color.a * 255.999),
+	}
+}
+
 vec4_from_u8_rgba :: proc(u8_rgba : Color_u8_rgba) -> vec4 {
     return {
     	f32(u8_rgba.r),

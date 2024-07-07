@@ -460,6 +460,13 @@ editor_gui :: proc() {
 			mu.label(ctx, "Width")
 			mu.slider(ctx, &grass_blade_width, 0, 0.3)
 
+			@static test_top_color := vec3{0, 0.7, 0.7}
+			@static test_bottom_color := vec3{0, 0.7, 0.7}
+			mu.label(ctx, "Top Color")
+			gui.color_edit(ctx, "top color", &test_top_color)
+			mu.label(ctx, "Bottom Color")
+			gui.color_edit(ctx, "bottom color", &test_bottom_color)
+
 			gui.unindent(ctx)
 		}
 

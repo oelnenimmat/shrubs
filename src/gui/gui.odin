@@ -12,6 +12,7 @@ import "core:math"
 import mu   "vendor:microui"
 
 vec2 		:: common.vec2
+vec3 		:: common.vec3
 vec4 		:: common.vec4
 Rect_f32 	:: common.Rect_f32
 
@@ -208,6 +209,67 @@ texture_button :: proc(ctx: ^mu.Context, label: string, texture : graphics.Textu
 	return
 }
 
+
+color_button_vec3 :: proc(ctx: ^mu.Context, label: string, color : vec3, opt: mu.Options = {.ALIGN_CENTER}) -> (res: mu.Result_Set) {
+	// id := len(label) > 0 ? mu.get_id(ctx, label) : mu.get_id(ctx, uintptr(icon))
+	id := len(label) > 0 ? mu.get_id(ctx, label) : mu.get_id(ctx, transmute(uintptr)(color.xy))
+	r := mu.layout_next(ctx)
+	mu.update_control(ctx, id, r, opt)
+	/* handle click */
+	if ctx.mouse_pressed_bits == {.LEFT} && ctx.focus_id == id {
+		res += {.SUBMIT}
+	}
+	/* draw */
+	mu_draw_color_control_frame_vec3(ctx, id, r, color, .BUTTON, opt)
+	
+	// no text nor icons
+	// if len(label) > 0 {
+	// 	mu.draw_control_text(ctx, label, r, .TEXT, opt)
+	// }
+	// if icon != .NONE {
+	//     mu.draw_icon(ctx, icon, r, ctx.style.colors[.TEXT])
+	// }
+	return
+}
+
+color_button :: proc {
+	color_button_vec3
+}
+
+color_edit_vec3 :: proc(ctx: ^mu.Context, label : string, color : ^vec3, opt : mu.Options = {.ALIGN_CENTER}) -> (res: mu.Result_Set) {
+	if .SUBMIT in color_button(ctx, label, color^) { mu.open_popup(ctx, label) }
+
+	if mu.begin_popup(ctx, label) {
+
+		// Todo(Leo): compute from mu style or whatever
+		h := i32(68)
+
+		mu.layout_row(ctx, {120, h})
+		mu.layout_begin_column(ctx)
+		mu.layout_row(ctx, {16, 120})
+		mu.label(ctx, "R")
+		res += mu.slider(ctx, &color.r, 0, 1)
+		mu.label(ctx, "G")
+		res += mu.slider(ctx, &color.g, 0, 1)
+		mu.label(ctx, "B")
+		res += mu.slider(ctx, &color.b, 0, 1)
+		
+		mu.layout_end_column(ctx)
+
+		mu.layout_height(ctx, h)
+		r := mu.layout_next(ctx)
+		mu_default_draw_color_frame_vec3(ctx, r, color^, .BASE)
+		
+		mu.end_popup(ctx)
+	}
+
+	return
+}
+
+color_edit :: proc {
+	color_edit_vec3
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // MU EXTENSION ZONE
 
@@ -224,11 +286,43 @@ mu_draw_texture_control_frame :: proc(ctx: ^mu.Context, id: mu.Id, rect: mu.Rect
 }
 
 @private
+mu_draw_color_control_frame_vec3 :: proc(ctx: ^mu.Context, id: mu.Id, rect: mu.Rect, color : vec3, colorid: mu.Color_Type, opt := mu.Options{}) {
+	if .NO_FRAME in opt {
+		return
+	}
+	assert(colorid == .BUTTON || colorid == .BASE)
+	colorid := colorid
+	colorid = mu.Color_Type(int(colorid) + int((ctx.focus_id == id) ? 2 : (ctx.hover_id == id) ? 1 : 0))
+	mu_default_draw_color_frame_vec3(ctx, rect, color, colorid)
+	// ctx.draw_frame(ctx, rect, colorid)
+}
+
+@private
 mu_default_draw_texture_frame :: proc(ctx: ^mu.Context, rect: mu.Rect, texture : graphics.Texture, colorid: mu.Color_Type) {
 	// mu.draw_rect(ctx, rect, ctx.style.colors[colorid])
 	mu_draw_texture_rect(ctx, rect, texture, ctx.style.colors[colorid])
 	
-	// Highligh the hovered buttons. The effect is super subtle, but keeps gui just a tiny hint
+	// Highlight the hovered buttons. The effect is super subtle, but keeps gui just a tiny hint
+	// more alive. These compare to normal mu button hover highlights 
+	if colorid == .BUTTON_HOVER {
+		mu.draw_rect(ctx, rect, {255, 255, 255, 20})
+	}
+	if colorid == .BUTTON_FOCUS {
+		mu.draw_rect(ctx, rect, {255, 255, 255, 40})
+	}
+
+	if ctx.style.colors[.BORDER].a != 0 { /* draw border */
+		mu.draw_box(ctx, mu.expand_rect(rect, 1), ctx.style.colors[.BORDER])
+	}
+}
+
+@private
+mu_default_draw_color_frame_vec3 :: proc(ctx: ^mu.Context, rect: mu.Rect, color : vec3, colorid: mu.Color_Type) {
+	// mu.draw_rect(ctx, rect, ctx.style.colors[colorid])
+	color := common.u8_rgba_from_vec4({color.r, color.g, color.b, 1})
+	mu.draw_rect(ctx, rect, transmute(mu.Color) color)
+	
+	// Highlight the hovered buttons. The effect is super subtle, but keeps gui just a tiny hint
 	// more alive. These compare to normal mu button hover highlights 
 	if colorid == .BUTTON_HOVER {
 		mu.draw_rect(ctx, rect, {255, 255, 255, 20})
