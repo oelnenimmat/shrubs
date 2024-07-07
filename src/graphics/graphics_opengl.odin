@@ -66,6 +66,7 @@ graphics_context : struct {
 	resolve_image : u32,
 }
 
+initialize :: proc() {
 	// OpenGL headers contain a set of function pointers, that need to be loaded explicitly
 	gl.load_up_to(4, 6, glfw.gl_set_proc_address)
 

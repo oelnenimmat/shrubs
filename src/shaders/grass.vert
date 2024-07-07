@@ -40,7 +40,7 @@ void main() {
 	vec3 vertex_normal;
 
 	// todo(Leo): if we only rotate unit-x vector, we dont need the full matrix
-	// Todo(Leo): optimize by inlining, and maybe test a lookup table also for selected values
+	// Todo(Leo): optimize by inlining, and maybe test a lookup table and interpolation also for selected values
 	mat3 rotation_matrix 	= mat3(1.0);
 	rotation_matrix[0][0] 	= cos(instance_angle);
 	rotation_matrix[1][0] 	= -sin(instance_angle);
@@ -66,9 +66,13 @@ void main() {
 
 	float height_percent = float(y_id) / segment_count.x;
 
-
+	// These are correct for the wind
 	vec2 bend_direction = wind_direction;
 	float bend_angle 	= wind_amount * pi / 2; // [-1, 1] --> [-pi/2, pi/2]
+
+	// vec2 bend_direction = y_direction.xy;
+	// float bend_angle 	= 0.5 * pi / 2; // [-1, 1] --> [-pi/2, pi/2]
+
 
 	// Bezier curved blades shorten a little bit as they take a shortcut. This
 	// is used as approximation to stretch the bezier arms. The approximation
