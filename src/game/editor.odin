@@ -28,7 +28,7 @@ editor : struct {
 }
 
 save_editor_state :: proc() {
-	data, error := json.marshal(editor)
+	data, error := json.marshal(editor, opt = { pretty = true })
 	defer delete(data)
 	if error == nil {
 		fmt.println("Editor state saved")

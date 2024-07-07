@@ -73,6 +73,10 @@ initialize :: proc() {
 	// OpenGL headers contain a set of function pointers, that need to be loaded explicitly
 	gl.load_up_to(4, 6, glfw.gl_set_proc_address)
 
+	max_uniform_locations : i32
+	gl.GetIntegerv(gl.MAX_UNIFORM_LOCATIONS, &max_uniform_locations)
+	fmt.println("[GRAPHICS]: Max uniform locations:", max_uniform_locations)
+
 	gl.Enable(gl.DEPTH_TEST)
 
 	// These SHOULD be same for all, if not, move to individual pipelines

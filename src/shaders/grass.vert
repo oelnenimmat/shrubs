@@ -48,11 +48,11 @@ void main() {
 	vec3 x_direction = rotation_matrix * vec3(1, 0, 0);
 	vec3 y_direction = rotation_matrix * vec3(0, 1, 0);
 
-	if (debug_params.z > 0.5) {
-		if (dot(-y_direction, mat3(view) * vec3(0,1,0)) < 0) {
-			x_id = (x_id + 1) % 2;
-		}
-	}
+	// if (debug_params.z > 0.5) {
+	// 	if (dot(-y_direction, mat3(view) * vec3(0,1,0)) < 0) {
+	// 		x_id = (x_id + 1) % 2;
+	// 	}
+	// }
 
 	// Todo(Leo): the rotation matrix is now only around z axis, so this wont matter
 	// this might change with the spherical planet thing
@@ -67,6 +67,7 @@ void main() {
 	vec2 wind_direction = normalize(wind_amounts);
 
 	float height_percent = float(y_id) / segment_count.x;
+
 
 	vec2 bend_direction = wind_direction;
 	float bend_angle 	= wind_amount * pi / 2; // [-1, 1] --> [-pi/2, pi/2]
@@ -124,8 +125,9 @@ void main() {
 	
 	gl_Position = projection * view * vec4(instance_position.xyz + vertex_position, 1.0);
 
+
 	surface_normal = normalize(vertex_normal);
-	blade_texcoord.x = vertex_position.x * 5 + 0.1;
-	blade_texcoord.y = vertex_position.z;
+	blade_texcoord.x = (y_id == segment_count.x) ? 0.5 : x_id;
+	blade_texcoord.y = height_percent;
 	field_texcoord = instance_texcoord.xy;
 }

@@ -122,6 +122,8 @@ void main() {
 	uint cell_x = gl_GlobalInvocationID.x;
 	uint cell_y = gl_GlobalInvocationID.y;
 
+	// Todo(Leo): make hash based on base position, not index, to not swap hash when
+	// blending lods
 	uint hash = hash_make(int(index));
 	uint hx = hash_eat(hash, int(cell_x));
 	uint hy = hash_eat(hash, int(cell_y));

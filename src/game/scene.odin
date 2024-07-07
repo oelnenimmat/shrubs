@@ -1,6 +1,9 @@
 package game
 
+import "core:encoding/json"
 import "core:fmt"
+import "core:os"
+import "core:strings"
 
 import "shrubs:graphics"
 
@@ -47,6 +50,10 @@ SceneName :: enum {
 	Big_Rock,
 }
 
+SerializedScene :: struct {
+	grass_type : GrassTypeSettings,
+}
+
 // Todo(Leo): take pointer argument for lazy allocation issues. If we make a
 // local variable here to return, pointer to it don't work.
 load_scene :: proc(scene_name : SceneName) -> ^Scene {
@@ -55,6 +62,22 @@ load_scene :: proc(scene_name : SceneName) -> ^Scene {
 	s^ = {}
 
 	s.name = scene_name
+
+	serialized : SerializedScene
+	{
+		filename_builder : strings.Builder
+		defer strings.builder_destroy(&filename_builder)
+		fmt.sbprintf(&filename_builder, "scenes/{}.scene", scene_name)
+		fmt.println(strings.to_string(filename_builder))
+
+		// Todo(Leo): check success
+		data, success := os.read_entire_file(strings.to_string(filename_builder))
+
+		fmt.println(serialized)
+
+		// Todo(Leo): check error
+		json.unmarshal(data, &serialized)
+	}
 
 	// http://kitfox.com/projects/perlinNoiseMaker/
 	// Todo(Leo): this is for all, so maybe make more public access
@@ -144,11 +167,38 @@ load_scene :: proc(scene_name : SceneName) -> ^Scene {
 		copy(s.set_pieces, set_pieces)
 	}
 
+	s.grass.type = serialized.grass_type
+
 	return s
 }
 
+save_scene :: proc(scene : ^Scene) {
+	// Todo(Leo): allocation!!!
+	filename_builder : strings.Builder
+	defer strings.builder_destroy(&filename_builder)
+	fmt.sbprintf(&filename_builder, "scenes/{}.scene", scene.name)
+
+
+	s : SerializedScene
+	s.grass_type = scene.grass.type
+
+	// Todo(Leo): allocation!!!
+	data, json_error := json.marshal(s, opt = {pretty = true})
+	defer delete(data)
+
+	if json_error == nil {
+		success := os.write_entire_file(strings.to_string(filename_builder), data)
+		if !success {
+			fmt.println("[SAVE SCENE ERROR(os write failed)]")
+		}
+	} else {
+		fmt.println("[SAVE SCENE ERROR(json)]:", json_error)
+	}
+}
 
 unload_scene :: proc(s : ^Scene) {
+
+	save_scene(s)
 
 	// Todo(Leo): now these actually need to be implemented
 	destroy_terrain(&s.terrain)
@@ -165,8 +215,4 @@ unload_scene :: proc(s : ^Scene) {
 	}
 
 	free(s)
-}
-
-render_scene :: proc(s : ^Scene) {
-
 }

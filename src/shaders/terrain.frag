@@ -27,11 +27,11 @@ void main() {
 	float splatter = texture(splatter_texture, texcoord).r;
 	vec3 surface = mix(
 		texture(road_texture, texcoord * 10).rgb,
-		texture(grass_texture, texcoord).rgb,
+		texture(grass_texture, texcoord).rgb * vec3(0.25, 0.2, 0.25),
 		splatter
 	);
 
-	vec3 color 		= lighting * surface;
+	vec3 color = lighting * surface;
 
 	out_color = vec4(color, 1);
 

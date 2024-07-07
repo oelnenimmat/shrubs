@@ -52,10 +52,6 @@ scene : ^Scene
 grass_blade_count := 32
 grass_segment_count := 3
 
-grass_blade_height := f32(0.5)
-grass_blade_height_variation := f32(0.1)
-grass_blade_width := f32(0.1)
-
 lod_enabled := -1
 draw_normals := false
 draw_backfacing := false
@@ -65,6 +61,9 @@ grass_cull_back := false
 grass_cull_front := false
 
 grass_chunk_size := f32(5)
+
+grass_top_color := vec4{0, 0.7, 0.7, 1}
+grass_bottom_color := vec4{0, 0.7, 0.7, 1}
 
 // post_processing : struct {
 // 	exposure : f32,
@@ -270,9 +269,9 @@ update :: proc(delta_time: f64) {
 		lod_segment_counts[i] = grass_lod_settings[lod].segment_count
 		
 		switch lod {
-			case 0: lod_widths[i] = grass_blade_width
-			case 1: lod_widths[i] = grass_blade_width
-			case: lod_widths[i] = grass_blade_width * 1.5
+			case 0: lod_widths[i] = scene.grass.type.width
+			case 1: lod_widths[i] = scene.grass.type.width
+			case: lod_widths[i] = scene.grass.type.width * 1.5
 		}
 	}
 
@@ -301,8 +300,8 @@ update :: proc(delta_time: f64) {
 
 	// NEXT PIPELINE
 	// semantics work differently in the compute shadder for now
-	blade_height_variation := grass_blade_height * grass_blade_height_variation
-	blade_height := grass_blade_height - 0.5 * blade_height_variation
+	blade_height_variation := scene.grass.type.height * scene.grass.type.height_variation
+	blade_height := scene.grass.type.height - 0.5 * blade_height_variation
 	for i in 0..<len(scene.grass.instances) {
 		graphics.dispatch_grass_placement_pipeline(
 			&scene.grass.instances[i], 
@@ -343,7 +342,12 @@ update :: proc(delta_time: f64) {
 		grass_cull_back,
 		grass_cull_front,
 	)
-	graphics.set_grass_material(&scene.textures[.Grass_Field], &scene.textures[.Wind])
+	graphics.set_grass_material(
+		&scene.textures[.Grass_Field],
+		&scene.textures[.Wind],
+		scene.grass.type.bottom_color,
+		scene.grass.type.top_color,
+	)
 
 	for i in 0..<len(scene.grass.instances) {
 		graphics.draw_grass(
@@ -418,6 +422,10 @@ editor_gui :: proc() {
 		if .ACTIVE in mu.header(ctx, "Scenes", {.EXPANDED}) {
 			gui.indent(ctx)
 
+			if .SUBMIT in mu.button(ctx, "Save Current Scene") {
+				save_scene(scene)
+			}
+
 			mu.label(ctx, "Load scene")
 			for name in SceneName {
 				if .SUBMIT in mu.button(ctx, reflect.enum_string(name)) {
@@ -454,18 +462,16 @@ editor_gui :: proc() {
 			mu.label(ctx, "Blade")
 			mu.layout_row(ctx, label_and_element_layout)
 			mu.label(ctx, "Height")
-			mu.slider(ctx, &grass_blade_height, 0, 2)
+			mu.slider(ctx, &scene.grass.type.height, 0, 2)
 			mu.label(ctx, "Variation")
-			mu.slider(ctx, &grass_blade_height_variation, 0, 2)
+			mu.slider(ctx, &scene.grass.type.height_variation, 0, 2)
 			mu.label(ctx, "Width")
-			mu.slider(ctx, &grass_blade_width, 0, 0.3)
+			mu.slider(ctx, &scene.grass.type.width, 0, 0.3)
 
-			@static test_top_color := vec3{0, 0.7, 0.7}
-			@static test_bottom_color := vec3{0, 0.7, 0.7}
 			mu.label(ctx, "Top Color")
-			gui.color_edit(ctx, "top color", &test_top_color)
+			gui.color_edit(ctx, "top color", transmute(^vec3)(&scene.grass.type.top_color))
 			mu.label(ctx, "Bottom Color")
-			gui.color_edit(ctx, "bottom color", &test_bottom_color)
+			gui.color_edit(ctx, "bottom color", transmute(^vec3)(&scene.grass.type.bottom_color))
 
 			gui.unindent(ctx)
 		}

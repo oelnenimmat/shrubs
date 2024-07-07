@@ -15,6 +15,9 @@ layout (location = 8) uniform sampler2D field_texture;
 layout (location = 9) uniform vec4 segment_count;
 layout (location = 10) uniform vec4 debug_params;
 
+// todo(Leo): explicit locations
+uniform vec4 bottom_color;
+uniform vec4 top_color;
 
 out vec4 out_color;
 
@@ -34,8 +37,10 @@ void main() {
 	// }
 	vec3 lighting 	= light_color * ndotl + ambient_color;
 
-	vec3 surface_color 	= texture(field_texture, field_texcoord).rgb;
-	vec3 surface 		= surface_color;
+	// vec3 surface_color 	= texture(field_texture, field_texcoord).rgb;
+	vec3 surface_color = mix(bottom_color.rgb, top_color.rgb, blade_texcoord.y);
+	vec3 surface = surface_color;
+	// surface = vec3(blade_texcoord.yyy);
 
 	if (debug_params.w > 0.5) {
 		switch (int(segment_count.y)) {
@@ -62,5 +67,7 @@ void main() {
 			out_color = vec4(0, 0, 0.8, 1);
 		}
 	}
+
+	// out_color = vec4(floor(blade_texcoord.xxx * 3) / 3, 1);
 
 }
