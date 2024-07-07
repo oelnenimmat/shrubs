@@ -9,6 +9,10 @@ GrassTypeSettings :: struct {
 	height_variation 	: f32,
 	width 				: f32,
 	bend 				: f32,
+
+	clump_height_variation 	: f32,
+	clump_squeeze_in 		: f32,
+	clump_align_facing 		: f32,
 }
 
 Grass :: struct {
@@ -29,10 +33,11 @@ GrassInstanceData :: struct #align(16) {
 	height 		: f32,
 	rotation 	: f32,
 	more_data 	: vec4,
+	even_more_data 	: vec4,
 	// bend 		: f32,
 	// _unused 	: vec3,	
 }
-#assert(size_of(GrassInstanceData) == 48)
+#assert(size_of(GrassInstanceData) == 64)
 
 GrassLodSettings :: struct {
 	instance_count : int,

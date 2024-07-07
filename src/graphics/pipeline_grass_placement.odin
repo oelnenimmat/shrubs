@@ -42,6 +42,7 @@ dispatch_grass_placement_pipeline :: proc (
 	blade_bend 				: f32,
 	chunk_position 			: vec2,
 	chunk_size 				: f32,
+	voronoi_cell_size 		: f32,
 ) {
 	pl := &graphics_context.grass_placement_pipeline
 
@@ -52,7 +53,7 @@ dispatch_grass_placement_pipeline :: proc (
 
 	set_texture_2D(placement_texture, pl.placement_texture_slot)
 
-	gl.Uniform4f(pl.noise_params_location, 563, 0.1, 5, 0)
+	gl.Uniform4f(pl.noise_params_location, 563, 0.1, 5, voronoi_cell_size)
 	gl.Uniform4f(pl.chunk_params_location, chunk_position.x, chunk_position.y, chunk_size, f32(blade_count))
 	gl.Uniform4f(pl.world_params_location, -25.0, -25.0, 50.0, 0.0)
 	gl.Uniform4f(pl.grass_params_location, blade_height, blade_height_variation, blade_width, blade_bend)

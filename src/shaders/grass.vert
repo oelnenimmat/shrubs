@@ -5,11 +5,16 @@ const float rad_to_deg = 180 / pi;
 
 layout(location = 0, component = 0) in vec3 instance_position;
 layout(location = 0, component = 3) in float instance_angle;
+
 layout(location = 1, component = 0) in vec2 instance_texcoord;
 layout(location = 1, component = 2) in float instance_height;
 layout(location = 1, component = 3) in float instance_width;
-layout(location = 2, component = 0) in float instance_bend;
-layout(location = 2, component = 1) in vec3 _unused;
+
+layout(location = 2, component = 0) in vec3 instance_test_color;
+layout(location = 2, component = 3) in float instance_bend;
+
+layout(location = 3, component = 0) in vec2 instance_facing;
+
 
 layout(location = 0) uniform mat4 projection;
 layout(location = 1) uniform mat4 view;
@@ -26,11 +31,13 @@ layout(location = 4) out vec3 frag_position;
 
 // Todo(Leo): this is probably not used
 layout(location = 3) out vec3 view_position;
+layout(location = 5) out vec3 voronoi_color;
 
 // x: segment count
 // y: lod
 layout (location = 9) uniform vec4 segment_count;
 layout (location = 10) uniform vec4 debug_params;
+
 
 void main() {
 
@@ -41,22 +48,10 @@ void main() {
 	vec3 vertex_position;
 	vec3 vertex_normal;
 
-	// todo(Leo): if we only rotate unit-x vector, we dont need the full matrix
-	// Todo(Leo): optimize by inlining, and maybe test a lookup table and interpolation also for selected values
-	mat3 rotation_matrix 	= mat3(1.0);
-	rotation_matrix[0][0] 	= cos(instance_angle);
-	rotation_matrix[1][0] 	= -sin(instance_angle);
-	rotation_matrix[0][1] 	= sin(instance_angle);
-	rotation_matrix[1][1] 	= cos(instance_angle);
-
-	// Todo(Leo): we only use the matrix here, can inline
-	// Todo(Leo): optimize by flipping around when are backfacing
-	vec3 x_direction = rotation_matrix * vec3(1, 0, 0);
-	vec3 y_direction = rotation_matrix * vec3(0, 1, 0);
-
-	// Todo(Leo): the rotation matrix is now only around z axis, so this wont matter
-	// this might change with the spherical planet thing
-	// vec3 z_direction = rotation_matrix * vec3(0, 0, 1);
+	// Todo(Leo): Instance facing describes y direction, x direction is rotated
+	// 90 degrees, and z is just up
+	vec3 x_direction = vec3(instance_facing.y, -instance_facing.x, 0);
+	vec3 y_direction = vec3(instance_facing, 0);
 	vec3 z_direction = vec3(0, 0, 1);
 
 	// Wind
@@ -159,4 +154,6 @@ void main() {
 	field_texcoord = instance_texcoord.xy;
 	view_position = view[3].xyz;
 	frag_position = instance_position.xyz + vertex_position;
+
+	voronoi_color = instance_test_color;
 }

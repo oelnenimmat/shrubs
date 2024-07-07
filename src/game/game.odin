@@ -52,7 +52,7 @@ scene : ^Scene
 grass_blade_count := 32
 grass_segment_count := 3
 
-lod_enabled := -1
+lod_enabled := 0
 draw_normals := false
 draw_backfacing := false
 grass_translucency := true
@@ -63,6 +63,8 @@ grass_cull_front := false
 grass_chunk_size := f32(5)
 
 grass_roughness := f32(0.15)
+
+voronoi_cell_size := f32(1)
 
 // post_processing : struct {
 // 	exposure : f32,
@@ -314,6 +316,7 @@ update :: proc(delta_time: f64) {
 			scene.grass.type.bend,
 			scene.grass.positions[i],
 			grass_chunk_size,
+			voronoi_cell_size,
 		)
 	}
 
@@ -490,6 +493,9 @@ editor_gui :: proc() {
 			mu.label(ctx, "roughness")
 			mu.slider(ctx, &grass_roughness, 0, 1)
 			
+			mu.label(ctx, "voronoi size")
+			mu.slider(ctx, &voronoi_cell_size, 0, 10)
+
 			gui.unindent(ctx)
 		}
 

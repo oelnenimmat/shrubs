@@ -5,6 +5,7 @@ layout(location = 1) in vec2 blade_texcoord;
 layout(location = 2) in vec2 field_texcoord;
 layout(location = 3) in vec3 view_position;
 layout(location = 4) in vec3 frag_position;
+layout(location = 5) in vec3 voronoi_color;
 
 layout (location = 5) uniform vec3 light_direction;
 layout (location = 6) uniform vec3 light_color;
@@ -69,6 +70,8 @@ void main() {
 	vec3 ambient = ambient_color * surface_color;
 
 	out_color = vec4(diffuse + specular + ambient, 1);
+
+	// out_color = vec4(voronoi_color * ndotl, 1);
 
 	if (debug_params.x > 0.5) {
 		out_color = vec4(ndotl.xxx, 1);

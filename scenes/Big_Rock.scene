@@ -15,7 +15,10 @@
 		"height": 0.56000000,
 		"height_variation": 0.22666667,
 		"width": 0.04400000,
-		"bend": 0.53333330
+		"bend": 0.33333337,
+		"clump_height_variation": 0.00000000,
+		"clump_squeeze_in": 0.00000000,
+		"clump_align_facing": 0.00000000
 	},
 	"lighting": {
 		"direction_polar": [
