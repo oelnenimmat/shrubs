@@ -20,6 +20,10 @@ layout(location = 4) uniform sampler2D wind_texture;
 layout(location = 0) out vec3 surface_normal;
 layout(location = 1) out vec2 blade_texcoord;
 layout(location = 2) out vec2 field_texcoord;
+layout(location = 4) out vec3 frag_position;
+
+// Todo(Leo): this is probably not used
+layout(location = 3) out vec3 view_position;
 
 // x: segment count
 // y: lod
@@ -47,12 +51,6 @@ void main() {
 	// Todo(Leo): optimize by flipping around when are backfacing
 	vec3 x_direction = rotation_matrix * vec3(1, 0, 0);
 	vec3 y_direction = rotation_matrix * vec3(0, 1, 0);
-
-	// if (debug_params.z > 0.5) {
-	// 	if (dot(-y_direction, mat3(view) * vec3(0,1,0)) < 0) {
-	// 		x_id = (x_id + 1) % 2;
-	// 	}
-	// }
 
 	// Todo(Leo): the rotation matrix is now only around z axis, so this wont matter
 	// this might change with the spherical planet thing
@@ -121,8 +119,12 @@ void main() {
 		height_percent
 	);
 	vec3 bended_normal 	= nezier_normal.x * y_direction + nezier_normal.y * z_direction;
-	vertex_normal 		= mix(front_facing_direction, bended_normal, abs(bend_forward));
-	
+	vertex_normal 		= mix(
+		front_facing_direction, 
+		bended_normal, 
+		abs(bend_forward)
+	);
+
 	gl_Position = projection * view * vec4(instance_position.xyz + vertex_position, 1.0);
 
 
@@ -130,4 +132,6 @@ void main() {
 	blade_texcoord.x = (y_id == segment_count.x) ? 0.5 : x_id;
 	blade_texcoord.y = height_percent;
 	field_texcoord = instance_texcoord.xy;
+	view_position = view[3].xyz;
+	frag_position = instance_position.xyz + vertex_position;
 }

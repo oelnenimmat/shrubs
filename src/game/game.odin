@@ -62,8 +62,7 @@ grass_cull_front := false
 
 grass_chunk_size := f32(5)
 
-grass_top_color := vec4{0, 0.7, 0.7, 1}
-grass_bottom_color := vec4{0, 0.7, 0.7, 1}
+grass_roughness := f32(0.15)
 
 // post_processing : struct {
 // 	exposure : f32,
@@ -213,10 +212,12 @@ update :: proc(delta_time: f64) {
 		1 if draw_lod else 0,
 	}
 
-	// light_direction := linalg.normalize(vec3{0, 0, -5})
-	light_direction := linalg.normalize(vec3{0, 2, -5})
-	light_color := vec3{1.0, 0.95, 0.85} * 1.5
-	ambient_color := vec3{0.3, 0.35, 0.4}
+	light_direction := matrix4_mul_vector(
+						linalg.matrix4_rotate_f32(scene.lighting.direction_polar.x * math.PI / 180, OBJECT_UP) *
+						linalg.matrix4_rotate_f32(scene.lighting.direction_polar.y * math.PI / 180, OBJECT_RIGHT),
+						OBJECT_FORWARD)
+	light_color := scene.lighting.directional_color.rgb * scene.lighting.directional_color.w
+	ambient_color := scene.lighting.ambient_color.rgb * scene.lighting.ambient_color.w
 
 	projection_matrix, view_matrix := camera_get_projection_and_view_matrices(&camera)
 
@@ -341,12 +342,14 @@ update :: proc(delta_time: f64) {
 		debug_params,
 		grass_cull_back,
 		grass_cull_front,
+		camera.position,
 	)
 	graphics.set_grass_material(
 		&scene.textures[.Grass_Field],
 		&scene.textures[.Wind],
 		scene.grass.type.bottom_color,
 		scene.grass.type.top_color,
+		grass_roughness,
 	)
 
 	for i in 0..<len(scene.grass.instances) {
@@ -415,7 +418,7 @@ editor_gui :: proc() {
 						GUI_WINDOW_OUTER_PADDING,
 						FULL_CONTENT_WIDTH + 2*ctx.style.padding,
 						// Very arbitrary value for now
-						800,
+						900,
 					} 
 
 	if mu.window(ctx, "Controls and Settings", rectangle, {.NO_CLOSE, .NO_RESIZE}) {
@@ -448,6 +451,14 @@ editor_gui :: proc() {
 
 			gui.unindent(ctx)
 		}
+
+		if .ACTIVE in mu.header(ctx, "Lighting", {.EXPANDED}) {
+			mu.layout_row(ctx, label_and_element_layout)
+			mu.label(ctx, "Polar X"); mu.slider(ctx, &scene.lighting.direction_polar.x, 0, 360)
+			mu.label(ctx, "Polar Y"); mu.slider(ctx, &scene.lighting.direction_polar.y, -90, 90)
+			mu.label(ctx, "Directional"); gui.color_edit_hdr_vec4(ctx, "directional", &scene.lighting.directional_color)
+			mu.label(ctx, "Ambient"); gui.color_edit_hdr_vec4(ctx, "ambient", &scene.lighting.ambient_color)
+		}
 		
 		if .ACTIVE in mu.header(ctx, "Grass!", {.EXPANDED}) {
 			gui.indent(ctx)
@@ -473,6 +484,9 @@ editor_gui :: proc() {
 			mu.label(ctx, "Bottom Color")
 			gui.color_edit(ctx, "bottom color", transmute(^vec3)(&scene.grass.type.bottom_color))
 
+			mu.label(ctx, "roughness")
+			mu.slider(ctx, &grass_roughness, 0, 1)
+			
 			gui.unindent(ctx)
 		}
 

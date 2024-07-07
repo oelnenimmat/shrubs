@@ -1,6 +1,7 @@
 package graphics
 
 import "core:fmt"
+import "core:math"
 
 import gl "vendor:OpenGL"
 
@@ -12,25 +13,27 @@ GrassPipeline :: struct {
 	view_matrix_location : i32,
 
 	// lighting
-	light_direction_location : i32,
-	light_color_location : i32,
-	ambient_color_location : i32,
+	light_direction_location 	: i32,
+	light_color_location 		: i32,
+	ambient_color_location 		: i32,
 
 	// wind
 	wind_params_location : i32,
 
-	segment_count_location : i32,
-	debug_params_location : i32,
+	segment_count_location 	: i32,
+	debug_params_location 	: i32,
 
 	// textures
-	field_texture_location : i32,	
-	wind_texture_location : i32,	
+	field_texture_location 	: i32,	
+	wind_texture_location 	: i32,	
 
-	bottom_color_location : i32,
-	top_color_location : i32,
+	bottom_color_location 	: i32,
+	top_color_location 		: i32,
+	surface_params_location : i32,
+	camera_position_location : i32,
 
-	field_texture_slot : u32,	
-	wind_texture_slot : u32,	
+	field_texture_slot 	: u32,	
+	wind_texture_slot 	: u32,	
 }
 
 @private
@@ -57,10 +60,12 @@ create_grass_pipeline :: proc() -> GrassPipeline {
 	pl.debug_params_location 		= gl.GetUniformLocation(pl.shader_program, "debug_params")
 
 	pl.bottom_color_location 		= gl.GetUniformLocation(pl.shader_program, "bottom_color")
-	pl.top_color_location 		= gl.GetUniformLocation(pl.shader_program, "top_color")
+	pl.top_color_location 			= gl.GetUniformLocation(pl.shader_program, "top_color")
+	pl.surface_params_location 		= gl.GetUniformLocation(pl.shader_program, "surface_params")
+	pl.camera_position_location 		= gl.GetUniformLocation(pl.shader_program, "camera_position")
 
-	pl.field_texture_location = gl.GetUniformLocation(pl.shader_program, "field_texture")
-	pl.wind_texture_location = gl.GetUniformLocation(pl.shader_program, "wind_texture")
+	pl.field_texture_location 		= gl.GetUniformLocation(pl.shader_program, "field_texture")
+	pl.wind_texture_location 		= gl.GetUniformLocation(pl.shader_program, "wind_texture")
 
 	pl.field_texture_slot = 0
 	pl.wind_texture_slot = 1
@@ -77,6 +82,7 @@ setup_grass_pipeline :: proc(
 	debug_params : vec4,
 	cull_back : bool,
 	cull_front : bool,
+	camera_position : vec3,
 ) {
 	projection := projection
 	view := view
@@ -91,6 +97,8 @@ setup_grass_pipeline :: proc(
 	// View
 	gl.UniformMatrix4fv(pl.projection_matrix_location, 1, false, auto_cast &projection)
 	gl.UniformMatrix4fv(pl.view_matrix_location, 1, false, auto_cast &view)
+	
+	gl.Uniform4f(pl.camera_position_location, camera_position.x, camera_position.y, camera_position.z, 0)
 
 	// Lighting
 	gl.Uniform3fv(pl.light_direction_location, 1, auto_cast &light_direction)
@@ -124,18 +132,23 @@ set_grass_material :: proc(
 	wind_texture : ^Texture,
 	bottom_color : vec4,
 	top_color : vec4,
+	roughness : f32,
 ) {
 	pl := &graphics_context.grass_pipeline
 
 	set_texture_2D(field_texture, pl.field_texture_slot)
 	set_texture_2D(wind_texture, pl.wind_texture_slot)
 
-
 	bottom_color := bottom_color
 	top_color := top_color
 
 	gl.Uniform4fv(pl.bottom_color_location, 1, auto_cast &bottom_color)
 	gl.Uniform4fv(pl.top_color_location, 1, auto_cast &top_color)
+	gl.Uniform4f(
+		pl.surface_params_location, 
+		roughness, 
+		0, 0, 0,
+	)
 }
 
 draw_grass :: proc(ib : ^InstanceBuffer, instance_count : int, segment_count : int, lod : int) {

@@ -66,10 +66,6 @@ graphics_context : struct {
 	resolve_image : u32,
 }
 
-// WHAT IS THIS ---------------------------------------------------------------
-
-initialize :: proc() {
-
 	// OpenGL headers contain a set of function pointers, that need to be loaded explicitly
 	gl.load_up_to(4, 6, glfw.gl_set_proc_address)
 
@@ -107,8 +103,6 @@ initialize :: proc() {
 		resize_framebuffer(int(width), int(height))
 	}
 	glfw.SetFramebufferSizeCallback(window.get_glfw_window_handle(), glfw_resize_framebuffer_proc)
-
-
 
 	// Generate the framebuffer for post processing
 	gl.GenFramebuffers(1, &gc.main_framebuffer)

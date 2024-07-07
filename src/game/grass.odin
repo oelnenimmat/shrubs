@@ -14,7 +14,7 @@ Grass :: struct {
 	positions : []vec2,
 	instances : []graphics.InstanceBuffer,
 
-	placement_map 	: ^graphics.Texture,
+	placement_map : ^graphics.Texture,
 
 	type : GrassTypeSettings,
 }
@@ -63,18 +63,12 @@ create_grass :: proc(placement_map : ^graphics.Texture) -> Grass {
 		g.instances[i] = graphics.create_instance_buffer(capacity, size_of(GrassInstanceData))
 	}
 
-	// world_side_length 	:= f32(TERRAIN_CHUNK_COUNT * TERRAIN_CHUNK_SIZE)
-	// w 					:= 0.5 * world_side_length
-	// count 				:= 512 //int(world_side_length * GRASS_DENSITY_PER_UNIT)
-	// g.instances 		= generate_grass_positions({-w, -w, 0}, {w, w, 0}, count)
-
 	g.placement_map = placement_map
 
 	return g
 }
 
 destroy_grass :: proc(grass : ^Grass) {
-	// Todo(Leo): destroy mesh and instances
 	for ib in &grass.instances {
 		graphics.destroy_instance_buffer(&ib)
 	}

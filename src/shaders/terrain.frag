@@ -38,5 +38,4 @@ void main() {
 	if (debug_params.x > 0.5) {
 		out_color = vec4(normal, 1);
 	}
-	// out_color = vec4(ndotl.xxx, 1);
 }

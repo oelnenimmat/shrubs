@@ -7,6 +7,13 @@ import "core:strings"
 
 import "shrubs:graphics"
 
+// Todo(Leo): read more
+// sRGB values, according to this:
+// https://physics.stackexchange.com/questions/353672/what-are-the-wavelengths-of-the-red-green-and-blue-lights-used-for-making-led
+WAVELENGTH_RED 		:: 612e-9
+WAVELENGTH_GREEN 	:: 549e-9
+WAVELENGTH_BLUE 	:: 464e-9
+
 SetPiece :: struct {
 	mesh 		: ^graphics.Mesh,
 	texture 	: ^graphics.Texture,
@@ -28,12 +35,19 @@ MeshName :: enum {
 	Big_Rock_1,
 }
 
+Lighting :: struct {
+	direction_polar 	: vec2,
+	directional_color 	: vec4,
+	ambient_color 		: vec4
+}
+
 Scene :: struct {
 	name : SceneName,
 
 	// Systems
-	grass : Grass,
-	terrain : Terrain,
+	grass 		: Grass,
+	terrain 	: Terrain,
+	lighting 	: Lighting,
 
 	// Resources/Assets
 	// Notice that these might become massive, so it is best to use
@@ -52,12 +66,12 @@ SceneName :: enum {
 
 SerializedScene :: struct {
 	grass_type : GrassTypeSettings,
+	lighting : Lighting,
 }
 
 // Todo(Leo): take pointer argument for lazy allocation issues. If we make a
 // local variable here to return, pointer to it don't work.
 load_scene :: proc(scene_name : SceneName) -> ^Scene {
-// load_scene :: proc() -> Scene {
 	s := new(Scene)
 	s^ = {}
 
@@ -68,12 +82,9 @@ load_scene :: proc(scene_name : SceneName) -> ^Scene {
 		filename_builder : strings.Builder
 		defer strings.builder_destroy(&filename_builder)
 		fmt.sbprintf(&filename_builder, "scenes/{}.scene", scene_name)
-		fmt.println(strings.to_string(filename_builder))
 
 		// Todo(Leo): check success
 		data, success := os.read_entire_file(strings.to_string(filename_builder))
-
-		fmt.println(serialized)
 
 		// Todo(Leo): check error
 		json.unmarshal(data, &serialized)
@@ -168,6 +179,7 @@ load_scene :: proc(scene_name : SceneName) -> ^Scene {
 	}
 
 	s.grass.type = serialized.grass_type
+	s.lighting = serialized.lighting
 
 	return s
 }
@@ -181,6 +193,7 @@ save_scene :: proc(scene : ^Scene) {
 
 	s : SerializedScene
 	s.grass_type = scene.grass.type
+	s.lighting = scene.lighting
 
 	// Todo(Leo): allocation!!!
 	data, json_error := json.marshal(s, opt = {pretty = true})

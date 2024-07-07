@@ -270,6 +270,38 @@ color_edit :: proc {
 	color_edit_vec3
 }
 
+color_edit_hdr_vec4 :: proc(ctx: ^mu.Context, label : string, color_hdr : ^vec4, opt : mu.Options = {.ALIGN_CENTER}) -> (res: mu.Result_Set) {
+	if .SUBMIT in color_button(ctx, label, color_hdr.rgb) { mu.open_popup(ctx, label) }
+
+	if mu.begin_popup(ctx, label) {
+
+		// Todo(Leo): compute from mu style or whatever
+		h := i32(68)
+
+		mu.layout_row(ctx, {120, h})
+		mu.layout_begin_column(ctx)
+		mu.layout_row(ctx, {16, 120})
+		mu.label(ctx, "R")
+		res += mu.slider(ctx, &color_hdr.r, 0, 1)
+		mu.label(ctx, "G")
+		res += mu.slider(ctx, &color_hdr.g, 0, 1)
+		mu.label(ctx, "B")
+		res += mu.slider(ctx, &color_hdr.b, 0, 1)
+		mu.label(ctx, "I") // for intensity
+		res += mu.slider(ctx, &color_hdr.w, 0, 5)
+		
+		mu.layout_end_column(ctx)
+
+		mu.layout_height(ctx, h)
+		r := mu.layout_next(ctx)
+		mu_default_draw_color_frame_vec3(ctx, r, color_hdr.rgb, .BASE)
+		
+		mu.end_popup(ctx)
+	}
+
+	return
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // MU EXTENSION ZONE
 
