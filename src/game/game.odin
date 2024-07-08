@@ -64,8 +64,6 @@ grass_chunk_size := f32(5)
 
 grass_roughness := f32(0.15)
 
-voronoi_cell_size := f32(1)
-
 // post_processing : struct {
 // 	exposure : f32,
 // }
@@ -178,6 +176,7 @@ update :: proc(delta_time: f64) {
 
 	if application.mode == .Edit {
 		editor_gui()
+		update_grass_type_buffer(&scene.grass)
 	}
 
 	///////////////////////////////////////////////////////////////////////////
@@ -305,18 +304,14 @@ update :: proc(delta_time: f64) {
 	// semantics work differently in the compute shadder for now
 	blade_height_variation := scene.grass.type.height * scene.grass.type.height_variation
 	blade_height := scene.grass.type.height - 0.5 * blade_height_variation
-	for i in 0..<len(scene.grass.instances) {
+	for i in 0..<len(scene.grass.instance_buffers) {
 		graphics.dispatch_grass_placement_pipeline(
-			&scene.grass.instances[i], 
+			&scene.grass.types_buffer, 
+			&scene.grass.instance_buffers[i], 
 			scene.grass.placement_map,
 			lod_instance_counts[i],
-			blade_height,
-			blade_height_variation,
-			lod_widths[i],
-			scene.grass.type.bend,
 			scene.grass.positions[i],
 			grass_chunk_size,
-			voronoi_cell_size,
 		)
 	}
 
@@ -356,9 +351,9 @@ update :: proc(delta_time: f64) {
 		grass_roughness,
 	)
 
-	for i in 0..<len(scene.grass.instances) {
+	for i in 0..<len(scene.grass.instance_buffers) {
 		graphics.draw_grass(
-			&scene.grass.instances[i],
+			&scene.grass.instance_buffers[i],
 			lod_instance_counts[i] * lod_instance_counts[i],
 			lod_segment_counts[i],
 			grass_lods[i],
@@ -474,16 +469,18 @@ editor_gui :: proc() {
 			if .SUBMIT in mu.button(ctx, "1") { lod_enabled = 1 }
 			if .SUBMIT in mu.button(ctx, "2") { lod_enabled = 2 }
 
-			mu.label(ctx, "Blade")
+			mu.label(ctx, "Blade");
 			mu.layout_row(ctx, label_and_element_layout)
-			mu.label(ctx, "Height")
-			mu.slider(ctx, &scene.grass.type.height, 0, 2)
-			mu.label(ctx, "Variation")
-			mu.slider(ctx, &scene.grass.type.height_variation, 0, 2)
-			mu.label(ctx, "Width")
-			mu.slider(ctx, &scene.grass.type.width, 0, 0.3)
-			mu.label(ctx, "Bend")
-			mu.slider(ctx, &scene.grass.type.bend, -1, 1)
+			mu.label(ctx, "Height");	mu.slider(ctx, &scene.grass.type.height, 0, 2)
+			mu.label(ctx, "Variation");	mu.slider(ctx, &scene.grass.type.height_variation, 0, 2)
+			mu.label(ctx, "Width");		mu.slider(ctx, &scene.grass.type.width, 0, 0.3)
+			mu.label(ctx, "Bend");		mu.slider(ctx, &scene.grass.type.bend, -1, 1)
+			
+			mu.label(ctx, "Clump")
+			mu.layout_row(ctx, label_and_element_layout)
+			mu.label(ctx, "Size");				mu.slider(ctx, &scene.grass.type.clump_size, 0, 3)
+			mu.label(ctx, "Height variation");	mu.slider(ctx, &scene.grass.type.clump_height_variation, 0, 2)
+			mu.label(ctx, "Squeeze in");		mu.slider(ctx, &scene.grass.type.clump_squeeze_in, -1, 1)
 
 			mu.label(ctx, "Top Color")
 			gui.color_edit(ctx, "top color", transmute(^vec3)(&scene.grass.type.top_color))
@@ -493,9 +490,6 @@ editor_gui :: proc() {
 			mu.label(ctx, "roughness")
 			mu.slider(ctx, &grass_roughness, 0, 1)
 			
-			mu.label(ctx, "voronoi size")
-			mu.slider(ctx, &voronoi_cell_size, 0, 10)
-
 			gui.unindent(ctx)
 		}
 

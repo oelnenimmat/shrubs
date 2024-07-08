@@ -31,9 +31,12 @@ save_editor_state :: proc() {
 	data, error := json.marshal(editor, opt = { pretty = true })
 	defer delete(data)
 	if error == nil {
-		fmt.println("Editor state saved")
-		fmt.println(string(data))
-		os.write_entire_file(EDITOR_STATE_SAVE_FILE_NAME, data)
+		success := os.write_entire_file(EDITOR_STATE_SAVE_FILE_NAME, data)
+		if success {
+			fmt.println("Editor state saved")
+		} else {
+			fmt.println("[EDITOR SAVE ERROR]: failed to write the file")
+		}
 	} else {
 		fmt.println("[EDITOR SAVE ERROR]:", error)
 	}

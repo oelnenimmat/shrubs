@@ -109,7 +109,7 @@ load_scene :: proc(scene_name : SceneName) -> ^Scene {
 			&s.textures[.Grass_Field],
 			&black_texture,
 		)
-		s.grass = create_grass(&white_texture)
+		s.grass = create_grass(&white_texture, serialized.grass_type)
 
 		set_pieces := []SetPiece {
 			{&s.meshes[.Pillar], &white_texture, {0.5, 0.5, 0.6}, {0, 0, 0} },
@@ -137,7 +137,7 @@ load_scene :: proc(scene_name : SceneName) -> ^Scene {
 			&s.textures[.Grass_Field],
 			&black_texture,
 		)
-		s.grass = create_grass(&white_texture)
+		s.grass = create_grass(&white_texture, serialized.grass_type)
 
 		set_pieces := []SetPiece {
 			{&s.meshes[.Pillar], &white_texture, {0.5, 0.5, 0.6}, {0, 0, 0} },
@@ -168,7 +168,7 @@ load_scene :: proc(scene_name : SceneName) -> ^Scene {
 			&s.textures[.Grass_Field],
 			&s.textures[.Road],
 		)
-		s.grass = create_grass(&s.textures[.Grass_Placement])
+		s.grass = create_grass(&s.textures[.Grass_Placement], serialized.grass_type)
 
 		set_pieces := []SetPiece {
 			{&s.meshes[.Big_Rock_1], &s.textures[.Rock], {1, 1, 1}, {-8, 11, 1}, },

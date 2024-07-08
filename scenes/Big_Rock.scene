@@ -12,12 +12,13 @@
 			0.29166666,
 			0.00000000
 		],
-		"height": 0.56000000,
-		"height_variation": 0.22666667,
+		"height": 0.10666667,
+		"height_variation": 0.31999999,
 		"width": 0.04400000,
-		"bend": 0.33333337,
-		"clump_height_variation": 0.00000000,
-		"clump_squeeze_in": 0.00000000,
+		"bend": 0.08000004,
+		"clump_size": 1.01999998,
+		"clump_height_variation": 0.54666668,
+		"clump_squeeze_in": 0.02666664,
 		"clump_align_facing": 0.00000000
 	},
 	"lighting": {

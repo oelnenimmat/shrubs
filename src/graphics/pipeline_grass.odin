@@ -151,8 +151,7 @@ set_grass_material :: proc(
 	)
 }
 
-draw_grass :: proc(ib : ^InstanceBuffer, instance_count : int, segment_count : int, lod : int) {
-	gc := &graphics_context
+draw_grass :: proc(ib : ^Buffer, instance_count : int, segment_count : int, lod : int) {
 	pl := &graphics_context.grass_pipeline
 
 	// SETUP INSTANCE DATA BUFFER

@@ -95,7 +95,6 @@ uniform sampler2D placement_texture;
 // x: world_seed;
 // y: world_to_grid_scale;
 // z: terrain_z_scale;
-// w: voronoi cell size
 uniform vec4 noise_params;
 
 // xy: chunk min corner position xy
@@ -107,11 +106,18 @@ uniform vec4 chunk_params;
 // z: world size xy
 uniform vec4 world_params;
 
-// x: base_height
-// y: height_variation
-// z: width
-// w: bend
-uniform vec4 grass_params;
+struct GrassTypeData {
+	float base_height;
+	float height_variation;
+	float width;
+	float bend;
+
+	float clump_size;
+	float clump_height_variation;
+	float clump_squeeze_in;
+
+	float more_data;
+};
 
 struct GrassInstanceData {
 	vec3 position;
@@ -125,7 +131,11 @@ struct GrassInstanceData {
 	vec2 more_data;
 };
 
-layout (std430, binding = 0) buffer grass {
+layout (std430, binding = 0) buffer TYPE {
+	GrassTypeData type;
+};
+
+layout (std430, binding = 1) buffer grass {
 	GrassInstanceData instances [];
 };
 
@@ -163,7 +173,7 @@ void main() {
 
 	// Eat some prime numbers to get variation, quite arbitrary, and could do without
 	// float h_noise = sample_height(x * 3, y * 3) / noise_params.z;
-	float h = grass_params.x + grass_params.y * (hash_get_float(hash_eat(hash, 13)));
+	float h = type.base_height + type.height_variation * (hash_get_float(hash_eat(hash, 13)));
 	float r = hash_get_float(hash_eat(hash, 37)) * 2 * pi;
 
 	// Todo(Leo): this piece of code is supposed to remove unplaceable grass blades
@@ -180,7 +190,7 @@ void main() {
 	vec3 position = vec3(x, y, z);
 
 	/// test voronoi hashing
-	float voronoi_cell_size = noise_params.w;
+	float voronoi_cell_size = type.clump_size;
 	int vx = int(floor(x / voronoi_cell_size));
 	int vy = int(floor(y / voronoi_cell_size));
 
@@ -204,16 +214,22 @@ void main() {
 		}
 	}
 	uint clump_hash 	= hash_eat(hash_make(closest_cell.x), closest_cell.y);
-	float extra_height 	= hash_get_float(clump_hash) * 0.8;
+	float extra_height 	= pow(hash_get_float(clump_hash), 3) * type.clump_height_variation;
 
 	vec3 clump_position = vec3(closest_position, sample_height(closest_position.x, closest_position.y));
 	vec3 to_clump 		= clump_position - position;
+	position 			= position + to_clump * type.clump_squeeze_in;
+	position.z 			= sample_height(position.x, position.y);
 
-	instances[index].position 	= position + to_clump * 0.1;
+	// no clumping while debugin type buffer
+	// extra_height = 0;
+	// to_clump = vec3(0);
+
+	instances[index].position 	= position;
 	instances[index].test_color = random_color(closest_cell.x + 2000 * closest_cell.y);
 	instances[index].field_uv 	= uv;
 	instances[index].height 	= h + extra_height;
-	instances[index].width 		= grass_params.z;
-	instances[index].bend 		= grass_params.w;
+	instances[index].width 		= type.width;
+	instances[index].bend 		= type.bend;
 	instances[index].facing 	= vec2(-sin(r), cos(r));
 }

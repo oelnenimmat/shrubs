@@ -10,7 +10,6 @@ GrassPlacementPipeline :: struct {
 	noise_params_location 		: i32,
 	chunk_params_location 		: i32,
 	world_params_location 		: i32,
-	grass_params_location 		: i32,
 
 	placement_texture_slot : u32,
 }
@@ -27,36 +26,31 @@ create_grass_placement_pipeline :: proc () -> GrassPlacementPipeline {
 	pl.noise_params_location = gl.GetUniformLocation(pl.program, "noise_params")
 	pl.chunk_params_location = gl.GetUniformLocation(pl.program, "chunk_params")
 	pl.world_params_location = gl.GetUniformLocation(pl.program, "world_params")
-	pl.grass_params_location = gl.GetUniformLocation(pl.program, "grass_params")
 
 	return pl
 }
 
 dispatch_grass_placement_pipeline :: proc (
-	buffer 					: ^InstanceBuffer, 
+	types 					: ^Buffer, 
+	instances 				: ^Buffer,
 	placement_texture 		: ^Texture,
 	blade_count 			: int,
-	blade_height 			: f32,
-	blade_height_variation 	: f32,
-	blade_width 			: f32,
-	blade_bend 				: f32,
 	chunk_position 			: vec2,
 	chunk_size 				: f32,
-	voronoi_cell_size 		: f32,
 ) {
 	pl := &graphics_context.grass_placement_pipeline
 
 	blade_count := u32(blade_count)
 
 	gl.UseProgram(pl.program)
-	gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, 0, buffer.buffer)
+	gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, 0, types.buffer)
+	gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, 1, instances.buffer)
 
 	set_texture_2D(placement_texture, pl.placement_texture_slot)
 
-	gl.Uniform4f(pl.noise_params_location, 563, 0.1, 5, voronoi_cell_size)
+	gl.Uniform4f(pl.noise_params_location, 563, 0.1, 5, 0)
 	gl.Uniform4f(pl.chunk_params_location, chunk_position.x, chunk_position.y, chunk_size, f32(blade_count))
 	gl.Uniform4f(pl.world_params_location, -25.0, -25.0, 50.0, 0.0)
-	gl.Uniform4f(pl.grass_params_location, blade_height, blade_height_variation, blade_width, blade_bend)
 
 	// work group is 16 x 16
 	gl.DispatchCompute(blade_count / 16, blade_count / 16, 1)

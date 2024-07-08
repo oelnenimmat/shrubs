@@ -1,6 +1,6 @@
 package graphics
 
-import "../common"
+import "shrubs:common"
 
 import "core:fmt"
 
@@ -87,7 +87,6 @@ draw_mesh :: proc(mesh : ^Mesh, model : mat4) {
 	gl.DrawElements(gl.TRIANGLES, mesh.index_count, gl.UNSIGNED_SHORT, nil)
 }
 
-
 Texture :: struct {
 	opengl_name : u32
 }
@@ -104,6 +103,7 @@ opengl_texture_filter_mode :: proc(fm : TextureFilterMode) -> i32 {
 	return 0
 }
 
+@private
 use_texture :: proc(texture : Texture, slot := 0) {
 	gl.ActiveTexture(gl.TEXTURE0 + u32(slot))
 	gl.Enable(gl.TEXTURE_2D)
@@ -206,183 +206,35 @@ draw_mesh_instanced :: proc(mesh : ^Mesh, ib : ^InstanceBuffer) {
 }
 */
 
-InstanceBuffer :: struct {
-	count 			: i32,
+Buffer :: struct {
 	buffer 			: u32,
-	mapped_memory 	: rawptr,
+	is_writeable 	: bool,
 }
 
-create_instance_buffer :: proc(instance_count: int, instance_size : int) -> InstanceBuffer {	
-	gc := &graphics_context
+create_buffer :: proc(data_size : int, needs_to_be_writeable := false) -> Buffer {	
+	b : Buffer
+	b.is_writeable = needs_to_be_writeable
 
-	ib := InstanceBuffer {}
+	gl.GenBuffers(1, &b.buffer)
+	gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, b.buffer)
 
-	instance_data_size := instance_size * instance_count
+	flags : u32 = gl.DYNAMIC_STORAGE_BIT if b.is_writeable else 0
 
-	gl.GenBuffers(1, &ib.buffer)
-	gl.BindBuffer(gl.ARRAY_BUFFER, ib.buffer)
-	
-	/*
-	To use this same memory from both CPU and GPU we need to specify
-		- GL_MAP_COHERENT_BIT -> memory is visible on GPU 'immediately' after write
-		- GL_MAP_PERSISTENT_BIT -> memory wont change, so same mapping can be used for long times
-		- GL_MAP_WRITE_BIT -> OpenGL promises that we can write to memory correctly (we do not need to read)
-	Note(Leo): using same memory on GPU and CPU is convenient, but may prevent
-	GPU from using optimal memory layout which may cause performance loss. When
-	optimizing, check if we can/need to do something different.
-	*/
-	flags : u32 = gl.MAP_COHERENT_BIT | gl.MAP_PERSISTENT_BIT | gl.MAP_WRITE_BIT
-	gl.BufferStorage(gl.ARRAY_BUFFER, instance_data_size, nil, flags)
-	ib.mapped_memory = gl.MapBufferRange(gl.ARRAY_BUFFER, 0, instance_data_size, flags)
+	// Todo(Leo): maybe use gl.BufferData instead, the usage can be specified
+	gl.BufferStorage(gl.SHADER_STORAGE_BUFFER, data_size, nil, flags)
 
-
-	// // In this application we basically only render batches of instances, and since instance
-	// // buffer is same as vertex buffer and needs to bound to and vertex array object so we create
-	// // one for each instance
-	// // instance_vertex_array_object : u32
-	// {
-	// 	// CREATE VERTEX ARRAY OBJECT
-	// 	gl.GenVertexArrays(VIRTUAL_FRAME_COUNT, raw_data(&ib.vertex_arrays))
-
-	// 	for i in 0..<VIRTUAL_FRAME_COUNT {
-	// 		gl.BindVertexArray(ib.vertex_arrays[i])
-
-	// 		// SETUP PARTICLE MESH VERTEX BUFFER
-	// 		gl.BindBuffer(gl.ARRAY_BUFFER, gc.particle_vertex_buffer_object)
-	// 		gl.VertexAttribPointer(0, 3, gl.FLOAT, gl.FALSE, 3 * size_of(f32), uintptr(0))
-	// 		gl.EnableVertexAttribArray(0)
-
-	// 		// SETUP PARTICLE MESH INDEX BUFFER
-	// 		gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, gc.particle_index_buffer_object)
-
-	// 		// SETUP INSTANCE DATA BUFFER
-	// 		gl.BindBuffer(gl.ARRAY_BUFFER, ib.buffer_objects[i])
-	// 		gl.VertexAttribPointer(1, 4, gl.FLOAT, gl.FALSE, 4 * size_of(f32), uintptr(0))
-	// 		gl.EnableVertexAttribArray(1)
-	// 		gl.VertexAttribDivisor(1, 1)
-	// 	}
-	// }
-
-	ib.count 					= i32(instance_count)
-
-	return ib
+	return b
 }
-
-get_instance_buffer_writeable_memory :: proc(ib : ^InstanceBuffer) -> rawptr {
-	// ib_internal := &graphics_context.instance_buffer
-	return ib.mapped_memory
-}
-
 
 @(warning="Not implemented")
-destroy_instance_buffer :: proc(ib : ^InstanceBuffer) {}
+destroy_buffer :: proc(ib : ^Buffer) {}
 
-// InstanceBuffer :: struct {
-// 	count : i32,
-// 	vertex_arrays 	: [VIRTUAL_FRAME_COUNT]u32,
-// 	buffer_objects 	: [VIRTUAL_FRAME_COUNT]u32,
-// 	mapped_memories : [VIRTUAL_FRAME_COUNT]rawptr,
-// }
+buffer_write_data :: proc(b : ^Buffer, data : []$DataType) {
+	assert(b.is_writeable)
 
-// create_instance_buffer :: proc(instance_count: int) -> InstanceBuffer {	
-// 	gc := &graphics_context
+	size := len(data) * size_of(DataType)
+	data := raw_data(data)
 
-// 	ib := InstanceBuffer {}
-
-// 	instance_size := size_of(vec4)
-// 	instance_data_size := instance_size * instance_count
-
-// 	gl.GenBuffers(VIRTUAL_FRAME_COUNT, raw_data(&ib.buffer_objects))
-// 	for i in 0..<VIRTUAL_FRAME_COUNT {
-// 		gl.BindBuffer(gl.ARRAY_BUFFER, ib.buffer_objects[i])
-		
-// 		/*
-// 		To use this same memory from both CPU and GPU we need to specify
-// 			- GL_MAP_COHERENT_BIT -> memory is visible on GPU 'immediately' after write
-// 			- GL_MAP_PERSISTENT_BIT -> memory wont change, so same mapping can be used for long times
-// 			- GL_MAP_WRITE_BIT -> OpenGL promises that we can write to memory correctly (we do not need to read)
-// 		Note(Leo): using same memory on GPU and CPU is convenient, but may prevent
-// 		GPU from using optimal memory layout which may cause performance loss. When
-// 		optimizing, check if we can/need to do something different.
-// 		*/
-// 		flags : u32 = gl.MAP_COHERENT_BIT | gl.MAP_PERSISTENT_BIT | gl.MAP_WRITE_BIT
-// 		gl.BufferStorage(gl.ARRAY_BUFFER, instance_data_size, nil, flags)
-// 		ib.mapped_memories[i] = gl.MapBufferRange(gl.ARRAY_BUFFER, 0, instance_data_size, flags)
-// 	}
-
-
-// 	// In this application we basically only render batches of instances, and since instance
-// 	// buffer is same as vertex buffer and needs to bound to and vertex array object so we create
-// 	// one for each instance
-// 	// instance_vertex_array_object : u32
-// 	{
-// 		// CREATE VERTEX ARRAY OBJECT
-// 		gl.GenVertexArrays(VIRTUAL_FRAME_COUNT, raw_data(&ib.vertex_arrays))
-
-// 		for i in 0..<VIRTUAL_FRAME_COUNT {
-// 			gl.BindVertexArray(ib.vertex_arrays[i])
-
-// 			// SETUP PARTICLE MESH VERTEX BUFFER
-// 			gl.BindBuffer(gl.ARRAY_BUFFER, gc.particle_vertex_buffer_object)
-// 			gl.VertexAttribPointer(0, 3, gl.FLOAT, gl.FALSE, 3 * size_of(f32), uintptr(0))
-// 			gl.EnableVertexAttribArray(0)
-
-// 			// SETUP PARTICLE MESH INDEX BUFFER
-// 			gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, gc.particle_index_buffer_object)
-
-// 			// SETUP INSTANCE DATA BUFFER
-// 			gl.BindBuffer(gl.ARRAY_BUFFER, ib.buffer_objects[i])
-// 			gl.VertexAttribPointer(1, 4, gl.FLOAT, gl.FALSE, 4 * size_of(f32), uintptr(0))
-// 			gl.EnableVertexAttribArray(1)
-// 			gl.VertexAttribDivisor(1, 1)
-// 		}
-// 	}
-
-// 	ib.count 					= i32(instance_count)
-
-// 	return ib
-// }
-
-// get_instance_buffer_writeable_memory :: proc(ib : ^InstanceBuffer) -> rawptr {
-// 	// ib_internal := &graphics_context.instance_buffer
-// 	return ib.mapped_memories[graphics_context.virtual_frame_index]
-// }
-
-
-// @(warning="Not implemented")
-// destroy_instance_buffer :: proc(ib : ^InstanceBuffer) {}
-
-CUBE_VERTEX_POSITIONS :: []vec3 {
-	{-0.5, -0.5, -0.5},
-	{0.5, -0.5, -0.5},
-	{-0.5, 0.5, -0.5},
-	{0.5, 0.5, -0.5},
-
-	{-0.3, -0.3, 0.3},
-	{0.3, -0.3, 0.3},
-	{-0.3, 0.3, 0.3},
-	{0.3, 0.3, 0.3},
-}
-
-CUBE_VERTEX_NORMALS :: []vec3 {
-	{-0.5, -0.5, -0.5},
-	{0.5, -0.5, -0.5},
-	{-0.5, 0.5, -0.5},
-	{0.5, 0.5, -0.5},
-
-	{-0.5, -0.5, 0.5},
-	{0.5, -0.5, 0.5},
-	{-0.5, 0.5, 0.5},
-	{0.5, 0.5, 0.5},
-}
-
-CUBE_ELEMENTS :: []u16 {
-	0, 2, 1,  1, 2, 3,
-	5, 7, 4,  4, 7, 6, 
-
-	4, 6, 0,  0, 6, 2,
-	1, 3, 5,  5, 3, 7,
-
-	0, 1, 4,  4, 1, 5,
-	2, 6, 3,  3, 6, 7,
+	gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, b.buffer)
+	gl.BufferSubData(gl.SHADER_STORAGE_BUFFER, 0, size, data)
 }
