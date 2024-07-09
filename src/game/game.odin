@@ -9,7 +9,7 @@ import "shrubs:assets"
 import "shrubs:common"
 import "shrubs:debug"
 import "shrubs:graphics"
-import "shrubs:gui"
+import "shrubs:imgui"
 import "shrubs:input"
 import "shrubs:physics"
 import "shrubs:window"
@@ -18,7 +18,6 @@ import "core:intrinsics"
 import "core:math"
 import "core:reflect"
 import "core:math/linalg"
-import mu "vendor:microui"
 
 vec2 		:: common.vec2
 vec3 		:: common.vec3
@@ -56,10 +55,8 @@ grass_segment_count := 3
 lod_enabled := 0
 draw_normals := false
 draw_backfacing := false
-grass_translucency := true
 draw_lod := false
 grass_cull_back := false
-grass_cull_front := false
 
 grass_chunk_size := f32(5)
 
@@ -76,7 +73,27 @@ capsule_mesh 	: graphics.Mesh
 
 application : struct {
 	wants_to_quit 	: bool,
-	mode 			: enum { Game, Edit }, 
+	mode 			: enum { Game, Edit },
+}
+
+show_imgui_demo := false
+show_timings := true
+timings : struct {
+	frame_time : SmoothValue,
+}
+
+SmoothValue :: struct {
+	value 	: f32,
+	buffer 	: [30]f32,
+	index 	: int,
+}
+
+smooth_value_put :: proc(sv : ^SmoothValue, value : f32) {
+	sv.value 			-= sv.buffer[sv.index] / (f32(len(sv.buffer)))
+	sv.buffer[sv.index] = value
+	sv.value 			+= sv.buffer[sv.index] / (f32(len(sv.buffer)))
+
+	sv.index = (sv.index + 1) % len(sv.buffer)
 }
 
 initialize :: proc() {
@@ -84,7 +101,7 @@ initialize :: proc() {
 	window.initialize(WINDOW_WIDTH, WINDOW_HEIGHT, APPLICATION_NAME)
 	input.initialize()
 	graphics.initialize()
-	gui.initialize()
+	imgui.initialize(window.get_glfw_window_handle())
 	debug.initialize(256)
 	physics.initialize()
 
@@ -130,7 +147,7 @@ terminate :: proc() {
 
 	physics.terminate()
 	debug.terminate()
-	gui.terminate()
+	imgui.terminate()
 	graphics.terminate()
 	input.terminate()
 	window.terminate()
@@ -153,7 +170,7 @@ update :: proc(delta_time: f64) {
 	// we now use f32 for rendering reasons, so it is more straightforward
 	// to just use f32 everywhere here
 	delta_time := f32(delta_time)
-
+	smooth_value_put(&timings.frame_time, delta_time) 
 
 	///////////////////////////////////////////////////////////////////////////
 	// APPLICATION UPDATE
@@ -161,7 +178,6 @@ update :: proc(delta_time: f64) {
 	// Todo(Leo): maybe combine, or move to main.odin
 	window.begin_frame()
 	input.begin_frame()
-	gui.begin_frame()
 	debug.new_frame()
 
 	if input.DEBUG_get_key_pressed(.Q, {.Ctrl}) {
@@ -180,10 +196,45 @@ update :: proc(delta_time: f64) {
 		}
 	}
 
+	imgui.begin_frame()
+	if show_imgui_demo {
+		imgui.ShowDemoWindow()
+	}
+
+
+	imgui.SetNextWindowPos({10, 10})
+	imgui.SetNextWindowSize({300, 0})
+	next_window_Y := f32(10)
+	if show_timings {
+		if imgui.Begin("Timings") {
+			if imgui.BeginTable("time table", 2) {
+
+				imgui.TableNextRow()
+				imgui.TableNextColumn()
+				imgui.text("frame time")
+				imgui.TableNextColumn()
+				imgui.text("{:5.2f} ms (fps {})", timings.frame_time.value * 1000, int(1 / timings.frame_time.value))
+
+
+				imgui.EndTable()
+			}
+
+		}
+		next_window_Y = 10 + imgui.GetWindowHeight() + 10
+		imgui.End()
+
+	}
+	
+	imgui.SetNextWindowPos({10, next_window_Y})
+
 	if application.mode == .Edit {
+		_, window_height := window.get_window_size()
+		imgui.SetNextWindowSize({300, f32(window_height) - next_window_Y - 10})
 		editor_gui()
 		update_grass_type_buffer(&scene.grass)
 	}
+
+	imgui.end_frame()
 
 	///////////////////////////////////////////////////////////////////////////
 	// START OF GAME UPDATE
@@ -215,7 +266,7 @@ update :: proc(delta_time: f64) {
 	debug_params := vec4{
 		1 if draw_normals else 0,
 		1 if draw_backfacing else 0,
-		1 if grass_translucency else 0,
+		0,
 		1 if draw_lod else 0,
 	}
 
@@ -338,7 +389,7 @@ update :: proc(delta_time: f64) {
 		wind_offset,
 		debug_params,
 		grass_cull_back,
-		grass_cull_front,
+		false,
 		camera.position,
 	)
 	graphics.set_grass_material(
@@ -363,7 +414,7 @@ update :: proc(delta_time: f64) {
 
 	// NEXT PIPELINE
 	graphics.setup_gui_pipeline()
-	gui.render()
+	imgui.render()
 
 	// End of pipelines
 	graphics.render()
@@ -377,147 +428,115 @@ update :: proc(delta_time: f64) {
 // This is a mockup, really probably each component (e.g. playback) should have
 // their corresponding parts there. Not sure though. 
 editor_gui :: proc() {
-	ctx := gui.get_mu_context()
 
 	// Careful! Window means here both application window and the gui window inside the application!
-	GUI_WINDOW_OUTER_PADDING 	:: 25
+	// GUI_WINDOW_OUTER_PADDING 	:: 25
 
-	FULL_CONTENT_WIDTH :: 260
-	content_width := FULL_CONTENT_WIDTH - ctx.style.indent
+	// FULL_CONTENT_WIDTH :: 260
+	// content_width := FULL_CONTENT_WIDTH - ctx.style.indent
 
-	label_column_width 			:= i32(0.35 * f32(content_width))
-	element_column_width 		:= content_width - label_column_width - ctx.style.spacing
-	label_and_element_layout 	:= []i32 { label_column_width, element_column_width}
+	// label_column_width 			:= i32(0.35 * f32(content_width))
+	// element_column_width 		:= content_width - label_column_width - ctx.style.spacing
+	// label_and_element_layout 	:= []i32 { label_column_width, element_column_width}
 
-	two_elements_column_width 		:= i32(0.5 * f32(element_column_width)) - i32(math.ceil(f32(ctx.style.spacing) / 2))
-	label_and_two_elements_layout 	:= []i32 {label_column_width, two_elements_column_width, two_elements_column_width}
+	// two_elements_column_width 		:= i32(0.5 * f32(element_column_width)) - i32(math.ceil(f32(ctx.style.spacing) / 2))
+	// label_and_two_elements_layout 	:= []i32 {label_column_width, two_elements_column_width, two_elements_column_width}
 
-	single_element_layout := []i32 {content_width}
+	// single_element_layout := []i32 {content_width}
 	
-	two_columns_width 		:= i32(0.5 * f32(content_width)) - i32(math.ceil(f32(ctx.style.spacing) / 2))
-	two_left_over			:= content_width - (2 * two_columns_width + 1 * ctx.style.spacing)
-	two_elements_layout 	:= []i32{two_columns_width, two_columns_width + two_left_over}
+	// two_columns_width 		:= i32(0.5 * f32(content_width)) - i32(math.ceil(f32(ctx.style.spacing) / 2))
+	// two_left_over			:= content_width - (2 * two_columns_width + 1 * ctx.style.spacing)
+	// two_elements_layout 	:= []i32{two_columns_width, two_columns_width + two_left_over}
 
-	three_columns_width 	:= i32(0.333 * f32(content_width)) - i32(math.ceil(0.667 * f32(ctx.style.spacing)))
-	three_left_over			:= content_width - (3 * three_columns_width + 2 * ctx.style.spacing)
-	three_columns_layout 	:= []i32{three_columns_width, three_columns_width, three_columns_width + three_left_over}
+	// three_columns_width 	:= i32(0.333 * f32(content_width)) - i32(math.ceil(0.667 * f32(ctx.style.spacing)))
+	// three_left_over			:= content_width - (3 * three_columns_width + 2 * ctx.style.spacing)
+	// three_columns_layout 	:= []i32{three_columns_width, three_columns_width, three_columns_width + three_left_over}
 
-	four_columns_width 		:= i32(0.25 * f32(content_width)) - i32(math.ceil(0.75 * f32(ctx.style.spacing)))
-	four_left_over			:= content_width - (4 * four_columns_width + 3 * ctx.style.spacing)
-	four_columns_layout		:= []i32{four_columns_width, four_columns_width, four_columns_width, four_columns_width + four_left_over}
+	// four_columns_width 		:= i32(0.25 * f32(content_width)) - i32(math.ceil(0.75 * f32(ctx.style.spacing)))
+	// four_left_over			:= content_width - (4 * four_columns_width + 3 * ctx.style.spacing)
+	// four_columns_layout		:= []i32{four_columns_width, four_columns_width, four_columns_width, four_columns_width + four_left_over}
 
 
 	_, window_height := window.get_window_size()
-	rectangle 	:= mu.Rect{
-						GUI_WINDOW_OUTER_PADDING, 
-						GUI_WINDOW_OUTER_PADDING,
-						FULL_CONTENT_WIDTH + 2*ctx.style.padding,
-						// Very arbitrary value for now
-						900,
-					} 
-
-	if mu.window(ctx, "Controls and Settings", rectangle, {.NO_CLOSE, .NO_RESIZE}) {
-		if .ACTIVE in mu.header(ctx, "Scenes", {.EXPANDED}) {
-			gui.indent(ctx)
-
-			if .SUBMIT in mu.button(ctx, "Save Current Scene") {
+	// rectangle 	:= mu.Rect{
+	// 					GUI_WINDOW_OUTER_PADDING, 
+	// 					GUI_WINDOW_OUTER_PADDING,
+	// 					FULL_CONTENT_WIDTH + 2*ctx.style.padding,
+	// 					// Very arbitrary value for now
+	// 					900,
+	// 				} 
+	if imgui.Begin("Shrubs!!") {
+		if imgui.CollapsingHeader("Scenes") {
+			if imgui.Button("Save Current Scene") {
 				save_scene(scene)
 			}
 
-			mu.label(ctx, "Load scene")
+			imgui.text("Load scene")
 			for name in SceneName {
-				if .SUBMIT in mu.button(ctx, reflect.enum_string(name)) {
+				if imgui.button(reflect.enum_string(name)) {
 					unload_scene(scene)
 					scene = load_scene(name)
 					editor.loaded_scene_name = name
 				}
 			}
-
-			gui.unindent(ctx)
 		}
 
-		if .ACTIVE in mu.header(ctx, "Remember texture buttons", {.EXPANDED}) {
-			gui.indent(ctx)
-			
-			mu.layout_row(ctx, label_and_two_elements_layout)
-			mu.label(ctx, "Buttons")
-			if .SUBMIT in gui.texture_button(ctx, "", scene.textures[.Grass_Field]) { }
-			if .SUBMIT in gui.texture_button(ctx, "", scene.textures[.Road]) { }
-
-			gui.unindent(ctx)
+		if imgui.CollapsingHeader("Lighting") {
+			imgui.SliderFloat("Polar X", &scene.lighting.direction_polar.x, 0, 360)
+			imgui.SliderFloat("Polar Y", &scene.lighting.direction_polar.y, -90, 90)
+			imgui.ColorEdit3("Directional", auto_cast &scene.lighting.directional_color, .HDR)
+			imgui.ColorEdit3("Ambient", auto_cast &scene.lighting.ambient_color, .HDR)
 		}
 
-		if .ACTIVE in mu.header(ctx, "Lighting", {.EXPANDED}) {
-			mu.layout_row(ctx, label_and_element_layout)
-			mu.label(ctx, "Polar X"); mu.slider(ctx, &scene.lighting.direction_polar.x, 0, 360)
-			mu.label(ctx, "Polar Y"); mu.slider(ctx, &scene.lighting.direction_polar.y, -90, 90)
-			mu.label(ctx, "Directional"); gui.color_edit_hdr_vec4(ctx, "directional", &scene.lighting.directional_color)
-			mu.label(ctx, "Ambient"); gui.color_edit_hdr_vec4(ctx, "ambient", &scene.lighting.ambient_color)
-		}
-		
-
-
-		if .ACTIVE in mu.header(ctx, "Grass!", {.EXPANDED}) {
-			gui.indent(ctx)
-
-			if .SUBMIT in mu.button(ctx, "Save") {
+		if imgui.CollapsingHeader("Grass!") {
+			if imgui.button("Save") {
 				save_grass_types()
 			}
 
-			mu.layout_row(ctx, label_and_element_layout)
-			mu.label(ctx, "Type")
-			gui.enum_popup(ctx, &grass_type_to_edit)
+			imgui.enum_dropdown("Edit type", &grass_type_to_edit)
+			settings := &grass_type_settings[grass_type_to_edit]
+
+			imgui.text("LOD")
+			if imgui.button("auto") { lod_enabled = -1 }; imgui.SameLine() 
+			if imgui.button("0") { lod_enabled = 0 }; imgui.SameLine() 
+			if imgui.button("1") { lod_enabled = 1 }; imgui.SameLine() 
+			if imgui.button("2") { lod_enabled = 2 };
+
+
+			imgui.text("Blade");
+			// mu.layout_row(ctx, label_and_element_layout)
+			imgui.SliderFloat("Height", &settings.height, 0, 2)
+			imgui.SliderFloat("Variation", &settings.height_variation, 0, 2)
+			imgui.SliderFloat("Width", &settings.width, 0, 0.3)
+			imgui.SliderFloat("Bend", &settings.bend, -1, 1)
 			
-			edited_grass_type := &grass_type_settings[grass_type_to_edit]
+			imgui.text("Clump")
+			// mu.layout_row(ctx, label_and_element_layout)
+			imgui.SliderFloat("Size", &settings.clump_size, 0, 3)
+			imgui.SliderFloat("Height variation", &settings.clump_height_variation, 0, 2)
+			imgui.SliderFloat("Squeeze in", &settings.clump_squeeze_in, -1, 1)
 
-			mu.label(ctx, "LOD")
-			mu.layout_row(ctx, four_columns_layout)
-			if .SUBMIT in mu.button(ctx, "auto") { lod_enabled = -1 }
-			if .SUBMIT in mu.button(ctx, "0") { lod_enabled = 0 }
-			if .SUBMIT in mu.button(ctx, "1") { lod_enabled = 1 }
-			if .SUBMIT in mu.button(ctx, "2") { lod_enabled = 2 }
+			imgui.ColorEdit3("top color", cast(^f32)(&settings.top_color))
+			imgui.ColorEdit3("bottom color", cast(^f32)(&settings.bottom_color))
 
-
-			mu.label(ctx, "Blade");
-			mu.layout_row(ctx, label_and_element_layout)
-			mu.label(ctx, "Height");	mu.slider(ctx, &edited_grass_type.height, 0, 2)
-			mu.label(ctx, "Variation");	mu.slider(ctx, &edited_grass_type.height_variation, 0, 2)
-			mu.label(ctx, "Width");		mu.slider(ctx, &edited_grass_type.width, 0, 0.3)
-			mu.label(ctx, "Bend");		mu.slider(ctx, &edited_grass_type.bend, -1, 1)
-			
-			mu.label(ctx, "Clump")
-			mu.layout_row(ctx, label_and_element_layout)
-			mu.label(ctx, "Size");				mu.slider(ctx, &edited_grass_type.clump_size, 0, 3)
-			mu.label(ctx, "Height variation");	mu.slider(ctx, &edited_grass_type.clump_height_variation, 0, 2)
-			mu.label(ctx, "Squeeze in");		mu.slider(ctx, &edited_grass_type.clump_squeeze_in, -1, 1)
-
-			mu.label(ctx, "Top Color")
-			gui.color_edit(ctx, "top color", transmute(^vec3)(&edited_grass_type.top_color))
-			mu.label(ctx, "Bottom Color")
-			gui.color_edit(ctx, "bottom color", transmute(^vec3)(&edited_grass_type.bottom_color))
-
-			mu.label(ctx, "roughness")
-			mu.slider(ctx, &grass_type_settings[grass_type_to_edit].roughness, 0, 1)
-			
-			gui.unindent(ctx)
+			imgui.SliderFloat("roughness", &grass_type_settings[grass_type_to_edit].roughness, 0, 1)
 		}
 
-		if .ACTIVE in mu.header(ctx, "Post Processing", {.EXPANDED}) {
-			gui.indent(ctx)
+		if imgui.CollapsingHeader("Post Processing") {
+			imgui.DragFloat("Exposure", &editor.exposure, 0.01)
+		}
 
-			mu.layout_row(ctx, label_and_element_layout)
-			mu.label(ctx, "Exposure")
-			mu.slider(ctx, &editor.exposure, 0, 3)
+		if imgui.CollapsingHeader("Debug") {
+			imgui.checkbox("Show Timinfs", &show_timings)
+			imgui.checkbox("Show Imgui Demo", &show_imgui_demo)
 
-			mu.layout_row(ctx, single_element_layout)
-			mu.checkbox(ctx, "Draw Normals", &draw_normals)
-			mu.checkbox(ctx, "Draw Backfacing", &draw_backfacing)
-			mu.checkbox(ctx, "Draw LOD", &draw_lod)
-			mu.checkbox(ctx, "Translucency", &grass_translucency)
-			mu.checkbox(ctx, "Grass Cull Back", &grass_cull_back)
-			mu.checkbox(ctx, "Grass Cull Front", &grass_cull_front)
-
-			gui.unindent(ctx)
+			imgui.checkbox("Draw Normals", &draw_normals)
+			imgui.checkbox("Draw Backfacing", &draw_backfacing)
+			imgui.checkbox("Draw LOD", &draw_lod)
+			imgui.checkbox("Grass Cull Back", &grass_cull_back)
 		}
 	}
+	imgui.End()
+
+	
 }

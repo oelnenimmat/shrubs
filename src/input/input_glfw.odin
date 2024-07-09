@@ -64,6 +64,19 @@ glfw_key_proc :: proc "c" (window: glfw.WindowHandle, key, scancode, action, mod
 	case glfw.KEY_8: 		input_key = ._8
 	case glfw.KEY_9: 		input_key = ._9
 	
+	case glfw.KEY_F1: 		input_key = .F1
+	case glfw.KEY_F2: 		input_key = .F2
+	case glfw.KEY_F3: 		input_key = .F3
+	case glfw.KEY_F4: 		input_key = .F4
+	case glfw.KEY_F5: 		input_key = .F5
+	case glfw.KEY_F6: 		input_key = .F6
+	case glfw.KEY_F7: 		input_key = .F7
+	case glfw.KEY_F8: 		input_key = .F8
+	case glfw.KEY_F9: 		input_key = .F9
+	case glfw.KEY_F10: 		input_key = .F10
+	case glfw.KEY_F11: 		input_key = .F11
+	case glfw.KEY_F12: 		input_key = .F12
+
 	case glfw.KEY_LEFT: 	input_key = .Left
 	case glfw.KEY_RIGHT: 	input_key = .Right
 	case glfw.KEY_DOWN: 	input_key = .Down

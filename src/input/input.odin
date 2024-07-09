@@ -27,6 +27,8 @@ Key :: enum {
 	V, W, X, Y, Z,
 
 	_0, _1, _2, _3, _4, _5, _6, _7, _8, _9,
+	
+	F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12,
 
 	Left, Right, Down, Up,
 

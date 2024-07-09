@@ -5,6 +5,7 @@ import "core:os"
 import "core:encoding/json"
 import "core:math/linalg"
 
+import "shrubs:imgui"
 import "shrubs:input"
 
 EDITOR_STATE_SAVE_FILE_NAME :: "local/editor_state.json"
@@ -72,10 +73,15 @@ load_editor_state :: proc() {
 }
 
 update_editor_camera :: proc(camera : ^Camera, delta_time : f32) {
-	if input.DEBUG_get_key_pressed(.Tab) {
+	if input.DEBUG_get_key_pressed(.F1) {
 		editor.mode = .FlyView if editor.mode == .ClickyClicky else .ClickyClicky
 
-		input.lock_mouse(editor.mode == .FlyView)
+		if editor.mode == .FlyView {
+			input.lock_mouse(true)
+			imgui.SetWindowFocus(nil)
+		} else {
+			input.lock_mouse(false)
+		}
 	}
 
 	// Camera gets sometimes annoingly tilted, this is the siml
