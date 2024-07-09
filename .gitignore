@@ -8,3 +8,6 @@
 # Selected directories
 /local
 /assets
+
+# imgui stored state file
+imgui.ini
