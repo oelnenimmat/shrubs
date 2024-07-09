@@ -27,8 +27,6 @@ GrassPipeline :: struct {
 	field_texture_location 	: i32,	
 	wind_texture_location 	: i32,	
 
-	bottom_color_location 	: i32,
-	top_color_location 		: i32,
 	surface_params_location : i32,
 	camera_position_location : i32,
 
@@ -59,8 +57,6 @@ create_grass_pipeline :: proc() -> GrassPipeline {
 	pl.segment_count_location 		= gl.GetUniformLocation(pl.shader_program, "segment_count")
 	pl.debug_params_location 		= gl.GetUniformLocation(pl.shader_program, "debug_params")
 
-	pl.bottom_color_location 		= gl.GetUniformLocation(pl.shader_program, "bottom_color")
-	pl.top_color_location 			= gl.GetUniformLocation(pl.shader_program, "top_color")
 	pl.surface_params_location 		= gl.GetUniformLocation(pl.shader_program, "surface_params")
 	pl.camera_position_location 		= gl.GetUniformLocation(pl.shader_program, "camera_position")
 
@@ -130,8 +126,6 @@ setup_grass_pipeline :: proc(
 set_grass_material :: proc(
 	field_texture : ^Texture,
 	wind_texture : ^Texture,
-	bottom_color : vec4,
-	top_color : vec4,
 	roughness : f32,
 ) {
 	pl := &graphics_context.grass_pipeline
@@ -139,11 +133,6 @@ set_grass_material :: proc(
 	set_texture_2D(field_texture, pl.field_texture_slot)
 	set_texture_2D(wind_texture, pl.wind_texture_slot)
 
-	bottom_color := bottom_color
-	top_color := top_color
-
-	gl.Uniform4fv(pl.bottom_color_location, 1, auto_cast &bottom_color)
-	gl.Uniform4fv(pl.top_color_location, 1, auto_cast &top_color)
 	gl.Uniform4f(
 		pl.surface_params_location, 
 		roughness, 

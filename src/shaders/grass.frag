@@ -6,6 +6,8 @@ layout(location = 2) in vec2 field_texcoord;
 layout(location = 3) in vec3 view_position;
 layout(location = 4) in vec3 frag_position;
 layout(location = 5) in vec3 voronoi_color;
+layout(location = 6) flat in uint type_index;
+
 
 layout (location = 5) uniform vec3 light_direction;
 layout (location = 6) uniform vec3 light_color;
@@ -18,15 +20,33 @@ layout (location = 8) uniform sampler2D field_texture;
 layout (location = 9) uniform vec4 segment_count;
 layout (location = 10) uniform vec4 debug_params;
 
-// todo(Leo): explicit locations
-uniform vec4 bottom_color;
-uniform vec4 top_color;
-
-// x: roughness
-uniform vec4 surface_params;
 uniform vec4 camera_position;
 
 out vec4 out_color;
+
+struct GrassTypeData {
+	float base_height;
+	float height_variation;
+	float width;
+	float bend;
+
+	float clump_size;
+	float clump_height_variation;
+	float clump_squeeze_in;
+
+	float more_data;
+
+	vec4 top_color;
+	vec4 bottom_color;
+	float roughness;
+
+	float more_data_2;
+	float more_data_3;
+};
+
+layout (std430, binding = 0) buffer grass_types {
+	GrassTypeData types[];
+};
 
 void main() {
 	vec3 normal = normalize(surface_normal);
@@ -45,7 +65,7 @@ void main() {
 #endif
 
 	// vec3 surface_color 	= texture(field_texture, field_texcoord).rgb;
-	vec3 surface_color 	= mix(bottom_color.rgb, top_color.rgb, blade_texcoord.y);
+	vec3 surface_color 	= mix(types[type_index].bottom_color.rgb, types[type_index].top_color.rgb, blade_texcoord.y);
 	vec3 surface 		= surface_color;
 
 	if (debug_params.w > 0.5) {
@@ -56,7 +76,7 @@ void main() {
 		}
 	}
 
-	float roughness = surface_params.x;
+	float roughness = types[type_index].roughness;
 	// Todo(Leo): very crappy specular, will do for now
 	// https://computergraphics.stackexchange.com/a/12742
 	float shininess = 2 / (roughness * roughness) - 2;

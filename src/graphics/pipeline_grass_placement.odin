@@ -11,6 +11,8 @@ GrassPlacementPipeline :: struct {
 	chunk_params_location 		: i32,
 	world_params_location 		: i32,
 
+	type_index_location : i32,
+
 	placement_texture_slot : u32,
 }
 
@@ -27,6 +29,8 @@ create_grass_placement_pipeline :: proc () -> GrassPlacementPipeline {
 	pl.chunk_params_location = gl.GetUniformLocation(pl.program, "chunk_params")
 	pl.world_params_location = gl.GetUniformLocation(pl.program, "world_params")
 
+	pl.type_index_location = gl.GetUniformLocation(pl.program, "type_index")
+
 	return pl
 }
 
@@ -37,6 +41,7 @@ dispatch_grass_placement_pipeline :: proc (
 	blade_count 			: int,
 	chunk_position 			: vec2,
 	chunk_size 				: f32,
+	type_index				: int,
 ) {
 	pl := &graphics_context.grass_placement_pipeline
 
@@ -51,6 +56,8 @@ dispatch_grass_placement_pipeline :: proc (
 	gl.Uniform4f(pl.noise_params_location, 563, 0.1, 5, 0)
 	gl.Uniform4f(pl.chunk_params_location, chunk_position.x, chunk_position.y, chunk_size, f32(blade_count))
 	gl.Uniform4f(pl.world_params_location, -25.0, -25.0, 50.0, 0.0)
+
+	gl.Uniform1i(pl.type_index_location, i32(type_index))
 
 	// work group is 16 x 16
 	gl.DispatchCompute(blade_count / 16, blade_count / 16, 1)

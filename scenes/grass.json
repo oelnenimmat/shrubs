@@ -1,0 +1,71 @@
+[
+	{
+		"height": 0.20000000,
+		"height_variation": 0.23999999,
+		"width": 0.04800000,
+		"bend": 0.49333334,
+		"clump_size": 0.86000001,
+		"clump_height_variation": 0.81333333,
+		"clump_squeeze_in": 0.13333333,
+		"clump_align_facing": 0.00000000,
+		"bottom_color": [
+			0.13333334,
+			0.36666667,
+			0.04166667,
+			0.00000000
+		],
+		"top_color": [
+			0.28333333,
+			0.33333334,
+			0.07500000,
+			0.00000000
+		],
+		"roughness": 0.14000000
+	},
+	{
+		"height": 0.21333334,
+		"height_variation": 0.06666667,
+		"width": 0.05200000,
+		"bend": 0.48000002,
+		"clump_size": 1.03999996,
+		"clump_height_variation": 0.62666667,
+		"clump_squeeze_in": 0.01333332,
+		"clump_align_facing": 0.00000000,
+		"bottom_color": [
+			0.14166667,
+			0.20833333,
+			0.30000001,
+			0.00000000
+		],
+		"top_color": [
+			0.12500000,
+			0.21666667,
+			0.51666665,
+			0.00000000
+		],
+		"roughness": 0.15333334
+	},
+	{
+		"height": 0.10666667,
+		"height_variation": 0.31999999,
+		"width": 0.04400000,
+		"bend": 0.08000004,
+		"clump_size": 1.01999998,
+		"clump_height_variation": 0.54666668,
+		"clump_squeeze_in": 0.02666664,
+		"clump_align_facing": 0.00000000,
+		"bottom_color": [
+			0.16666667,
+			0.38333333,
+			0.00000000,
+			0.00000000
+		],
+		"top_color": [
+			0.56666666,
+			0.61666667,
+			0.29166666,
+			0.00000000
+		],
+		"roughness": 0.20000000
+	}
+]

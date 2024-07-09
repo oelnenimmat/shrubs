@@ -14,6 +14,7 @@ import "shrubs:input"
 import "shrubs:physics"
 import "shrubs:window"
 
+import "core:intrinsics"
 import "core:math"
 import "core:reflect"
 import "core:math/linalg"
@@ -62,7 +63,7 @@ grass_cull_front := false
 
 grass_chunk_size := f32(5)
 
-grass_roughness := f32(0.15)
+grass_type_to_edit : GrassType
 
 // post_processing : struct {
 // 	exposure : f32,
@@ -107,6 +108,9 @@ initialize :: proc() {
 	// Application is started in edit mode
 	application.mode = .Edit
 
+	// Todo(Leo): Not sure how to categorize this yet?
+	load_grass_types()
+
 	// Scene
 	if IS_ACTUALLY_EDITOR {
 		load_editor_state()
@@ -116,6 +120,8 @@ initialize :: proc() {
 }
 
 terminate :: proc() {
+	save_grass_types()
+
 	save_editor_state()
 
 	// Todo(Leo): not really necessary at this point, but I keep these here
@@ -249,7 +255,6 @@ update :: proc(delta_time: f64) {
 	grass_lods 			: [100]int
 	lod_segment_counts 	: [100]int
 	lod_instance_counts : [100]int
-	lod_widths 			: [100]f32
 	lod_check_position 	:= player_character.physics_position
 	for lod, i in &grass_lods {
 		chunk_center := scene.grass.positions[i] + vec2(2.5)
@@ -270,11 +275,6 @@ update :: proc(delta_time: f64) {
 		lod_instance_counts[i] = grass_lod_settings[lod].instance_count
 		lod_segment_counts[i] = grass_lod_settings[lod].segment_count
 		
-		switch lod {
-			case 0: lod_widths[i] = scene.grass.type.width
-			case 1: lod_widths[i] = scene.grass.type.width
-			case: lod_widths[i] = scene.grass.type.width * 1.5
-		}
 	}
 
 	// NEXT PIPELINE
@@ -301,9 +301,6 @@ update :: proc(delta_time: f64) {
 	debug.render()
 
 	// NEXT PIPELINE
-	// semantics work differently in the compute shadder for now
-	blade_height_variation := scene.grass.type.height * scene.grass.type.height_variation
-	blade_height := scene.grass.type.height - 0.5 * blade_height_variation
 	for i in 0..<len(scene.grass.instance_buffers) {
 		graphics.dispatch_grass_placement_pipeline(
 			&scene.grass.types_buffer, 
@@ -312,6 +309,7 @@ update :: proc(delta_time: f64) {
 			lod_instance_counts[i],
 			scene.grass.positions[i],
 			grass_chunk_size,
+			int(scene.name),
 		)
 	}
 
@@ -346,9 +344,7 @@ update :: proc(delta_time: f64) {
 	graphics.set_grass_material(
 		&scene.textures[.Grass_Field],
 		&scene.textures[.Wind],
-		scene.grass.type.bottom_color,
-		scene.grass.type.top_color,
-		grass_roughness,
+		0,
 	)
 
 	for i in 0..<len(scene.grass.instance_buffers) {
@@ -459,9 +455,21 @@ editor_gui :: proc() {
 			mu.label(ctx, "Ambient"); gui.color_edit_hdr_vec4(ctx, "ambient", &scene.lighting.ambient_color)
 		}
 		
+
+
 		if .ACTIVE in mu.header(ctx, "Grass!", {.EXPANDED}) {
 			gui.indent(ctx)
+
+			if .SUBMIT in mu.button(ctx, "Save") {
+				save_grass_types()
+			}
+
+			mu.layout_row(ctx, label_and_element_layout)
+			mu.label(ctx, "Type")
+			gui.enum_popup(ctx, &grass_type_to_edit)
 			
+			edited_grass_type := &grass_type_settings[grass_type_to_edit]
+
 			mu.label(ctx, "LOD")
 			mu.layout_row(ctx, four_columns_layout)
 			if .SUBMIT in mu.button(ctx, "auto") { lod_enabled = -1 }
@@ -469,26 +477,27 @@ editor_gui :: proc() {
 			if .SUBMIT in mu.button(ctx, "1") { lod_enabled = 1 }
 			if .SUBMIT in mu.button(ctx, "2") { lod_enabled = 2 }
 
+
 			mu.label(ctx, "Blade");
 			mu.layout_row(ctx, label_and_element_layout)
-			mu.label(ctx, "Height");	mu.slider(ctx, &scene.grass.type.height, 0, 2)
-			mu.label(ctx, "Variation");	mu.slider(ctx, &scene.grass.type.height_variation, 0, 2)
-			mu.label(ctx, "Width");		mu.slider(ctx, &scene.grass.type.width, 0, 0.3)
-			mu.label(ctx, "Bend");		mu.slider(ctx, &scene.grass.type.bend, -1, 1)
+			mu.label(ctx, "Height");	mu.slider(ctx, &edited_grass_type.height, 0, 2)
+			mu.label(ctx, "Variation");	mu.slider(ctx, &edited_grass_type.height_variation, 0, 2)
+			mu.label(ctx, "Width");		mu.slider(ctx, &edited_grass_type.width, 0, 0.3)
+			mu.label(ctx, "Bend");		mu.slider(ctx, &edited_grass_type.bend, -1, 1)
 			
 			mu.label(ctx, "Clump")
 			mu.layout_row(ctx, label_and_element_layout)
-			mu.label(ctx, "Size");				mu.slider(ctx, &scene.grass.type.clump_size, 0, 3)
-			mu.label(ctx, "Height variation");	mu.slider(ctx, &scene.grass.type.clump_height_variation, 0, 2)
-			mu.label(ctx, "Squeeze in");		mu.slider(ctx, &scene.grass.type.clump_squeeze_in, -1, 1)
+			mu.label(ctx, "Size");				mu.slider(ctx, &edited_grass_type.clump_size, 0, 3)
+			mu.label(ctx, "Height variation");	mu.slider(ctx, &edited_grass_type.clump_height_variation, 0, 2)
+			mu.label(ctx, "Squeeze in");		mu.slider(ctx, &edited_grass_type.clump_squeeze_in, -1, 1)
 
 			mu.label(ctx, "Top Color")
-			gui.color_edit(ctx, "top color", transmute(^vec3)(&scene.grass.type.top_color))
+			gui.color_edit(ctx, "top color", transmute(^vec3)(&edited_grass_type.top_color))
 			mu.label(ctx, "Bottom Color")
-			gui.color_edit(ctx, "bottom color", transmute(^vec3)(&scene.grass.type.bottom_color))
+			gui.color_edit(ctx, "bottom color", transmute(^vec3)(&edited_grass_type.bottom_color))
 
 			mu.label(ctx, "roughness")
-			mu.slider(ctx, &grass_roughness, 0, 1)
+			mu.slider(ctx, &grass_type_settings[grass_type_to_edit].roughness, 0, 1)
 			
 			gui.unindent(ctx)
 		}

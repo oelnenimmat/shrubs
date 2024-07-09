@@ -1,26 +1,4 @@
 {
-	"grass_type": {
-		"bottom_color": [
-			0.14166667,
-			0.20833333,
-			0.30000001,
-			0.00000000
-		],
-		"top_color": [
-			0.12500000,
-			0.21666667,
-			0.51666665,
-			0.00000000
-		],
-		"height": 0.14666666,
-		"height_variation": 0.05333333,
-		"width": 0.05200000,
-		"bend": 0.48000002,
-		"clump_size": 1.00000000,
-		"clump_height_variation": 0.44000000,
-		"clump_squeeze_in": 0.06666672,
-		"clump_align_facing": 0.00000000
-	},
 	"lighting": {
 		"direction_polar": [
 			309.60000610,

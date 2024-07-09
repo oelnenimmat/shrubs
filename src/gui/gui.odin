@@ -6,8 +6,9 @@ import "shrubs:window"
 import "shrubs:input"
 
 import "core:fmt"
-import "core:strings"
 import "core:math"
+import "core:reflect"
+import "core:strings"
 
 import mu   "vendor:microui"
 
@@ -180,6 +181,23 @@ indent :: proc(ctx : ^mu.Context) {
 
 unindent :: proc(ctx : ^mu.Context) {
 	mu.get_layout(ctx).indent -= ctx.style.indent
+}
+
+
+enum_popup :: proc(ctx : ^mu.Context, value : ^$T)  {
+	if .SUBMIT in mu.button(ctx, reflect.enum_string(value^)) {
+		mu.open_popup(ctx, reflect.enum_string(value^))
+	}
+
+	if mu.begin_popup(ctx, reflect.enum_string(value^)) {
+		for type in T {
+			if .SUBMIT in mu.button(ctx, reflect.enum_string(type)) {
+				value^ = type
+				mu.get_current_container(ctx).open = false
+			}
+		}
+		mu.end_popup(ctx)
+	}
 }
 
 /*

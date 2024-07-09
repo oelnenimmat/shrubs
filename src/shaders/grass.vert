@@ -14,6 +14,7 @@ layout(location = 2, component = 0) in vec3 instance_test_color;
 layout(location = 2, component = 3) in float instance_bend;
 
 layout(location = 3, component = 0) in vec2 instance_facing;
+layout(location = 3, component = 2) in uint instance_type_index;
 
 
 layout(location = 0) uniform mat4 projection;
@@ -24,6 +25,12 @@ layout(location = 1) uniform mat4 view;
 layout(location = 3) uniform vec4 wind_params;
 layout(location = 4) uniform sampler2D wind_texture;
 
+// x: segment count
+// y: lod
+layout (location = 9) uniform vec4 segment_count;
+layout (location = 10) uniform vec4 debug_params;
+
+
 layout(location = 0) out vec3 surface_normal;
 layout(location = 1) out vec2 blade_texcoord;
 layout(location = 2) out vec2 field_texcoord;
@@ -33,11 +40,7 @@ layout(location = 4) out vec3 frag_position;
 layout(location = 3) out vec3 view_position;
 layout(location = 5) out vec3 voronoi_color;
 
-// x: segment count
-// y: lod
-layout (location = 9) uniform vec4 segment_count;
-layout (location = 10) uniform vec4 debug_params;
-
+layout(location = 6) flat out uint type_index;
 
 void main() {
 
@@ -94,26 +97,7 @@ void main() {
 	vec3 b01 = mix(b0, b1, height_percent);
 	vec3 b12 = mix(b1, b2, height_percent);
 	vec3 b012 = mix(b01, b12, height_percent);
-/*
-	// 2d bezier, i.e. on YZ-plane
-	float arm_length 	= 0.5 * instance_height * length_correction;
-	vec2 bezier_0 		= vec2(0, 0);
-	vec2 bezier_1 		= vec2(0, arm_length);
-	vec2 bezier_2 		= vec2(
-		-sin(bend_angle) * arm_length,
-		arm_length + cos(bend_angle) * arm_length
-	);
 
-	vec2 bezier_01 = mix(bezier_0, bezier_1, height_percent);
-	vec2 bezier_12 = mix(bezier_1, bezier_2, height_percent);
-	vec2 bezier_012 = mix(bezier_01, bezier_12, height_percent);
-
-	// Bezier plane Y(x-component) maps to wind direction and Z(y-component)
-	// to the regular z-axis
-	float x = bezier_012.x * bend_direction.x;
-	float y = bezier_012.x * bend_direction.y;
-	float z = bezier_012.y;
-*/
 	float x = b012.x;
 	float y = b012.y;
 	float z = b012.z;
@@ -156,4 +140,6 @@ void main() {
 	frag_position = instance_position.xyz + vertex_position;
 
 	voronoi_color = instance_test_color;
+
+	type_index = instance_type_index;
 }
