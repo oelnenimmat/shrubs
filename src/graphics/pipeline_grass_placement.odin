@@ -48,8 +48,12 @@ dispatch_grass_placement_pipeline :: proc (
 	blade_count := u32(blade_count)
 
 	gl.UseProgram(pl.program)
-	gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, 0, types.buffer)
-	gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, 1, instances.buffer)
+
+	// Todo(Leo): shader storage buffer is readewrite, the types could/should be
+	// readonly, so we should bind as uniform buffer, but how to?
+	// Todo(Leo): set types as part of shared resources or smth
+	gl.BindBufferBase(gl.UNIFORM_BUFFER, GRASS_TYPES_BUFFER_BINDING, types.buffer)
+	gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, GRASS_INSTANCE_BUFFER_BINDING, instances.buffer)
 
 	set_texture_2D(placement_texture, pl.placement_texture_slot)
 

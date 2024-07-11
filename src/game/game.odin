@@ -14,10 +14,11 @@ import "shrubs:input"
 import "shrubs:physics"
 import "shrubs:window"
 
+import "core:fmt"
 import "core:intrinsics"
 import "core:math"
-import "core:reflect"
 import "core:math/linalg"
+import "core:reflect"
 
 vec2 		:: common.vec2
 vec3 		:: common.vec3
@@ -247,18 +248,26 @@ update :: proc(delta_time: f64) {
 		update_editor_camera(&camera, delta_time)
 	}
 
+	@static wind_time := f32 (0)
+	@static wind_on := true
+	@static wind_offset : vec2
+
+	if wind_on {
+		wind_time += delta_time
+		wind_offset.x += delta_time * 0.06
+		wind_offset.y += delta_time * 0.03
+	}
+	wind_amount := math.sin(wind_time) * 0.5
+
+	if input.DEBUG_get_key_pressed(.U) {
+		wind_on = !wind_on
+	}
+
 	///////////////////////////////////////////////////////////////////////////
 	// END OF UPDATE
 
 	graphics.begin_frame()
 	graphics.bind_main_framebuffer()
-
-	debug_params := vec4{
-		1 if draw_normals else 0,
-		1 if draw_backfacing else 0,
-		0,
-		1 if draw_lod else 0,
-	}
 
 	light_direction := matrix4_mul_vector(
 						linalg.matrix4_rotate_f32(scene.lighting.direction_polar.x * math.PI / 180, OBJECT_UP) *
@@ -269,14 +278,12 @@ update :: proc(delta_time: f64) {
 
 	projection_matrix, view_matrix := camera_get_projection_and_view_matrices(&camera)
 
-	graphics.setup_basic_pipeline(
-		projection_matrix, 
-		view_matrix,
-		light_direction,
-		light_color,
-		ambient_color,
-		debug_params,
-	)
+	graphics.set_per_frame_data(view_matrix, projection_matrix)
+	graphics.set_lighting_data(camera.position, light_direction, light_color, ambient_color)
+	graphics.set_wind_data(wind_offset, 0.005, &scene.textures[.Wind])
+	graphics.set_debug_data(draw_normals, draw_backfacing, draw_lod)
+
+	graphics.setup_basic_pipeline()
 
 	for sp in scene.set_pieces {
 		graphics.set_basic_material(sp.color, sp.texture)
@@ -319,18 +326,11 @@ update :: proc(delta_time: f64) {
 	}
 
 	// NEXT PIPELINE
-	graphics.setup_debug_pipeline(projection_matrix, view_matrix)
+	graphics.setup_debug_pipeline()
 	debug.render()
 
 	// NEXT PIPELINE
-	graphics.setup_terrain_pipeline(
-		projection_matrix,
-		view_matrix,
-		light_direction,
-		light_color,
-		ambient_color,
-		debug_params,
-	)
+	graphics.setup_terrain_pipeline()
 	graphics.set_terrain_material(
 		scene.terrain.grass_placement_map,
 		scene.terrain.grass_field_texture,
@@ -340,7 +340,6 @@ update :: proc(delta_time: f64) {
 		model_matrix := linalg.matrix4_translate_f32(p)
 		graphics.draw_mesh(&scene.terrain.meshes[i], model_matrix)
 	}
-
 
 	// NEXT PIPELINE
 	for i in 0..<len(scene.grass.instance_buffers) {
@@ -356,39 +355,7 @@ update :: proc(delta_time: f64) {
 	}
 
 	// NEXT PIPELINE
-	@static wind_time := f32 (0)
-	@static wind_on := true
-	@static wind_offset : vec2
-
-	if wind_on {
-		wind_time += delta_time
-		wind_offset.x += delta_time * 0.06
-		wind_offset.y += delta_time * 0.03
-	}
-	wind_amount := math.sin(wind_time) * 0.5
-
-	if input.DEBUG_get_key_pressed(.U) {
-		wind_on = !wind_on
-	}
-
-	graphics.setup_grass_pipeline(
-		projection_matrix, 
-		view_matrix,
-		light_direction,
-		light_color,
-		ambient_color,
-		wind_offset,
-		debug_params,
-		grass_cull_back,
-		false,
-		camera.position,
-	)
-	graphics.set_grass_material(
-		&scene.textures[.Grass_Field],
-		&scene.textures[.Wind],
-		0,
-	)
-
+	graphics.setup_grass_pipeline(grass_cull_back)
 	for i in 0..<len(scene.grass.instance_buffers) {
 		graphics.draw_grass(
 			&scene.grass.instance_buffers[i],

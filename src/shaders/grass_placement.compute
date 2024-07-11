@@ -91,6 +91,8 @@ const float pi = 3.14159265359;
 layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 
 uniform sampler2D placement_texture;
+
+// Todo(Leo): get this from placement map
 uniform int type_index;
 
 // x: world_seed;
@@ -117,34 +119,34 @@ struct GrassTypeData {
 	float clump_height_variation;
 	float clump_squeeze_in;
 
-	float more_data;
+	float _more_data;
 
 	vec4 top_color;
 	vec4 bottom_color;
 	float roughness;
 
-	float more_data_2;
-	float more_data_3;
+	float _more_data_2;
+	float _more_data_3;
 };
 
 struct GrassInstanceData {
-	vec3 position;
-	float rotation;
-	vec2 field_uv;
-	float height;
-	float width;
-	vec3 test_color;
-	float bend;
-	vec2 facing;
-	uint type_index;
-	float more_data;
+	vec3 	position;
+	float 	rotation;
+	vec2 	field_uv;
+	float 	height;
+	float 	width;
+	vec3 	test_color;
+	float 	bend;
+	vec2 	facing;
+	uint 	type_index;
+	float 	_more_data;
 };
 
-layout (std430, binding = 0) buffer grass_types {
+layout (std140, binding = 10) uniform grass_types {
 	GrassTypeData types[];
 };
 
-layout (std430, binding = 1) buffer grass_instances {
+layout (std430, binding = 11) buffer grass_instances {
 	GrassInstanceData instances [];
 };
 
@@ -188,23 +190,19 @@ void main() {
 		instances[index].height = 0;
 		return;
 	}
-	// Todo(Leo): get this from placement map
-	// uint type_index = 1;
-
 
 	// Eat some prime numbers to get variation, quite arbitrary, and could do without
 	// float h_noise = sample_height(x * 3, y * 3) / noise_params.z;
 	float h = types[type_index].base_height + types[type_index].height_variation * (hash_get_float(hash_eat(hash, 13)));
 	float r = hash_get_float(hash_eat(hash, 37)) * 2 * pi;
 
-
 	// base position before clumping
 	vec3 position = vec3(x, y, z);
 
-	/// test voronoi hashing
-	float voronoi_cell_size = types[type_index].clump_size;
-	int vx = int(floor(x / voronoi_cell_size));
-	int vy = int(floor(y / voronoi_cell_size));
+	// test voronoi hashing
+	float clump_cell_size = types[type_index].clump_size;
+	int vx = int(floor(x / clump_cell_size));
+	int vy = int(floor(y / clump_cell_size));
 
 	vec2 pos = vec2(x, y);
 
@@ -216,7 +214,7 @@ void main() {
 		int xx = vx + (i % 3) - 1;
 		int yy = vy + (i / 3) - 1;
 
-		vec2 vpos = (vec2(xx, yy) + random_vec2(ivec2(xx, yy))) * voronoi_cell_size;
+		vec2 vpos = (vec2(xx, yy) + random_vec2(ivec2(xx, yy))) * clump_cell_size;
 
 		float distance = length(vpos - pos);
 		if (distance < closest_distance) {

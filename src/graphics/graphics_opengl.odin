@@ -32,6 +32,7 @@ artifacts in the resource.
 */
 VIRTUAL_FRAME_COUNT :: 3
 
+
 @private
 graphics_context : struct {
 	view_matrix 		: mat4,
@@ -48,6 +49,8 @@ graphics_context : struct {
 	debug_pipeline 				: DebugPipeline,
 	gui_pipeline 				: GuiPipeline,
 	post_process_pipeline 		: PostProcessPipeline,
+
+	pipeline_shared 			: PipelineShared,
 
 	// Per draw uniform locations. These are set whenever a new pipeline
 	// is bound/setupped, and used in draw_XXX functions
@@ -70,9 +73,20 @@ initialize :: proc() {
 	// OpenGL headers contain a set of function pointers, that need to be loaded explicitly
 	gl.load_up_to(4, 6, glfw.gl_set_proc_address)
 
-	max_uniform_locations : i32
-	gl.GetIntegerv(gl.MAX_UNIFORM_LOCATIONS, &max_uniform_locations)
-	fmt.println("[GRAPHICS]: Max uniform locations:", max_uniform_locations)
+	{
+		print_info :: proc(msg : string, name : u32) {
+			value : i32
+			gl.GetIntegerv(name, &value)
+			fmt.printfln("[GRAPHICS]: {}: {}", msg, value)
+		}
+
+		// Todo(Leo): this info needs to be found on the range of hardware that is planned
+		// to be supported
+		print_info("max uniform locations", gl.MAX_UNIFORM_LOCATIONS)
+		print_info("max uniform buffer bindings", gl.MAX_UNIFORM_BUFFER_BINDINGS)
+		print_info("max frag texture units", gl.MAX_TEXTURE_IMAGE_UNITS)
+		print_info("max vert texture units", gl.MAX_VERTEX_TEXTURE_IMAGE_UNITS)
+	}
 
 	gl.Enable(gl.DEPTH_TEST)
 
@@ -96,6 +110,8 @@ initialize :: proc() {
 	gc.debug_pipeline 			= create_debug_pipeline()
 	gc.gui_pipeline 			= create_gui_pipeline()
 	gc.post_process_pipeline	= create_post_process_pipeline()
+
+	gc.pipeline_shared 			= create_pipeline_shared()
 
 	// Todo(Leo): there might be issue here that this could be called before
 	// setting up the opengl stuff and then something going haywire, seems to work now

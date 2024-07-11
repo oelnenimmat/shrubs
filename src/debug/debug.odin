@@ -33,8 +33,6 @@ DrawCall :: struct {
 
 @private
 debug_drawing : struct {
-	// count 		: int,
-	// draws 		: []DrawCall,
 	draws : [dynamic]DrawCall,
 
 	sphere_mesh : graphics.Mesh,
@@ -44,9 +42,6 @@ debug_drawing : struct {
 initialize :: proc(capacity : int) {
 	dd := &debug_drawing
 	dd^ = {}
-
-	// dd.count = 0
-	// dd.draws = make([]DrawCall, capacity)
 
 	{
 		positions, normals, texcoords, elements := assets.NOT_MEMORY_SAFE_gltf_load_node("assets/shapes.glb", "shape_sphere")
@@ -91,10 +86,7 @@ render :: proc() {
 	for d in dd.draws {
 		// Todo(Leo): not nice to set material every frame, maybe limit palette
 		// and sort, but also doesn't really matter (escpecially right now :))
-		graphics.set_debug_line_material(d.color)
-		// t := graphics.Texture{1}
-		// graphics.set_basic_material(d.color, &t)
-		graphics.draw_debug_mesh(d.mesh, d.model_matrix)
+		graphics.draw_debug_mesh(d.mesh, d.model_matrix, d.color)
 	}
 
 }
@@ -103,12 +95,6 @@ render :: proc() {
 draw :: proc(model_matrix : mat4, color : vec3, mesh : ^graphics.Mesh) {
 	dd := &debug_drawing
 	append(&dd.draws, DrawCall{model_matrix, color, mesh})
-	// if dd.count < len(dd.draws) {
-	// 	dd.draws[dd.count] = {model_matrix, color, mesh}
-	// 	dd.count += 1
-	// } else {
-	// 	fmt.println("[DEBUG]: draw capacity exceeded")
-	// }	
 }
 
 draw_wire_sphere :: proc(position : vec3, size : f32, color : vec3) {

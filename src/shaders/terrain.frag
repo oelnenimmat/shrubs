@@ -1,28 +1,34 @@
 #version 450
 
-layout (location = 0) in vec3 surface_normal;
-layout (location = 1) in vec2 texcoord;
+layout(std140, binding = 1) uniform Lighting {
+	vec4 camera_position;
+	vec4 light_direction;
+	vec4 light_color;
+	vec4 ambient_color;
+};
 
-layout (location = 3) uniform vec3 surface_color;
-layout (location = 4) uniform vec3 light_direction;
-layout (location = 5) uniform vec3 light_color;
-layout (location = 6) uniform vec3 ambient_color;
-
-// layout (location = 7) uniform sampler2D surface_texture;
+layout(std140, binding = 3) uniform Debug {
+	float draw_normals;
+	float draw_backfacing;
+	float draw_lod;
+} debug;
 
 layout (location = 7) uniform sampler2D splatter_texture;
 layout (location = 8) uniform sampler2D grass_texture;
 layout (location = 9) uniform sampler2D road_texture;
 
-layout (location = 10) uniform vec4 debug_params;
+layout (location = 0) in vec3 surface_normal;
+layout (location = 1) in vec2 texcoord;
+
+layout (location = 3) uniform vec3 surface_color;
 
 out vec4 out_color;
 
 void main() {
 
 	vec3 normal 	= normalize(surface_normal);
-	float ndotl		= max(0, dot(-light_direction, normal));
-	vec3 lighting 	= light_color * ndotl + ambient_color;
+	float ndotl		= max(0, dot(-light_direction.xyz, normal));
+	vec3 lighting 	= light_color.rgb * ndotl + ambient_color.rgb;
 	
 	float splatter = texture(splatter_texture, texcoord).r;
 	vec3 surface = mix(
@@ -35,7 +41,7 @@ void main() {
 
 	out_color = vec4(color, 1);
 
-	if (debug_params.x > 0.5) {
+	if (debug.draw_normals > 0.5) {
 		out_color = vec4(normal, 1);
 	}
 }

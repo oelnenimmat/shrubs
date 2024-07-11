@@ -3,6 +3,22 @@
 const float pi = 3.14159265359;
 const float rad_to_deg = 180 / pi;
 
+layout(std140, binding = 0) uniform PerFrame {
+	mat4 projection;
+	mat4 view;
+};
+
+layout(std140, binding = 2) uniform Wind {
+	vec2 texture_offset;
+	float texture_scale;
+	float _;
+} wind;
+layout(location = 2) uniform sampler2D wind_texture;
+
+// x: segment count
+// y: lod
+layout (location = 9) uniform vec4 segment_count;
+
 layout(location = 0, component = 0) in vec3 instance_position;
 layout(location = 0, component = 3) in float instance_angle;
 
@@ -16,28 +32,11 @@ layout(location = 2, component = 3) in float instance_bend;
 layout(location = 3, component = 0) in vec2 instance_facing;
 layout(location = 3, component = 2) in uint instance_type_index;
 
-
-layout(location = 0) uniform mat4 projection;
-layout(location = 1) uniform mat4 view;
-
-// xy: offset
-// z: scale
-layout(location = 3) uniform vec4 wind_params;
-layout(location = 4) uniform sampler2D wind_texture;
-
-// x: segment count
-// y: lod
-layout (location = 9) uniform vec4 segment_count;
-layout (location = 10) uniform vec4 debug_params;
-
-
 layout(location = 0) out vec3 surface_normal;
 layout(location = 1) out vec2 blade_texcoord;
 layout(location = 2) out vec2 field_texcoord;
+layout(location = 3) out vec3 frag_view_position;
 layout(location = 4) out vec3 frag_position;
-
-// Todo(Leo): this is probably not used
-layout(location = 3) out vec3 view_position;
 layout(location = 5) out vec3 voronoi_color;
 
 layout(location = 6) flat out uint type_index;
@@ -59,7 +58,7 @@ void main() {
 
 	// Wind
 	// Todo(Leo): wind here is actually just the turbulence
-	vec2 wind_uv 		= instance_position.xy * wind_params.z + wind_params.xy;
+	vec2 wind_uv 		= instance_position.xy * wind.texture_scale + wind.texture_offset;
 	vec2 wind_amounts 	= textureLod(wind_texture, wind_uv, 0).xy;
 	wind_amounts 		= wind_amounts * 2 - vec2(1, 1);
 	float wind_amount 	= length(wind_amounts) * 2;
@@ -136,7 +135,6 @@ void main() {
 	blade_texcoord.x = (y_id == segment_count.x) ? 0.5 : x_id;
 	blade_texcoord.y = height_percent;
 	field_texcoord = instance_texcoord.xy;
-	view_position = view[3].xyz;
 	frag_position = instance_position.xyz + vertex_position;
 
 	voronoi_color = instance_test_color;
