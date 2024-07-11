@@ -342,9 +342,11 @@ update :: proc(delta_time: f64) {
 	}
 
 	// NEXT PIPELINE
+	// This is bound both for the grass placement and grass rendering
+	graphics.bind_uniform_buffer(&scene.grass.types_buffer, graphics.GRASS_TYPES_BUFFER_BINDING)
+	
 	for i in 0..<len(scene.grass.instance_buffers) {
 		graphics.dispatch_grass_placement_pipeline(
-			&scene.grass.types_buffer, 
 			&scene.grass.instance_buffers[i], 
 			scene.grass.placement_map,
 			lod_instance_counts[i],

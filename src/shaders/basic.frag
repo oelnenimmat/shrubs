@@ -16,8 +16,13 @@ layout(std140, binding = 3) uniform Debug {
 layout (location = 3) uniform vec3 surface_color;
 layout (location = 7) uniform sampler2D surface_texture;
 
-layout (location = 0) in vec3 surface_normal;
-layout (location = 1) in vec2 texcoord;
+// layout (location = 0) in vec3 surface_normal;
+// layout (location = 1) in vec2 texcoord;
+
+in VS_OUT {
+	vec3 surface_normal;
+	vec2 texcoord;
+};
 
 out vec4 out_color;
 

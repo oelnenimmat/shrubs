@@ -32,14 +32,15 @@ layout(location = 2, component = 3) in float instance_bend;
 layout(location = 3, component = 0) in vec2 instance_facing;
 layout(location = 3, component = 2) in uint instance_type_index;
 
-layout(location = 0) out vec3 surface_normal;
-layout(location = 1) out vec2 blade_texcoord;
-layout(location = 2) out vec2 field_texcoord;
-layout(location = 3) out vec3 frag_view_position;
-layout(location = 4) out vec3 frag_position;
-layout(location = 5) out vec3 voronoi_color;
-
-layout(location = 6) flat out uint type_index;
+out VS_OUT {
+	vec3 surface_normal;
+	vec2 blade_texcoord;
+	vec2 field_texcoord;
+	vec3 frag_view_position;
+	vec3 frag_position;
+	vec3 voronoi_color;
+	flat uint type_index;
+};
 
 void main() {
 

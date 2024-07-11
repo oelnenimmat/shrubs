@@ -1,13 +1,14 @@
 #version 450
 
-layout (location = 0) in vec3 surface_normal;
-layout(location = 1) in vec2 blade_texcoord;
-layout(location = 2) in vec2 field_texcoord;
-layout(location = 3) in vec3 frag_view_position;
-layout(location = 4) in vec3 frag_position;
-layout(location = 5) in vec3 voronoi_color;
-layout(location = 6) flat in uint type_index;
-
+in VS_OUT {
+	vec3 surface_normal;
+	vec2 blade_texcoord;
+	vec2 field_texcoord;
+	vec3 frag_view_position;
+	vec3 frag_position;
+	vec3 voronoi_color;
+	flat uint type_index;
+};
 
 layout(std140, binding = 1) uniform Lighting {
 	vec4 camera_position;

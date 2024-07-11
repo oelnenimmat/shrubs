@@ -199,40 +199,6 @@ initialize :: proc() {
 	}
 }
 
-bind_main_framebuffer :: proc() {
-	gc := &graphics_context
-
-	gl.BindFramebuffer(gl.FRAMEBUFFER, gc.main_framebuffer)
-	gl.Viewport(0, 0, gc.main_framebuffer_width, gc.main_framebuffer_height)
-
-	// No need to really clear color buffer, right??
-	gl.ClearColor(0.1, 0.65, 0.95, 1.0)
-	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-}
-
-bind_screen_framebuffer :: proc() {
-	gl.BindFramebuffer(gl.FRAMEBUFFER, 0)
-
-	window_width, window_height := window.get_window_size()
-	gl.Viewport(0, 0, i32(window_width), i32(window_height))
-
-	// No need to clear: we dont use depth buffering, and we always draw everywhere
-}
-
-blit_to_resolve_image :: proc() {
-	// Todo(Leo): instead, we should look into just sampling the multisample image
-	// in the post process shader
-	gc := &graphics_context
-
-	gl.BindFramebuffer(gl.READ_FRAMEBUFFER, gc.main_framebuffer)
-	gl.BindFramebuffer(gl.DRAW_FRAMEBUFFER, gc.resolve_framebuffer)
-
-	w := gc.main_framebuffer_width
-	h := gc.main_framebuffer_height
-
-	gl.BlitFramebuffer(0, 0, w, h, 0, 0, w, h, gl.COLOR_BUFFER_BIT, gl.LINEAR)
-}
-
 terminate :: proc() {
 	// Any resources deallocation that NEED to be done on ending the program,
 	// can be done here.
@@ -275,6 +241,47 @@ begin_frame :: proc() {
 	// if this is before or after fence sync. https://stackoverflow.com/questions/2143240/opengl-glflush-vs-glfinish
 	// Moves all sent commands to execution
 	gl.Flush()
+}
+
+// End of maintenance section
+/////////////////////////////////////////////////////
+
+bind_main_framebuffer :: proc() {
+	gc := &graphics_context
+
+	gl.BindFramebuffer(gl.FRAMEBUFFER, gc.main_framebuffer)
+	gl.Viewport(0, 0, gc.main_framebuffer_width, gc.main_framebuffer_height)
+
+	// No need to really clear color buffer, right??
+	gl.ClearColor(0.1, 0.65, 0.95, 1.0)
+	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+}
+
+bind_screen_framebuffer :: proc() {
+	gl.BindFramebuffer(gl.FRAMEBUFFER, 0)
+
+	window_width, window_height := window.get_window_size()
+	gl.Viewport(0, 0, i32(window_width), i32(window_height))
+
+	// No need to clear: we dont use depth buffering, and we always draw everywhere
+}
+
+blit_to_resolve_image :: proc() {
+	// Todo(Leo): instead, we should look into just sampling the multisample image
+	// in the post process shader
+	gc := &graphics_context
+
+	gl.BindFramebuffer(gl.READ_FRAMEBUFFER, gc.main_framebuffer)
+	gl.BindFramebuffer(gl.DRAW_FRAMEBUFFER, gc.resolve_framebuffer)
+
+	w := gc.main_framebuffer_width
+	h := gc.main_framebuffer_height
+
+	gl.BlitFramebuffer(0, 0, w, h, 0, 0, w, h, gl.COLOR_BUFFER_BIT, gl.LINEAR)
+}
+
+bind_uniform_buffer :: proc(buffer : ^Buffer, binding : u32) {
+	gl.BindBufferBase(gl.UNIFORM_BUFFER, binding, buffer.buffer)
 }
 
 // PLATFORM INTERNAL USAGE ----------------------------------------------------

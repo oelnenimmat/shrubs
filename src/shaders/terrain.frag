@@ -17,10 +17,10 @@ layout (location = 7) uniform sampler2D splatter_texture;
 layout (location = 8) uniform sampler2D grass_texture;
 layout (location = 9) uniform sampler2D road_texture;
 
-layout (location = 0) in vec3 surface_normal;
-layout (location = 1) in vec2 texcoord;
-
-layout (location = 3) uniform vec3 surface_color;
+in VS_OUT {
+	vec3 surface_normal;
+	vec2 texcoord;
+};
 
 out vec4 out_color;
 
