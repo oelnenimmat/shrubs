@@ -258,14 +258,14 @@ update_tank :: proc(tank : ^Tank, delta_time : f32) {
 	tank.old_body_rotation 	= tank.body_rotation
 	tank.body_rotation 		= base_rotation_q
 
-	debug.draw_wire_sphere(center, 0.3, debug.RED)
-	debug.draw_wire_sphere(center + forward, 0.15, debug.BLUE)
-	debug.draw_wire_sphere(center + up, 0.15, debug.BLUE)
+	// debug.draw_wire_sphere(center, 0.3, debug.RED)
+	// debug.draw_wire_sphere(center + forward, 0.15, debug.BLUE)
+	// debug.draw_wire_sphere(center + up, 0.15, debug.BLUE)
 
-	debug.draw_wire_cube(tank.wheel_positions[L4] + up, base_rotation_q, vec3(0.2), debug.BLACK)
-	debug.draw_wire_cube(tank.wheel_positions[R4] + up, base_rotation_q, vec3(0.2), debug.RED)
-	debug.draw_wire_cube(tank.wheel_positions[L1] + up, base_rotation_q, vec3(0.2), debug.GREEN)
-	debug.draw_wire_cube(tank.wheel_positions[R1] + up, base_rotation_q, vec3(0.2), debug.YELLOW)
+	// debug.draw_wire_cube(tank.wheel_positions[L4] + up, base_rotation_q, vec3(0.2), debug.BLACK)
+	// debug.draw_wire_cube(tank.wheel_positions[R4] + up, base_rotation_q, vec3(0.2), debug.RED)
+	// debug.draw_wire_cube(tank.wheel_positions[L1] + up, base_rotation_q, vec3(0.2), debug.GREEN)
+	// debug.draw_wire_cube(tank.wheel_positions[R1] + up, base_rotation_q, vec3(0.2), debug.YELLOW)
 
 	physics.submit_colliders(
 		[]physics.BoxCollider{{center + (0.2 + 0.15) * up, base_rotation_q, vec3{2, 3.5, 0.3}}},

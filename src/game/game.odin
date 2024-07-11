@@ -69,7 +69,9 @@ grass_type_to_edit : GrassType
 // Resources
 white_texture 	: graphics.Texture
 black_texture 	: graphics.Texture
+DEBUG_rock_texture : graphics.Texture
 capsule_mesh 	: graphics.Mesh
+cube_mesh 		: graphics.Mesh
 
 application : struct {
 	wants_to_quit 	: bool,
@@ -80,20 +82,6 @@ show_imgui_demo := false
 show_timings := true
 timings : struct {
 	frame_time : SmoothValue,
-}
-
-SmoothValue :: struct {
-	value 	: f32,
-	buffer 	: [30]f32,
-	index 	: int,
-}
-
-smooth_value_put :: proc(sv : ^SmoothValue, value : f32) {
-	sv.value 			-= sv.buffer[sv.index] / (f32(len(sv.buffer)))
-	sv.buffer[sv.index] = value
-	sv.value 			+= sv.buffer[sv.index] / (f32(len(sv.buffer)))
-
-	sv.index = (sv.index + 1) % len(sv.buffer)
 }
 
 initialize :: proc() {
@@ -113,9 +101,11 @@ initialize :: proc() {
 	black_texture = graphics.create_color_texture(
 		1, 1, []common.Color_u8_rgba{{0, 0, 0, 255}}, .Nearest,
 	)
+	DEBUG_rock_texture = TEMP_load_color_texture("assets/rock_01_diff_4k.jpg")
 
 
 	capsule_mesh = TEMP_load_mesh_gltf("assets/shapes.glb", "shape_capsule")
+	cube_mesh = TEMP_load_mesh_gltf("assets/shapes.glb", "shape_cube")
 
 	// Scene independent systems
 	camera 				= create_camera()
@@ -295,6 +285,7 @@ update :: proc(delta_time: f64) {
 	}
 	
 	render_tank(&tank)
+	render_greyboxing(&scene.greyboxing)
 
 	// Player character as a capsule for debug purposes
 	graphics.set_basic_material({0.6, 0.2, 0.4}, &white_texture)
@@ -325,8 +316,11 @@ update :: proc(delta_time: f64) {
 
 		lod_instance_counts[i] = grass_lod_settings[lod].instance_count
 		lod_segment_counts[i] = grass_lod_settings[lod].segment_count
-		
 	}
+
+	// NEXT PIPELINE
+	graphics.setup_debug_pipeline(projection_matrix, view_matrix)
+	debug.render()
 
 	// NEXT PIPELINE
 	graphics.setup_terrain_pipeline(
@@ -347,9 +341,6 @@ update :: proc(delta_time: f64) {
 		graphics.draw_mesh(&scene.terrain.meshes[i], model_matrix)
 	}
 
-	// NEXT PIPELINE
-	graphics.setup_debug_pipeline(projection_matrix, view_matrix)
-	debug.render()
 
 	// NEXT PIPELINE
 	for i in 0..<len(scene.grass.instance_buffers) {
@@ -520,6 +511,10 @@ editor_gui :: proc() {
 			imgui.ColorEdit3("bottom color", cast(^f32)(&settings.bottom_color))
 
 			imgui.SliderFloat("roughness", &grass_type_settings[grass_type_to_edit].roughness, 0, 1)
+		}
+
+		if imgui.CollapsingHeader("Greyboxing") {
+			edit_greyboxing(&scene.greyboxing)
 		}
 
 		if imgui.CollapsingHeader("Post Processing") {

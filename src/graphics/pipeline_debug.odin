@@ -56,9 +56,9 @@ setup_debug_pipeline :: proc (projection, view : mat4) {
 
 	gl.Disable(gl.CULL_FACE)
 	gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
+	gl.LineWidth(2)
 	gl.Disable(gl.BLEND)
 	gl.Enable(gl.DEPTH_TEST)
-	
 }
 
 // This is called once for each change of material
@@ -66,24 +66,19 @@ setup_debug_pipeline :: proc (projection, view : mat4) {
 set_debug_line_material :: proc(color : vec3) {
 	color := color
 
-	pl := &graphics_context.basic_pipeline
+	pl := &graphics_context.debug_pipeline
 	
-	gl.Uniform3fv(pl.surface_color_location, 1, auto_cast &color)
+	gl.Uniform3fv(pl.color_location, 1, auto_cast &color)
 }
 
+// Todo(Leo): we kinda set material on each draw, and it is only color
+// so we could just set it here
 draw_debug_mesh :: proc(mesh : ^Mesh, model : mat4) {
 	model := model
 
 	gc := &graphics_context
 
 	gl.UniformMatrix4fv(gc.model_matrix_location, 1, false, auto_cast &model)
-
 	gl.BindVertexArray(mesh.vao)
-
-	gl.DrawElements(
-		gl.TRIANGLES, 
-		mesh.index_count, 
-		gl.UNSIGNED_SHORT, 
-		nil, 
-	)
+	gl.DrawElements(gl.TRIANGLES, mesh.index_count, gl.UNSIGNED_SHORT, nil)
 }

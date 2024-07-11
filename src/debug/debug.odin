@@ -22,6 +22,8 @@ BLUE 	:: vec3{0.1, 0.1, 0.9}
 YELLOW 	:: vec3{0.9, 0.9, 0.1}
 BLACK 	:: vec3{0.1, 0.1, 0.1}
 
+BRIGHT_PURPLE :: vec3{0.8, 0.0, 1.0}
+
 @private
 DrawCall :: struct {
 	model_matrix 	: mat4,
@@ -31,8 +33,9 @@ DrawCall :: struct {
 
 @private
 debug_drawing : struct {
-	count 		: int,
-	draws 		: []DrawCall,
+	// count 		: int,
+	// draws 		: []DrawCall,
+	draws : [dynamic]DrawCall,
 
 	sphere_mesh : graphics.Mesh,
 	cube_mesh 	: graphics.Mesh,
@@ -42,12 +45,12 @@ initialize :: proc(capacity : int) {
 	dd := &debug_drawing
 	dd^ = {}
 
-	dd.count = 0
-	dd.draws = make([]DrawCall, capacity)
+	// dd.count = 0
+	// dd.draws = make([]DrawCall, capacity)
 
 	{
 		positions, normals, texcoords, elements := assets.NOT_MEMORY_SAFE_gltf_load_node("assets/shapes.glb", "shape_sphere")
-		dd.sphere_mesh = graphics.create_mesh(positions, normals, nil, elements)
+		dd.sphere_mesh = graphics.create_mesh(positions, normals, texcoords, elements)
 
 		delete(positions)
 		delete(normals)
@@ -57,7 +60,7 @@ initialize :: proc(capacity : int) {
 
 	{
 		positions, normals, texcoords, elements := assets.NOT_MEMORY_SAFE_gltf_load_node("assets/shapes.glb", "shape_cube")
-		dd.cube_mesh = graphics.create_mesh(positions, normals, nil, elements)
+		dd.cube_mesh = graphics.create_mesh(positions, normals, texcoords, elements)
 
 		delete(positions)
 		delete(normals)
@@ -71,46 +74,52 @@ terminate :: proc() {
 
 	delete (dd.draws)
 
+	graphics.destroy_mesh(&dd.sphere_mesh)
+	graphics.destroy_mesh(&dd.cube_mesh)
+
 	dd^ = {}
 }
 
 new_frame :: proc() {
-	debug_drawing.count = 0
+	// debug_drawing.count = 0
+	resize(&debug_drawing.draws, 0)
 }
 
 render :: proc() {
 	dd := &debug_drawing
-	
-	for draw in dd.draws[0:dd.count] {
+
+	for d in dd.draws {
 		// Todo(Leo): not nice to set material every frame, maybe limit palette
 		// and sort, but also doesn't really matter (escpecially right now :))
-		graphics.set_debug_line_material(draw.color)
-		graphics.draw_debug_mesh(draw.mesh, draw.model_matrix)
+		graphics.set_debug_line_material(d.color)
+		// t := graphics.Texture{1}
+		// graphics.set_basic_material(d.color, &t)
+		graphics.draw_debug_mesh(d.mesh, d.model_matrix)
 	}
 
 }
 
+@private
 draw :: proc(model_matrix : mat4, color : vec3, mesh : ^graphics.Mesh) {
 	dd := &debug_drawing
-
-	if dd.count < len(dd.draws) {
-		dd.draws[dd.count] = {model_matrix, color, mesh}
-		dd.count += 1
-	} else {
-		fmt.println("[DEBUG]: draw capacity exceeded")
-	}	
+	append(&dd.draws, DrawCall{model_matrix, color, mesh})
+	// if dd.count < len(dd.draws) {
+	// 	dd.draws[dd.count] = {model_matrix, color, mesh}
+	// 	dd.count += 1
+	// } else {
+	// 	fmt.println("[DEBUG]: draw capacity exceeded")
+	// }	
 }
 
 draw_wire_sphere :: proc(position : vec3, size : f32, color : vec3) {
-	dd := &debug_drawing
-	model_matrix := linalg.matrix4_translate_f32(position) *
-					linalg.matrix4_scale_f32(size)
+	dd 				:= &debug_drawing
+	model_matrix 	:= linalg.matrix4_from_trs_f32(position, quaternion(1), vec3(size))
 	draw(model_matrix, color, &dd.sphere_mesh)
 }
 
 draw_wire_cube :: proc(position : vec3, rotation : quaternion, size : vec3, color : vec3) {
-	dd := &debug_drawing
-	model_matrix := linalg.matrix4_from_trs_f32(position, rotation, size)
+	dd 				:= &debug_drawing
+	model_matrix 	:= linalg.matrix4_from_trs_f32(position, rotation, size)
 	draw(model_matrix, color, &dd.cube_mesh)
 }
 

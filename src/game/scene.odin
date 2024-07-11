@@ -56,6 +56,7 @@ Scene :: struct {
 	meshes : [MeshName]graphics.Mesh,
 
 	set_pieces : []SetPiece,
+	greyboxing : Greyboxing,
 }
 
 SceneName :: enum {
@@ -66,6 +67,7 @@ SceneName :: enum {
 
 SerializedScene :: struct {
 	lighting : Lighting,
+	greyboxing : SerializedGreyboxing,
 }
 
 // Todo(Leo): take pointer argument for lazy allocation issues. If we make a
@@ -177,6 +179,7 @@ load_scene :: proc(scene_name : SceneName) -> ^Scene {
 	}
 
 	s.lighting = serialized.lighting
+	deserialize_greyboxing(&s.greyboxing, &serialized.greyboxing)
 
 	return s
 }
@@ -190,6 +193,7 @@ save_scene :: proc(scene : ^Scene) {
 
 	s : SerializedScene
 	s.lighting = scene.lighting
+	s.greyboxing = serialize_greyboxing(&scene.greyboxing)
 
 	// Todo(Leo): allocation!!!
 	data, json_error := json.marshal(s, opt = {pretty = true})
@@ -212,6 +216,7 @@ unload_scene :: proc(s : ^Scene) {
 	// Todo(Leo): now these actually need to be implemented
 	destroy_terrain(&s.terrain)
 	destroy_grass(&s.grass)
+	destroy_greyboxing(&s.greyboxing)
 
 	delete(s.set_pieces)
 

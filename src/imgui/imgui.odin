@@ -8,6 +8,12 @@ import "core:strings"
 
 import "vendor:glfw"
 
+import "shrubs:common"
+
+vec2 :: common.vec2
+vec3 :: common.vec3
+vec4 :: common.vec4
+
 ///////////////////////////////////////////////////////////////////////////////
 /// Maintenance API
 
@@ -63,27 +69,27 @@ text :: proc(format : string, stuff : ..any) {
 }
 
 button :: proc(label : string, size := ImVec2{0, 0}) -> bool {
-	label := as_u8_array(label, 32)
+	label := to_u8_array(label, 32)
 	return cast(bool) Button(cstring(&label[0]), size)
 }
 
 checkbox :: proc(label : string, value : ^bool) -> bool {
 	value_b8 	:= b8(value^)
-	label 		:= as_u8_array(label, 32)
+	label 		:= to_u8_array(label, 32)
 	result 		:= cast(bool) Checkbox(cstring(&label[0]), &value_b8)
 	value^ 		= bool(value_b8)
 	return result
 }
 
 enum_dropdown :: proc(label : string, v : ^$T) -> bool where intrinsics.type_is_enum(T) {
-	label := as_u8_array(label, 32)
-	selected_name := as_u8_array(reflect.enum_string(v^), 32)
+	label := to_u8_array(label, 32)
+	selected_name := to_u8_array(reflect.enum_string(v^), 32)
 
 	edited := false
 
 	if BeginCombo(cstring(&label[0]), cstring(&selected_name[0])) {
 		for value in T {
-			current_name := as_u8_array(reflect.enum_string(value), 32)
+			current_name := to_u8_array(reflect.enum_string(value), 32)
 
 			if Selectable(cstring(&current_name[0]), value == v^) {
 				v^ = value
@@ -96,11 +102,26 @@ enum_dropdown :: proc(label : string, v : ^$T) -> bool where intrinsics.type_is_
 	return edited
 } 
 
+input_int :: proc(label : string, v : ^int, step := 1, step_fast := 100, flags := ImGuiInputTextFlags(0)) -> bool {
+	label := to_u8_array(label, 32)
+
+	v_i32 	:= i32(v^)
+	edited 	:= cast(bool) InputInt(cstring(&label[0]), &v_i32, i32(step), i32(step_fast), flags)
+	v^ 		= int(v_i32)
+
+	return edited
+}
+
+drag_vec3 :: proc(label : string, v : ^vec3, v_speed := f32(1.0), v_min := f32(0.0), v_max := f32(0.0), format := cstring("%.3f"), flags := ImGuiSliderFlags{}) -> bool {
+	label := to_u8_array(label, 32)
+	return cast(bool) DragFloat3(cstring(&label[0]), cast(^f32)v, v_speed, v_min, v_max, format, flags)
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Internal helpers
 
 @private
-as_u8_array :: proc(s : string, $size : int) -> [size]u8 {
+to_u8_array :: proc(s : string, $size : int) -> [size]u8 {
 	out 		:= [size]u8 {}
 	s_u8 		:= transmute([]u8)s
 	copy_len 	:= min(size - 1, len(s_u8))
