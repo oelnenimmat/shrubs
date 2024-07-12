@@ -38,7 +38,8 @@ MeshName :: enum {
 Lighting :: struct {
 	direction_polar 	: vec2,
 	directional_color 	: vec4,
-	ambient_color 		: vec4
+	ambient_color 		: vec4,
+	exposure 			: f32,
 }
 
 Scene :: struct {

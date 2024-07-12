@@ -56,9 +56,6 @@ setup_grass_pipeline :: proc(cull_back : bool) {
 	gl.Enable(gl.DEPTH_TEST)
 }
 
-// Nothing to set now, maybe never: most things are put into a shared shader storage buffer
-// set_grass_material :: proc() {}
-
 GrassRenderer :: struct {
 	vao : u32,	
 }

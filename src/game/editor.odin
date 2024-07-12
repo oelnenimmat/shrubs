@@ -24,9 +24,6 @@ editor : struct {
 	camera_view_up 		: vec3,
 	camera_position 	: vec3,
 
-	// Todo(Leo): definetly not here, but this was easiest to serialize
-	exposure : f32,
-
 	// Only first gets to use gizmo, so we dont get weird results
 	// Todo(Leo): not necessarily necessary, but for now is like this
 	gizmo_used_this_frame : bool,

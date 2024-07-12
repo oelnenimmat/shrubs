@@ -46,9 +46,11 @@ graphics_context : struct {
 	grass_pipeline 				: GrassPipeline,
 	terrain_pipeline			: TerrainPipeline,
 	grass_placement_pipeline 	: GrassPlacementPipeline,
-	debug_pipeline 				: DebugPipeline,
-	gui_pipeline 				: GuiPipeline,
+	sky_pipeline 				: SkyPipeline,
+	// gui_pipeline 				: GuiPipeline,
 	post_process_pipeline 		: PostProcessPipeline,
+	debug_pipeline 				: DebugPipeline,
+
 
 	pipeline_shared 			: PipelineShared,
 
@@ -88,12 +90,17 @@ initialize :: proc() {
 		print_info("max vert texture units", gl.MAX_VERTEX_TEXTURE_IMAGE_UNITS)
 	}
 
-	gl.Enable(gl.DEPTH_TEST)
 
 	// These SHOULD be same for all, if not, move to individual pipelines
-	gl.FrontFace(gl.CCW)
-	gl.CullFace(gl.BACK)
+	{
+		// Always the right hand rule. This is for triangle winding.
+		gl.FrontFace(gl.CCW)
+		gl.CullFace(gl.BACK)
 	
+		// Rendering sky needs this, and others don't mind
+		gl.DepthFunc(gl.LEQUAL)
+	}
+
 	// This is same for all for now, for gui and postprocessing might change
 	gl.Enable(gl.MULTISAMPLE)
 
@@ -107,9 +114,10 @@ initialize :: proc() {
 	gc.grass_pipeline 			= create_grass_pipeline()
 	gc.terrain_pipeline 		= create_terrain_pipeline()
 	gc.grass_placement_pipeline = create_grass_placement_pipeline()
-	gc.debug_pipeline 			= create_debug_pipeline()
-	gc.gui_pipeline 			= create_gui_pipeline()
+	gc.sky_pipeline 			= create_sky_pipeline()
 	gc.post_process_pipeline	= create_post_process_pipeline()
+
+	gc.debug_pipeline 			= create_debug_pipeline()
 
 	gc.pipeline_shared 			= create_pipeline_shared()
 
@@ -233,10 +241,6 @@ begin_frame :: proc() {
 	fence := gc.virtual_frame_in_use_fences[gc.virtual_frame_index]
 	gl.ClientWaitSync(fence, 0, max(u64))
 
-	// // No need to really clear color buffer, right??
-	// gl.ClearColor(0.1, 0.65, 0.95, 1.0)
-	// gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-
 	// Todo(Leo): learn more if this is necessary or not. Also if it matters
 	// if this is before or after fence sync. https://stackoverflow.com/questions/2143240/opengl-glflush-vs-glfinish
 	// Moves all sent commands to execution
@@ -252,8 +256,8 @@ bind_main_framebuffer :: proc() {
 	gl.BindFramebuffer(gl.FRAMEBUFFER, gc.main_framebuffer)
 	gl.Viewport(0, 0, gc.main_framebuffer_width, gc.main_framebuffer_height)
 
-	// No need to really clear color buffer, right??
-	gl.ClearColor(0.1, 0.65, 0.95, 1.0)
+	// Clear to hostile pink, so we see easily if some pixel is not rendered to.
+	gl.ClearColor(1, 0, 1, 1)
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 }
 
@@ -263,7 +267,9 @@ bind_screen_framebuffer :: proc() {
 	window_width, window_height := window.get_window_size()
 	gl.Viewport(0, 0, i32(window_width), i32(window_height))
 
-	// No need to clear: we dont use depth buffering, and we always draw everywhere
+	// Clear to hostile pink, so we see easily if some pixel is not rendered to.
+	gl.ClearColor(1, 0, 1, 1)
+	gl.Clear(gl.COLOR_BUFFER_BIT)
 }
 
 blit_to_resolve_image :: proc() {

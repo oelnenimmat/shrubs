@@ -65,10 +65,6 @@ grass_chunk_size := f32(5)
 
 grass_type_to_edit : GrassType
 
-// post_processing : struct {
-// 	exposure : f32,
-// }
-
 // Resources
 white_texture 	: graphics.Texture
 black_texture 	: graphics.Texture
@@ -232,8 +228,11 @@ update :: proc(delta_time: f64) {
 		wind_on = !wind_on
 	}
 
-	///////////////////////////////////////////////////////////////////////////
 	// END OF UPDATE
+	///////////////////////////////////////////////////////////////////////////
+
+	///////////////////////////////////////////////////////////////////////////
+	// GUI
 
 
 	// Todo(Leo): these are from last frame, does it matter? Probably not much, as
@@ -386,12 +385,14 @@ update :: proc(delta_time: f64) {
 	}
 
 	// NEXT PIPELINE
-	graphics.blit_to_resolve_image()
-	graphics.bind_screen_framebuffer()
-	graphics.dispatch_post_process_pipeline(editor.exposure)
+	graphics.draw_sky()
 
 	// NEXT PIPELINE
-	graphics.setup_gui_pipeline()
+	graphics.blit_to_resolve_image()
+	graphics.bind_screen_framebuffer()
+	graphics.dispatch_post_process_pipeline(scene.lighting.exposure)
+
+	// NEXT PIPELINE
 	imgui.render()
 
 	// End of pipelines
@@ -460,10 +461,13 @@ editor_gui :: proc() {
 		}
 
 		if imgui.CollapsingHeader("Lighting") {
-			imgui.SliderFloat("Polar X", &scene.lighting.direction_polar.x, 0, 360)
-			imgui.SliderFloat("Polar Y", &scene.lighting.direction_polar.y, -90, 90)
-			imgui.ColorEdit3("Directional", auto_cast &scene.lighting.directional_color, .HDR)
-			imgui.ColorEdit3("Ambient", auto_cast &scene.lighting.ambient_color, .HDR)
+			l := &scene.lighting
+			imgui.SliderFloat("Polar X", &l.direction_polar.x, 0, 360)
+			imgui.SliderFloat("Polar Y", &l.direction_polar.y, -90, 90)
+			imgui.ColorEdit3("Directional", auto_cast &l.directional_color, .HDR | .Float | .DisplayHSV)
+			imgui.ColorEdit3("Ambient", auto_cast &l.ambient_color, .HDR | .Float | .DisplayHSV)
+			imgui.DragFloat("Exposure", &l.exposure, 0.01)
+
 		}
 
 		if imgui.CollapsingHeader("Grass!") {
@@ -502,10 +506,6 @@ editor_gui :: proc() {
 
 		if imgui.CollapsingHeader("Greyboxing") {
 			edit_greyboxing(&scene.greyboxing)
-		}
-
-		if imgui.CollapsingHeader("Post Processing") {
-			imgui.DragFloat("Exposure", &editor.exposure, 0.01)
 		}
 
 		if imgui.CollapsingHeader("Debug") {
