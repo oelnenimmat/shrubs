@@ -366,7 +366,7 @@ update :: proc(delta_time: f64) {
 	graphics.setup_grass_pipeline(grass_cull_back)
 	for i in 0..<len(grass_system.instance_buffers) {
 		graphics.draw_grass(
-			&grass_system.instance_buffers[i],
+			grass_system.renderers[i],
 			lod_instance_counts[i] * lod_instance_counts[i],
 			lod_segment_counts[i],
 			grass_lods[i],

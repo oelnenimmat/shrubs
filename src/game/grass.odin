@@ -10,6 +10,7 @@ Grass :: struct {
 	// chunk min corner positions, curresponding to same index instance buffers
 	positions 			: []vec2,
 	instance_buffers 	: []graphics.Buffer,
+	renderers			: []graphics.GrassRenderer,
 	placement_map 		: ^graphics.Texture,
 }
 
@@ -49,24 +50,28 @@ create_grass :: proc() -> Grass {
 	chunk_size := f32(5)
 
 	// Todo(Leo): allocator!!!!
-	g.positions = make([]vec2, chunk_count_2D)
-	g.instance_buffers = make([]graphics.Buffer, chunk_count_2D)
+	g.positions 		= make([]vec2, chunk_count_2D)
+	g.instance_buffers 	= make([]graphics.Buffer, chunk_count_2D)
+	g.renderers 		= make([]graphics.GrassRenderer, chunk_count_2D)
 
 	for i in 0..<chunk_count_2D {
 		x := f32(i % chunk_count_1D)
 		y := f32(i / chunk_count_1D)
 
-		g.positions[i] = {x * chunk_size - 25, y * chunk_size - 25}
-		g.instance_buffers[i] = graphics.create_buffer(buffer_data_size)
+		g.positions[i] 			= {x * chunk_size - 25, y * chunk_size - 25}
+		g.instance_buffers[i] 	= graphics.create_buffer(buffer_data_size)
+		g.renderers[i] 			= graphics.create_grass_renderer(&g.instance_buffers[i])
 	}
 
 	return g
 }
 
 destroy_grass :: proc(grass : ^Grass) {
-	for ib in &grass.instance_buffers {
-		graphics.destroy_buffer(&ib)
+	for _, i in &grass.instance_buffers {
+		graphics.destroy_buffer(&grass.instance_buffers[i])
+		graphics.destroy_grass_renderer(&grass.renderers[i])
 	}
+	delete(grass.renderers)
 	delete(grass.instance_buffers)
 	delete(grass.positions)
 

@@ -59,15 +59,17 @@ setup_grass_pipeline :: proc(cull_back : bool) {
 // Nothing to set now, maybe never: most things are put into a shared shader storage buffer
 // set_grass_material :: proc() {}
 
-draw_grass :: proc(ib : ^Buffer, instance_count : int, segment_count : int, lod : int) {
-	pl := &graphics_context.grass_pipeline
+GrassRenderer :: struct {
+	vao : u32,	
+}
 
-	// Need to unbind all previous vaos, so we dont overwrite those
-	gl.BindVertexArray(0)
-	
-	// Todo(Leo): looks like we should do a GrassRenderer with a vao with all this preset
-	// SETUP INSTANCE DATA BUFFER
-	gl.BindBuffer(gl.ARRAY_BUFFER, ib.buffer)
+create_grass_renderer :: proc(instance_buffer : ^Buffer) -> GrassRenderer {
+	gr := GrassRenderer {}
+
+	gl.GenVertexArrays(1, &gr.vao)
+	gl.BindVertexArray(gr.vao)
+
+	gl.BindBuffer(gl.ARRAY_BUFFER, instance_buffer.buffer)
 
 	gl.VertexAttribPointer(0, 4, gl.FLOAT, gl.FALSE, 4 * size_of(vec4), uintptr(0 * size_of(vec4)))
 	gl.VertexAttribPointer(1, 4, gl.FLOAT, gl.FALSE, 4 * size_of(vec4), uintptr(1 * size_of(vec4)))
@@ -83,6 +85,18 @@ draw_grass :: proc(ib : ^Buffer, instance_count : int, segment_count : int, lod 
 	gl.VertexAttribDivisor(1, 1)
 	gl.VertexAttribDivisor(2, 1)
 	gl.VertexAttribDivisor(3, 1)
+
+	return gr
+}
+
+destroy_grass_renderer :: proc(gr : ^GrassRenderer) {
+	gl.DeleteVertexArrays(1, &gr.vao)
+}
+
+draw_grass :: proc(gr : GrassRenderer, instance_count : int, segment_count : int, lod : int) {
+	pl := &graphics_context.grass_pipeline
+
+	gl.BindVertexArray(gr.vao)
 
 	gl.Uniform4f(pl.segment_count_location, f32(segment_count), f32(lod), 0, 0)
 	vertex_count := 3 + (segment_count - 1) * 2
