@@ -94,12 +94,12 @@ foreign cimgui {
 	ImGuizmo_BeginFrame :: proc() ---
 	ImGuizmo_SetDrawlist :: proc(drawlist : ^ImDrawList) ---
 	ImGuizmo_Manipulate :: proc(
-		view 			: ^f32,
-		projection 		: ^f32,
+		view 			: ^mat4,
+		projection 		: ^mat4,
 		operation 		: ImGuizmo_OPERATION,
 		mode 			: ImGuizmo_MODE,
-		transform 		: ^f32,
-		delta_transform : ^f32 = nil,
+		transform 		: ^mat4,
+		delta_transform : ^mat4 = nil,
 		snap 			: ^f32 = nil,
 		localBounds 	: ^f32 = nil,
 		boundsSnap 		: ^f32 = nil,

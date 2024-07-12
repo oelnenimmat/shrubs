@@ -14,6 +14,9 @@ Box :: struct {
 }
 
 Greyboxing :: struct {
+	// Todo(Leo): these are not game variables, need to something with that
+	// could be that instead of rendering this in the game, we just generate
+	// a game rendering thing with this.
 	selection_index : int,
 
 	boxes : [dynamic]Box,
@@ -67,7 +70,7 @@ edit_greyboxing :: proc(g : ^Greyboxing) {
 	{
 		imgui.input_int("Selection", &g.selection_index)
 
-		// need to clamp selection 
+		// need to loop/clamp selection 
 		g.selection_index = ((g.selection_index + 1) % (len(g.boxes) + 1)) - 1
 	}
 	
@@ -83,15 +86,13 @@ edit_greyboxing :: proc(g : ^Greyboxing) {
 		}
 	}
 
-
 	if g.selection_index >= 0 {
 		b := &g.boxes[g.selection_index]
 		imgui.drag_vec3("position", &b.position, 0.01)
 		imgui.drag_vec3("rotation", &b.rotation, 0.01)
 		imgui.drag_vec3("size", &b.size, 0.01)
 
-		// editor_edit_position(&b.position)
-		editor_edit_rotation(b.position, &b.rotation)
+		editor_gizmo_transform(&b.position, &b.rotation, &b.size)
 
 		debug.draw_wire_cube(
 			b.position, 

@@ -12,6 +12,8 @@ EDITOR_STATE_SAVE_FILE_NAME :: "local/editor_state.json"
 EDITOR_CAMERA_MOVE_SPEED :: 6
 
 EditorMode :: enum { ClickyClicky, FlyView }
+EditorGizmoType :: enum { None, Translate, Rotate, Size }
+EditorGizmoOrientation :: enum { Local, World }
 
 editor : struct {
 	loaded_scene_name : SceneName,
@@ -26,34 +28,36 @@ editor : struct {
 
 	// Only first gets to use gizmo, so we dont get weird results
 	// Todo(Leo): not necessarily necessary, but for now is like this
-	gizmo_used_this_frame : bool,
+	gizmo_used_this_frame 	: bool,
+	gizmo_type 				: EditorGizmoType,
+	gizmo_orientation 		: EditorGizmoOrientation,
 }
 
-editor_edit_position :: proc(target_position : ^vec3) {
-	if !editor.gizmo_used_this_frame {
-		editor.gizmo_used_this_frame = true
+editor_gizmo_transform :: proc(position : ^vec3, rotation_euler : ^vec3, size : ^vec3) {
+	if editor.gizmo_used_this_frame { return }
+	editor.gizmo_used_this_frame = true
 
-		imgui.translate_gizmo(target_position, 1, .WORLD)
+	rotation := linalg.quaternion_from_euler_angles(
+		rotation_euler.x, 
+		rotation_euler.y, 
+		rotation_euler.z, 
+		.XYZ
+	)
+
+	// Todo(Leo): as this is the only channel to use imguizmos from, move those functions here,
+	// we probably end up with less code, which is good
+	switch editor.gizmo_type {
+		case .None:
+		case .Translate:
+			imgui.translate_gizmo(position, rotation, imgui.ImGuizmo_MODE(editor.gizmo_orientation))
+		case .Rotate: 
+			imgui.rotate_gizmo(&rotation, position^, imgui.ImGuizmo_MODE(editor.gizmo_orientation))
+			x, y, z := linalg.euler_angles_from_quaternion(rotation, .XYZ)
+			rotation_euler^ = {x, y, z} 
+		case .Size:
+			imgui.size_gizmo(size, position^, rotation)
 	}
-}
-
-editor_edit_rotation :: proc(target_position : vec3, target_rotation_euler : ^vec3) {
-	if !editor.gizmo_used_this_frame {
-		editor.gizmo_used_this_frame = true
-
-		rotation := linalg.quaternion_from_euler_angles(
-			target_rotation_euler.x, 
-			target_rotation_euler.y, 
-			target_rotation_euler.z, 
-			.XYZ
-		)
-
-		imgui.rotate_gizmo(&rotation, target_position, .WORLD)
-
-		x, y, z := linalg.euler_angles_from_quaternion(rotation, .XYZ)
-		target_rotation_euler^ = {x, y, z} 
-	}
-}
+} 
 
 editor_do_gizmos :: proc() {
 	editor.gizmo_used_this_frame = false

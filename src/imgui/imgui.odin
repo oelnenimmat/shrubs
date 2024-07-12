@@ -135,15 +135,16 @@ drag_vec3 :: proc(label : string, v : ^vec3, v_speed := f32(1.0), v_min := f32(0
 
 ///////////////////////////////////////////////////////////////////////////////
 // Gizmos
+// Todo(Leo): seems like these are only used from/in the editor, maybe could be moved there?
 
 translate_gizmo :: proc(position : ^vec3, rotation : quaternion, mode : ImGuizmo_MODE) {
 	mat := linalg.matrix4_from_trs(position^, rotation, 1)
 	ImGuizmo_Manipulate(
-		cast(^f32) &view_matrix,
-		cast(^f32) &projection_matrix,
+		&view_matrix,
+		&projection_matrix,
 		.TRANSLATE,
 		mode,
-		cast(^f32) &mat,
+		&mat,
 	)
 	// luckily works like this :)
 	position^ = mat[3].xyz
@@ -152,14 +153,34 @@ translate_gizmo :: proc(position : ^vec3, rotation : quaternion, mode : ImGuizmo
 rotate_gizmo :: proc(rotation : ^quaternion, position : vec3, mode : ImGuizmo_MODE) {
 	mat := linalg.matrix4_from_trs(position, rotation^, 1)
 	ImGuizmo_Manipulate(
-		cast(^f32) &view_matrix,
-		cast(^f32) &projection_matrix,
-		.ROTATE, //.ROTATE_X | .ROTATE_Z,
+		&view_matrix,
+		&projection_matrix,
+		.ROTATE_X | .ROTATE_Y | .ROTATE_Z,
 		mode,
-		cast(^f32) &mat,
+		&mat,
 	)
 	rotation^ = linalg.quaternion_from_matrix4(mat)
 	rotation^ = linalg.quaternion_normalize(rotation^)
+}
+
+size_gizmo :: proc(size : ^vec3, position : vec3, rotation : quaternion) {
+	mat := linalg.matrix4_from_trs(position, rotation, size^)
+	ImGuizmo_Manipulate(
+		&view_matrix,
+		&projection_matrix,
+		.SCALE,
+		.LOCAL,
+		&mat,
+	)
+
+	// T * R * S = mat
+	// --> R^-1 * T^-1 * T * R * S = R^-1 * T^-1 * mat
+	// --> S = R^-1 * T^-1 * mat
+	T_inverse := linalg.inverse(linalg.matrix4_translate_f32(position))
+	R_inverse := linalg.inverse(linalg.matrix4_from_quaternion(rotation))
+
+	S := R_inverse * T_inverse * mat
+	size^ = {S[0,0], S[1,1], S[2,2]}
 }
 
 ///////////////////////////////////////////////////////////////////////////////

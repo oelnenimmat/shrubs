@@ -445,6 +445,24 @@ editor_gui :: proc() {
 	// 					900,
 	// 				} 
 	if imgui.Begin("Shrubs!!") {
+
+		// Gizmo options now always visible
+		{
+			imgui.enum_dropdown("Gizmo", &editor.gizmo_type)
+
+			if input.DEBUG_get_key_pressed(._1) { editor.gizmo_type = .None }
+			if input.DEBUG_get_key_pressed(._2) { editor.gizmo_type = .Translate }
+			if input.DEBUG_get_key_pressed(._3) { editor.gizmo_type = .Rotate }
+			if input.DEBUG_get_key_pressed(._4) { editor.gizmo_type = .Size }
+
+			imgui.enum_dropdown("Orientation", &editor.gizmo_orientation)
+
+			if input.DEBUG_get_key_pressed(._5) { 
+				o := &editor.gizmo_orientation
+				o^ = .Local if o^ == .World else .World
+			}
+		}
+
 		if imgui.CollapsingHeader("Scenes") {
 			if imgui.Button("Save Current Scene") {
 				save_scene(scene)
