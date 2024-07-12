@@ -19,6 +19,8 @@ import "core:intrinsics"
 import "core:math"
 import "core:math/linalg"
 import "core:reflect"
+import "core:strings"
+import "core:time"
 
 vec2 		:: common.vec2
 vec3 		:: common.vec3
@@ -84,6 +86,8 @@ timings : struct {
 }
 
 test_position : vec3
+
+save_screenshot := false
 
 initialize :: proc() {
 	// Todo(Leo): some of this stuff seems to bee "application" or "engine" and not "game"
@@ -392,6 +396,31 @@ update :: proc(delta_time: f64) {
 	graphics.bind_screen_framebuffer()
 	graphics.dispatch_post_process_pipeline(scene.lighting.exposure)
 
+	if save_screenshot {
+		save_screenshot = false
+
+		width, height, pixels := graphics.read_screen_framebuffer()
+		defer delete(pixels)
+
+		now := time.now()
+
+		NANOSECS_IN_HOUR :: 3.6e12
+		now_but_in_my_timezone := time.Time { now._nsec + 3 * NANOSECS_IN_HOUR }
+
+		buffer : [64]u8
+		filename_builder := strings.builder_from_bytes(buffer[:])
+		fmt.sbprintf(
+			&filename_builder,
+
+			// year is always 4 chars, pad rest with leading zeros so file system
+			// sorts them properly
+			"screenshots/screen_framebuffer_{}_{:2i}_{:2i}_{:2i}_{:2i}_{:2i}.png",
+			time.date(now_but_in_my_timezone),
+			time.clock_from_time(now_but_in_my_timezone),
+		)
+		assets.write_color_image(strings.to_string(filename_builder), width, height, pixels)
+	}
+
 	// NEXT PIPELINE
 	imgui.render()
 
@@ -463,6 +492,8 @@ editor_gui :: proc() {
 			}
 		}
 
+		if imgui.button("Save Screenshot") { save_screenshot = true }
+
 		if imgui.CollapsingHeader("Scenes") {
 			if imgui.Button("Save Current Scene") {
 				save_scene(scene)
@@ -477,6 +508,8 @@ editor_gui :: proc() {
 				}
 			}
 		}
+
+		if imgui.CollapsingHeader("World") { edit_world_settings(&scene.world) }
 
 		if imgui.CollapsingHeader("Lighting") {
 			l := &scene.lighting

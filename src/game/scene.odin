@@ -46,6 +46,7 @@ Scene :: struct {
 	name : SceneName,
 
 	// Systems
+	world 		: WorldSettings,
 	terrain 	: Terrain,
 	lighting 	: Lighting,
 
@@ -66,8 +67,9 @@ SceneName :: enum {
 }
 
 SerializedScene :: struct {
-	lighting : Lighting,
-	greyboxing : SerializedGreyboxing,
+	world 		: WorldSettings,
+	lighting 	: Lighting,
+	greyboxing 	: SerializedGreyboxing,
 }
 
 // Todo(Leo): take pointer argument for lazy allocation issues. If we make a
@@ -95,6 +97,8 @@ load_scene :: proc(scene_name : SceneName) -> ^Scene {
 	// Todo(Leo): this is for all, so maybe make more public access
 	s.textures[.Wind] = TEMP_load_color_texture("assets/perlin_wind.png")
 
+	s.world = serialized.world
+
 	switch scene_name {
 	case .Green_Hills_Zone:
 
@@ -109,6 +113,7 @@ load_scene :: proc(scene_name : SceneName) -> ^Scene {
 			&white_texture,
 			&s.textures[.Grass_Field],
 			&black_texture,
+			&s.world,
 		)
 		update_grass(&grass_system, &white_texture)
 
@@ -137,6 +142,7 @@ load_scene :: proc(scene_name : SceneName) -> ^Scene {
 			&white_texture,
 			&s.textures[.Grass_Field],
 			&black_texture,
+			&s.world,
 		)
 		update_grass(&grass_system, &white_texture)
 
@@ -167,6 +173,7 @@ load_scene :: proc(scene_name : SceneName) -> ^Scene {
 			&s.textures[.Grass_Placement],
 			&s.textures[.Grass_Field],
 			&s.textures[.Road],
+			&s.world,
 		)
 		update_grass(&grass_system, &s.textures[.Grass_Placement])
 
@@ -178,7 +185,7 @@ load_scene :: proc(scene_name : SceneName) -> ^Scene {
 		copy(s.set_pieces, set_pieces)
 	}
 
-	s.lighting = serialized.lighting
+	s.lighting 	= serialized.lighting
 	deserialize_greyboxing(&s.greyboxing, &serialized.greyboxing)
 
 	return s
@@ -190,10 +197,10 @@ save_scene :: proc(scene : ^Scene) {
 	defer strings.builder_destroy(&filename_builder)
 	fmt.sbprintf(&filename_builder, "scenes/{}.scene", scene.name)
 
-
 	s : SerializedScene
-	s.lighting = scene.lighting
-	s.greyboxing = serialize_greyboxing(&scene.greyboxing)
+	s.world 		= scene.world
+	s.lighting 		= scene.lighting
+	s.greyboxing 	= serialize_greyboxing(&scene.greyboxing)
 
 	// Todo(Leo): allocation!!!
 	data, json_error := json.marshal(s, opt = {pretty = true})

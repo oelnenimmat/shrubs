@@ -111,7 +111,7 @@ update_player_character :: proc(pc : ^PlayerCharacter, cam : ^Camera, delta_time
 	}
 
 	// Collide/constrain
-	min_z := sample_height(pc.physics_position.x, pc.physics_position.y)
+	min_z := sample_height(pc.physics_position.x, pc.physics_position.y, &scene.world)
 	GROUNDING_SKIN_WIDTH :: 0.02
 	grounded := pc.physics_position.z < (min_z + GROUNDING_SKIN_WIDTH)
 

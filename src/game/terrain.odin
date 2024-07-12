@@ -1,6 +1,7 @@
 package game
 
 import "shrubs:graphics"
+import "shrubs:imgui"
 
 import "core:fmt"
 import "core:math"
@@ -12,9 +13,17 @@ TERRAIN_CHUNK_COUNT :: 5 // x 5
 TERRAIN_CHUNK_SIZE :: 10 // x 10
 
 GRASS_DENSITY_PER_UNIT :: 10
-
 GRASS_CHUNK_WORLD_SIZE :: 10
 GRASS_BLADES_IN_CHUNK_1D :: 128
+
+// "World" as in isolated part of "world" that makes up this specific scene 
+WorldSettings :: struct {
+	seed : int,
+}
+
+edit_world_settings :: proc(w : ^WorldSettings) {
+	imgui.input_int("seed", &w.seed)
+}
 
 Terrain :: struct {
 	positions 		: []vec3,
@@ -28,9 +37,10 @@ Terrain :: struct {
 create_terrain :: proc(
 	grass_placement_map : ^graphics.Texture,
 	grass_field_texture : ^graphics.Texture,
-	road_texture : ^graphics.Texture,
+	road_texture 		: ^graphics.Texture,
+	world 				: ^WorldSettings,
 ) -> Terrain {
-	t : Terrain
+	t := Terrain {}
 
 	chunk_count := TERRAIN_CHUNK_COUNT * TERRAIN_CHUNK_COUNT
 	// Todo(Leo): allocator!!!
@@ -53,7 +63,7 @@ create_terrain :: proc(
 		}
 
 		t.positions[i] = {x, y, 0}
-		t.meshes[i] = create_static_terrain_mesh(t.positions[i].xy, uv_offset)
+		t.meshes[i] = create_static_terrain_mesh(t.positions[i].xy, uv_offset, world)
 	}
 
 	t.grass_placement_map = grass_placement_map
@@ -75,11 +85,11 @@ destroy_terrain :: proc(terrain : ^Terrain) {
 	terrain^ = {}
 }
 
-
-
-sample_height :: proc(x, y : f32) -> f32 {
+sample_height :: proc(x, y : f32, world : ^WorldSettings) -> f32 {
 	
-	WORLD_SEED 			:: 563
+	seed := 563 if world == nil else world.seed
+
+	// WORLD_SEED 			:: 563
 	WORLD_TO_GRID_SCALE :: 0.1
 	TERRAIN_Z_SCALE 	:: 5
 
@@ -87,10 +97,10 @@ sample_height :: proc(x, y : f32) -> f32 {
 	x := x * WORLD_TO_GRID_SCALE
 	y := y * WORLD_TO_GRID_SCALE
 
-	return value_noise_2D(x, y, WORLD_SEED) * TERRAIN_Z_SCALE
+	return value_noise_2D(x, y, i32(seed)) * TERRAIN_Z_SCALE
 }
 
-create_static_terrain_mesh :: proc(min_corner_position : vec2, uv_offset : vec2) -> graphics.Mesh {
+create_static_terrain_mesh :: proc(min_corner_position : vec2, uv_offset : vec2, world : ^WorldSettings) -> graphics.Mesh {
 	
 	// per dimension
 	quad_count_1D := 10
@@ -120,7 +130,7 @@ create_static_terrain_mesh :: proc(min_corner_position : vec2, uv_offset : vec2)
 		x := local_x + min_corner_position.x
 		y := local_y + min_corner_position.y
 
-		z := sample_height(x, y)
+		z := sample_height(x, y, world)
 
 		u := f32(cell_x) / f32(quad_count_1D) / f32(TERRAIN_CHUNK_COUNT) + uv_offset.x
 		v := f32(cell_y) / f32(quad_count_1D) / f32(TERRAIN_CHUNK_COUNT) + uv_offset.y
@@ -161,7 +171,6 @@ create_static_terrain_mesh :: proc(min_corner_position : vec2, uv_offset : vec2)
 		indices[t4] = u16(v4)
 		indices[t5] = u16(v5)
 	}
-
 	
 	for i := 0; i < index_count; i += 3 {
 		v0 := positions[indices[i + 0]]
@@ -181,7 +190,6 @@ create_static_terrain_mesh :: proc(min_corner_position : vec2, uv_offset : vec2)
 	for i := 0; i < vertex_count; i += 1 {
 		normals[i] = linalg.normalize(normals[i])
 	}
-	
 
 	mesh := graphics.create_mesh(positions, normals, texcoords, indices)
 	return mesh

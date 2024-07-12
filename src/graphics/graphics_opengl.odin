@@ -290,7 +290,20 @@ bind_uniform_buffer :: proc(buffer : ^Buffer, binding : u32) {
 	gl.BindBufferBase(gl.UNIFORM_BUFFER, binding, buffer.buffer)
 }
 
-// PLATFORM INTERNAL USAGE ----------------------------------------------------
+read_screen_framebuffer :: proc() -> (width, height : int, pixels_u8_rgba : []u8) {
+	// Todo(Leo): make sure that it is screen framebuffer
+	// that is actually bound, as this is promised in the function name
+
+	width, height = window.get_window_size()
+
+	pixels_u8_rgba = make([]u8, 4 * width * height)
+	gl.ReadPixels(0, 0, i32(width), i32(height), gl.RGBA, gl.UNSIGNED_BYTE, raw_data(pixels_u8_rgba))
+
+	return width, height, pixels_u8_rgba
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Platform internal usage
 
 @private
 set_texture_2D :: proc(texture : ^Texture, slot : u32) {

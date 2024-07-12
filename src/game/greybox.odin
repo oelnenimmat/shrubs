@@ -46,6 +46,7 @@ serialize_greyboxing :: proc(g : ^Greyboxing) -> SerializedGreyboxing {
 	return { g.boxes[:] }
 }
 
+@(warning = "whoever passes the serialized pointer needs to delete the memory")
 deserialize_greyboxing :: proc(g : ^Greyboxing, s : ^SerializedGreyboxing) {
 	g.boxes = make([dynamic]Box, len(s.boxes))
 	copy(g.boxes[:], s.boxes)

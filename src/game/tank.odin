@@ -214,7 +214,7 @@ update_tank :: proc(tank : ^Tank, delta_time : f32) {
 		// Constrain to ground
 		for i in 0..<TANK_WHEEL_COUNT {
 			position 	:= tank.wheel_positions[i]
-			min_z 		:= sample_height(position.x, position.y) + TANK_WHEEL_RADIUS
+			min_z 		:= sample_height(position.x, position.y, &scene.world) + TANK_WHEEL_RADIUS
 
 			if position.z < min_z {
 				position.z = min_z
