@@ -49,6 +49,8 @@ camera 				: Camera
 tank 				: Tank
 
 scene : ^Scene
+grass_types : GrassTypes
+grass_system : Grass
 
 grass_blade_count := 32
 grass_segment_count := 3
@@ -117,7 +119,9 @@ initialize :: proc() {
 	application.mode = .Edit
 
 	// Todo(Leo): Not sure how to categorize this yet?
-	load_grass_types()
+	grass_types = create_grass_types()
+	load_grass_types(&grass_types)
+	grass_system = create_grass()
 
 	// Scene
 	if IS_ACTUALLY_EDITOR {
@@ -128,7 +132,9 @@ initialize :: proc() {
 }
 
 terminate :: proc() {
-	save_grass_types()
+	destroy_grass(&grass_system)
+	save_grass_types(&grass_types)
+	destroy_grass_types(&grass_types)
 
 	save_editor_state()
 
@@ -222,7 +228,7 @@ update :: proc(delta_time: f64) {
 		_, window_height := window.get_window_size()
 		imgui.SetNextWindowSize({300, f32(window_height) - next_window_Y - 10})
 		editor_gui()
-		update_grass_type_buffer(&scene.grass)
+		update_grass_type_buffer(&grass_types)
 	}
 
 	imgui.end_frame()
@@ -306,7 +312,7 @@ update :: proc(delta_time: f64) {
 	lod_instance_counts : [100]int
 	lod_check_position 	:= player_character.physics_position
 	for lod, i in &grass_lods {
-		chunk_center := scene.grass.positions[i] + vec2(2.5)
+		chunk_center := grass_system.positions[i] + vec2(2.5)
 
 		to_player := lod_check_position.xy - chunk_center
 		distance_to_player := linalg.length(to_player) 
@@ -343,14 +349,14 @@ update :: proc(delta_time: f64) {
 
 	// NEXT PIPELINE
 	// This is bound both for the grass placement and grass rendering
-	graphics.bind_uniform_buffer(&scene.grass.types_buffer, graphics.GRASS_TYPES_BUFFER_BINDING)
+	graphics.bind_uniform_buffer(&grass_types.types_buffer, graphics.GRASS_TYPES_BUFFER_BINDING)
 	
-	for i in 0..<len(scene.grass.instance_buffers) {
+	for i in 0..<len(grass_system.instance_buffers) {
 		graphics.dispatch_grass_placement_pipeline(
-			&scene.grass.instance_buffers[i], 
-			scene.grass.placement_map,
+			&grass_system.instance_buffers[i], 
+			grass_system.placement_map,
 			lod_instance_counts[i],
-			scene.grass.positions[i],
+			grass_system.positions[i],
 			grass_chunk_size,
 			int(scene.name),
 		)
@@ -358,9 +364,9 @@ update :: proc(delta_time: f64) {
 
 	// NEXT PIPELINE
 	graphics.setup_grass_pipeline(grass_cull_back)
-	for i in 0..<len(scene.grass.instance_buffers) {
+	for i in 0..<len(grass_system.instance_buffers) {
 		graphics.draw_grass(
-			&scene.grass.instance_buffers[i],
+			&grass_system.instance_buffers[i],
 			lod_instance_counts[i] * lod_instance_counts[i],
 			lod_segment_counts[i],
 			grass_lods[i],
@@ -450,11 +456,11 @@ editor_gui :: proc() {
 
 		if imgui.CollapsingHeader("Grass!") {
 			if imgui.button("Save") {
-				save_grass_types()
+				save_grass_types(&grass_types)
 			}
 
 			imgui.enum_dropdown("Edit type", &grass_type_to_edit)
-			settings := &grass_type_settings[grass_type_to_edit]
+			settings := &grass_types.settings[grass_type_to_edit]
 
 			imgui.text("LOD")
 			if imgui.button("auto") { lod_enabled = -1 }; imgui.SameLine() 
@@ -479,7 +485,7 @@ editor_gui :: proc() {
 			imgui.ColorEdit3("top color", cast(^f32)(&settings.top_color))
 			imgui.ColorEdit3("bottom color", cast(^f32)(&settings.bottom_color))
 
-			imgui.SliderFloat("roughness", &grass_type_settings[grass_type_to_edit].roughness, 0, 1)
+			imgui.SliderFloat("roughness", &grass_types.settings[grass_type_to_edit].roughness, 0, 1)
 		}
 
 		if imgui.CollapsingHeader("Greyboxing") {

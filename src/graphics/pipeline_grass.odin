@@ -62,7 +62,10 @@ setup_grass_pipeline :: proc(cull_back : bool) {
 draw_grass :: proc(ib : ^Buffer, instance_count : int, segment_count : int, lod : int) {
 	pl := &graphics_context.grass_pipeline
 
-	// Todo(Leo): looks like we should so a GrassRenderer with a vao with all this preset
+	// Need to unbind all previous vaos, so we dont overwrite those
+	gl.BindVertexArray(0)
+	
+	// Todo(Leo): looks like we should do a GrassRenderer with a vao with all this preset
 	// SETUP INSTANCE DATA BUFFER
 	gl.BindBuffer(gl.ARRAY_BUFFER, ib.buffer)
 

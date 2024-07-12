@@ -40,7 +40,6 @@ setup_debug_pipeline :: proc () {
 
 	gl.Disable(gl.CULL_FACE)
 	gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
-	gl.LineWidth(2)
 	gl.Disable(gl.BLEND)
 	gl.Enable(gl.DEPTH_TEST)
 }

@@ -72,7 +72,7 @@ create_mesh :: proc(
 destroy_mesh :: proc(mesh : ^Mesh) {
 	gl.DeleteBuffers(1, &mesh.vbo)
 	gl.DeleteBuffers(1, &mesh.ebo)
-	gl.DeleteBuffers(1, &mesh.vao)
+	gl.DeleteVertexArrays(1, &mesh.vao)
 
 	mesh^ = {}
 }
@@ -226,8 +226,10 @@ create_buffer :: proc(data_size : int, needs_to_be_writeable := false) -> Buffer
 	return b
 }
 
-@(warning="Not implemented")
-destroy_buffer :: proc(ib : ^Buffer) {}
+destroy_buffer :: proc(ib : ^Buffer) {
+	gl.DeleteBuffers(1, &ib.buffer)
+	ib^ = {}
+}
 
 buffer_write_data :: proc(b : ^Buffer, data : []$DataType) {
 	assert(b.is_writeable)
