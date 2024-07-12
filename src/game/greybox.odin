@@ -89,6 +89,10 @@ edit_greyboxing :: proc(g : ^Greyboxing) {
 		imgui.drag_vec3("position", &b.position, 0.01)
 		imgui.drag_vec3("rotation", &b.rotation, 0.01)
 		imgui.drag_vec3("size", &b.size, 0.01)
+
+		// editor_edit_position(&b.position)
+		editor_edit_rotation(b.position, &b.rotation)
+
 		debug.draw_wire_cube(
 			b.position, 
 			linalg.quaternion_from_euler_angles(b.rotation.x, b.rotation.y, b.rotation.z, .XYZ), 

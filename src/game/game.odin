@@ -87,6 +87,8 @@ timings : struct {
 	frame_time : SmoothValue,
 }
 
+test_position : vec3
+
 initialize :: proc() {
 	// Todo(Leo): some of this stuff seems to bee "application" or "engine" and not "game"
 	window.initialize(WINDOW_WIDTH, WINDOW_HEIGHT, APPLICATION_NAME)
@@ -177,6 +179,7 @@ update :: proc(delta_time: f64) {
 	input.begin_frame()
 	debug.new_frame()
 
+
 	if input.DEBUG_get_key_pressed(.Q, {.Ctrl}) {
 		application.wants_to_quit = true
 	}
@@ -193,45 +196,6 @@ update :: proc(delta_time: f64) {
 		}
 	}
 
-	imgui.begin_frame()
-	if show_imgui_demo {
-		imgui.ShowDemoWindow()
-	}
-
-
-	imgui.SetNextWindowPos({10, 10})
-	imgui.SetNextWindowSize({300, 0})
-	next_window_Y := f32(10)
-	if show_timings {
-		if imgui.Begin("Timings") {
-			if imgui.BeginTable("time table", 2) {
-
-				imgui.TableNextRow()
-				imgui.TableNextColumn()
-				imgui.text("frame time")
-				imgui.TableNextColumn()
-				imgui.text("{:5.2f} ms (fps {})", timings.frame_time.value * 1000, int(1 / timings.frame_time.value))
-
-
-				imgui.EndTable()
-			}
-
-		}
-		next_window_Y = 10 + imgui.GetWindowHeight() + 10
-		imgui.End()
-
-	}
-	
-	imgui.SetNextWindowPos({10, next_window_Y})
-
-	if application.mode == .Edit {
-		_, window_height := window.get_window_size()
-		imgui.SetNextWindowSize({300, f32(window_height) - next_window_Y - 10})
-		editor_gui()
-		update_grass_type_buffer(&grass_types)
-	}
-
-	imgui.end_frame()
 
 	///////////////////////////////////////////////////////////////////////////
 	// START OF GAME UPDATE
@@ -239,7 +203,6 @@ update :: proc(delta_time: f64) {
 	if application.mode == .Game {
 
 		physics.begin_frame(delta_time)
-
 
 		// test collider
 		physics.submit_colliders([]physics.BoxCollider{{{2, 4, 2}, quaternion(1), {2, 2, 1}}})
@@ -271,6 +234,55 @@ update :: proc(delta_time: f64) {
 
 	///////////////////////////////////////////////////////////////////////////
 	// END OF UPDATE
+
+
+	// Todo(Leo): these are from last frame, does it matter? Probably not much, as
+	// typically we are not operating camera and gizmo in the same frame
+	{
+		projection, view := camera_get_projection_and_view_matrices(&camera)
+
+		imgui.begin_frame(projection, view)
+		if show_imgui_demo {
+			imgui.ShowDemoWindow()
+		}		
+	}
+
+
+	imgui.SetNextWindowPos({10, 10})
+	imgui.SetNextWindowSize({300, 0})
+	next_window_Y := f32(10)
+	if show_timings {
+		if imgui.Begin("Timings") {
+			if imgui.BeginTable("time table", 2) {
+
+				imgui.TableNextRow()
+				imgui.TableNextColumn()
+				imgui.text("frame time")
+				imgui.TableNextColumn()
+				imgui.text("{:5.2f} ms (fps {})", timings.frame_time.value * 1000, int(1 / timings.frame_time.value))
+
+				imgui.EndTable()
+			}
+		}
+		next_window_Y = 10 + imgui.GetWindowHeight() + 10
+		imgui.End()
+	}
+	
+	imgui.SetNextWindowPos({10, next_window_Y})
+
+	if application.mode == .Edit {
+		_, window_height := window.get_window_size()
+		imgui.SetNextWindowSize({300, f32(window_height) - next_window_Y - 10})
+		editor_gui()
+		update_grass_type_buffer(&grass_types)
+	}
+
+	editor_do_gizmos()
+
+	imgui.end_frame()
+
+	///////////////////////////////////////////////////////////////////////////
+	// Rendering
 
 	graphics.begin_frame()
 	graphics.bind_main_framebuffer()

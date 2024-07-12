@@ -3,6 +3,7 @@ package imgui
 import "base:intrinsics"
 
 import "core:fmt"
+import "core:math/linalg"
 import "core:reflect"
 import "core:strings"
 
@@ -13,9 +14,16 @@ import "shrubs:common"
 vec2 :: common.vec2
 vec3 :: common.vec3
 vec4 :: common.vec4
+quaternion :: common.quaternion
+
+mat3 :: common.mat3
+mat4 :: common.mat4
 
 ///////////////////////////////////////////////////////////////////////////////
 /// Maintenance API
+
+@private projection_matrix : mat4
+@private view_matrix : mat4
 
 initialize :: proc(window : glfw.WindowHandle) {
 	imgui_context := CreateContext(nil)
@@ -33,10 +41,18 @@ terminate :: proc() {
 	DestroyContext(nil)
 }
 
-begin_frame :: proc() {
+begin_frame :: proc(projection, view : mat4) {
 	ImGui_ImplGlfw_NewFrame()
 	ImGui_ImplOpenGL3_NewFrame()
 	NewFrame()
+
+	ImGuizmo_BeginFrame()
+
+	io := GetIO()
+	ImGuizmo_SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y)
+
+	projection_matrix 	= projection
+	view_matrix 		= view
 }
 
 end_frame :: proc() {
@@ -115,6 +131,35 @@ input_int :: proc(label : string, v : ^int, step := 1, step_fast := 100, flags :
 drag_vec3 :: proc(label : string, v : ^vec3, v_speed := f32(1.0), v_min := f32(0.0), v_max := f32(0.0), format := cstring("%.3f"), flags := ImGuiSliderFlags{}) -> bool {
 	label := to_u8_array(label, 32)
 	return cast(bool) DragFloat3(cstring(&label[0]), cast(^f32)v, v_speed, v_min, v_max, format, flags)
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Gizmos
+
+translate_gizmo :: proc(position : ^vec3, rotation : quaternion, mode : ImGuizmo_MODE) {
+	mat := linalg.matrix4_from_trs(position^, rotation, 1)
+	ImGuizmo_Manipulate(
+		cast(^f32) &view_matrix,
+		cast(^f32) &projection_matrix,
+		.TRANSLATE,
+		mode,
+		cast(^f32) &mat,
+	)
+	// luckily works like this :)
+	position^ = mat[3].xyz
+}
+
+rotate_gizmo :: proc(rotation : ^quaternion, position : vec3, mode : ImGuizmo_MODE) {
+	mat := linalg.matrix4_from_trs(position, rotation^, 1)
+	ImGuizmo_Manipulate(
+		cast(^f32) &view_matrix,
+		cast(^f32) &projection_matrix,
+		.ROTATE, //.ROTATE_X | .ROTATE_Z,
+		mode,
+		cast(^f32) &mat,
+	)
+	rotation^ = linalg.quaternion_from_matrix4(mat)
+	rotation^ = linalg.quaternion_normalize(rotation^)
 }
 
 ///////////////////////////////////////////////////////////////////////////////

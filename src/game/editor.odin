@@ -26,6 +26,40 @@ editor : struct {
 
 	// Todo(Leo): definetly not here, but this was easiest to serialize
 	exposure : f32,
+
+	// Only first gets to use gizmo, so we dont get weird results
+	// Todo(Leo): not necessarily necessary, but for now is like this
+	gizmo_used_this_frame : bool,
+}
+
+editor_edit_position :: proc(target_position : ^vec3) {
+	if !editor.gizmo_used_this_frame {
+		editor.gizmo_used_this_frame = true
+
+		imgui.translate_gizmo(target_position, 1, .WORLD)
+	}
+}
+
+editor_edit_rotation :: proc(target_position : vec3, target_rotation_euler : ^vec3) {
+	if !editor.gizmo_used_this_frame {
+		editor.gizmo_used_this_frame = true
+
+		rotation := linalg.quaternion_from_euler_angles(
+			target_rotation_euler.x, 
+			target_rotation_euler.y, 
+			target_rotation_euler.z, 
+			.XYZ
+		)
+
+		imgui.rotate_gizmo(&rotation, target_position, .WORLD)
+
+		x, y, z := linalg.euler_angles_from_quaternion(rotation, .XYZ)
+		target_rotation_euler^ = {x, y, z} 
+	}
+}
+
+editor_do_gizmos :: proc() {
+	editor.gizmo_used_this_frame = false
 }
 
 save_editor_state :: proc() {
