@@ -7,7 +7,6 @@
 
 # Selected directories
 /local
-/screenshots
 /assets
 
 # imgui stored state file

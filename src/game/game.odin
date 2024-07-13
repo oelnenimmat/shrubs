@@ -487,14 +487,14 @@ update :: proc(delta_time: f64) {
 		NANOSECS_IN_HOUR :: 3.6e12
 		now_but_in_my_timezone := time.Time { now._nsec + 3 * NANOSECS_IN_HOUR }
 
-		buffer : [64]u8
+		buffer : [128]u8
 		filename_builder := strings.builder_from_bytes(buffer[:])
 		fmt.sbprintf(
 			&filename_builder,
 
 			// year is always 4 chars, pad rest with leading zeros so file system
 			// sorts them properly
-			"screenshots/screen_framebuffer_{}_{:2i}_{:2i}_{:2i}_{:2i}_{:2i}.png",
+			"local/screenshots/screen_framebuffer_{}_{:2i}_{:2i}_{:2i}_{:2i}_{:2i}.png",
 			time.date(now_but_in_my_timezone),
 			time.clock_from_time(now_but_in_my_timezone),
 		)
