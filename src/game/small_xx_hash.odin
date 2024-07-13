@@ -36,7 +36,7 @@ small_xx_hash_get_u32 :: proc(hash : SmallXXHash) -> u32 {
 	return avalanche
 }
 
-small_xx_hash_get_f32 :: proc(hash : SmallXXHash) -> f32 {
+small_xx_hash_get_f32_0_to_1 :: proc(hash : SmallXXHash) -> f32 {
 	return f32(small_xx_hash_get_u32(hash)) / 4294967295.0 //f32(max(u32))
 }
 

@@ -85,7 +85,16 @@ edit_greyboxing :: proc(g : ^Greyboxing) {
 			unordered_remove(&g.boxes, g.selection_index)
 			g.selection_index = -1
 		}
+
+		imgui.SameLine()
+		if imgui.button("Duplicate") {
+			append(&g.boxes, g.boxes[g.selection_index])
+			g.selection_index = len(g.boxes) - 1
+		}
 	}
+
+	imgui.SameLine()
+	imgui.text("Count {}", len(g.boxes))
 
 	if g.selection_index >= 0 {
 		b := &g.boxes[g.selection_index]

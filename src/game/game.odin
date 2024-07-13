@@ -18,6 +18,8 @@ import "core:fmt"
 import "core:intrinsics"
 import "core:math"
 import "core:math/linalg"
+import "core:os"
+import "core:path/filepath"
 import "core:reflect"
 import "core:strings"
 import "core:time"
@@ -57,7 +59,7 @@ grass_system : Grass
 grass_blade_count := 32
 grass_segment_count := 3
 
-lod_enabled := 0
+lod_enabled := -1
 draw_normals := false
 draw_backfacing := false
 draw_lod := false
@@ -88,6 +90,7 @@ timings : struct {
 test_position : vec3
 
 save_screenshot := false
+generate_terrain_mesh := false
 
 initialize :: proc() {
 	// Todo(Leo): some of this stuff seems to bee "application" or "engine" and not "game"
@@ -129,6 +132,21 @@ initialize :: proc() {
 	if IS_ACTUALLY_EDITOR {
 		load_editor_state()
 		scene = load_scene(editor.loaded_scene_name)
+	}
+
+	// test detecting all scene files
+	{
+		h, e := os.open("scenes/")
+		defer os.close(h)
+		fs, err := os.read_dir(h, 10, context.temp_allocator)
+		for f in fs {
+			fmt.println(f.name, filepath.ext(f.name))
+			if filepath.ext(f.name) == ".scene" {
+				fmt.println("SCENE!", filepath.stem(f.name))
+			} else {
+				fmt.println("NOT SCENE!")
+			}
+		}
 	}
 
 }
@@ -200,9 +218,33 @@ update :: proc(delta_time: f64) {
 	///////////////////////////////////////////////////////////////////////////
 	// START OF GAME UPDATE
 	// Todo(Leo): physics.tick()???? Maybe physics update can be done from here??
+
+	if generate_terrain_mesh {
+		generate_terrain_mesh = false
+	
+		destroy_terrain_meshes(&scene.terrain)
+
+		scene.terrain.positions, scene.terrain.meshes = create_terrain_meshes(&scene.world)
+	}
+
 	if application.mode == .Game {
 
 		physics.begin_frame(delta_time)
+		
+		// submit greyboxes
+		{
+			colliders := make([]physics.BoxCollider, len(scene.greyboxing.boxes), context.temp_allocator)
+			for _, i in colliders {
+				b := scene.greyboxing.boxes[i]
+				colliders[i] = {
+					b.position,
+					linalg.quaternion_from_euler_angles(b.rotation.x, b.rotation.y, b.rotation.z, .XYZ),
+					b.size,
+				} 
+			}
+			physics.submit_colliders(colliders)
+		}
+
 
 		// test collider
 		physics.submit_colliders([]physics.BoxCollider{{{2, 4, 2}, quaternion(1), {2, 2, 1}}})
@@ -321,6 +363,23 @@ update :: proc(delta_time: f64) {
 					linalg.matrix4_scale_f32(2)
 	graphics.draw_mesh(&capsule_mesh, model_matrix)
 
+	// NEXT PIPELINE
+	graphics.setup_debug_pipeline()
+	debug.render()
+
+	// NEXT PIPELINE
+	graphics.setup_terrain_pipeline()
+	graphics.set_terrain_material(
+		scene.terrain.grass_placement_map,
+		scene.terrain.grass_field_texture,
+		scene.terrain.road_texture,
+	)
+	for p, i in scene.terrain.positions {
+		model_matrix := linalg.matrix4_translate_f32(p)
+		graphics.draw_mesh(&scene.terrain.meshes[i], model_matrix)
+	}
+
+	// NEXT PIPELINE
 	// compute grass lods
 	grass_lods 			: [100]int
 	lod_segment_counts 	: [100]int
@@ -346,26 +405,16 @@ update :: proc(delta_time: f64) {
 		lod_segment_counts[i] = grass_lod_settings[lod].segment_count
 	}
 
-	// NEXT PIPELINE
-	graphics.setup_debug_pipeline()
-	debug.render()
-
-	// NEXT PIPELINE
-	graphics.setup_terrain_pipeline()
-	graphics.set_terrain_material(
-		scene.terrain.grass_placement_map,
-		scene.terrain.grass_field_texture,
-		scene.terrain.road_texture,
-	)
-	for p, i in scene.terrain.positions {
-		model_matrix := linalg.matrix4_translate_f32(p)
-		graphics.draw_mesh(&scene.terrain.meshes[i], model_matrix)
-	}
-
-	// NEXT PIPELINE
 	// This is bound both for the grass placement and grass rendering
 	graphics.bind_uniform_buffer(&grass_types.types_buffer, graphics.GRASS_TYPES_BUFFER_BINDING)
 	
+	noise_params := vec4 {
+		f32(scene.world.seed),
+		scene.world.noise_scale,
+		scene.world.z_scale,
+		scene.world.z_offset,
+	}
+
 	for i in 0..<len(grass_system.instance_buffers) {
 		graphics.dispatch_grass_placement_pipeline(
 			&grass_system.instance_buffers[i], 
@@ -374,6 +423,7 @@ update :: proc(delta_time: f64) {
 			grass_system.positions[i],
 			grass_chunk_size,
 			int(scene.name),
+			noise_params,
 		)
 	}
 
@@ -396,6 +446,7 @@ update :: proc(delta_time: f64) {
 	graphics.bind_screen_framebuffer()
 	graphics.dispatch_post_process_pipeline(scene.lighting.exposure)
 
+	// Currently we provide a service to save screenshots from the final game view, before gui :thumbs_up:
 	if save_screenshot {
 		save_screenshot = false
 

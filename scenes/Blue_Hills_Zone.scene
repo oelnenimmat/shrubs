@@ -1,4 +1,11 @@
 {
+	"world": {
+		"seed": 0,
+		"noise_scale": 10.00000000,
+		"z_scale": 2.75000000,
+		"z_offset": 0.00000000,
+		"chunk_count_1D": 6
+	},
 	"lighting": {
 		"direction_polar": [
 			309.60000610,

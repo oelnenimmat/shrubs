@@ -25,10 +25,10 @@ value_noise_2D :: proc(x, y : f32, seed : i32) -> f32 {
 	h11 := small_xx_hash_eat(h1, iy1)
 
 	// vXY
-	v00 := small_xx_hash_get_f32(h00)
-	v10 := small_xx_hash_get_f32(h10)
-	v01 := small_xx_hash_get_f32(h01)
-	v11 := small_xx_hash_get_f32(h11)
+	v00 := small_xx_hash_get_f32_0_to_1(h00)
+	v10 := small_xx_hash_get_f32_0_to_1(h10)
+	v01 := small_xx_hash_get_f32_0_to_1(h01)
+	v11 := small_xx_hash_get_f32_0_to_1(h11)
 	
 	// vY
 	v0 := linalg.lerp(v00, v10, tx)

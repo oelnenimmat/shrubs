@@ -61,7 +61,7 @@ Scene :: struct {
 }
 
 SceneName :: enum {
-	Green_Hills_Zone,
+	Monument_In_Center,
 	Blue_Hills_Zone,
 	Big_Rock,
 }
@@ -100,7 +100,7 @@ load_scene :: proc(scene_name : SceneName) -> ^Scene {
 	s.world = serialized.world
 
 	switch scene_name {
-	case .Green_Hills_Zone:
+	case .Monument_In_Center:
 
 		// resources
 		s.textures[.Grass_Field] = TEMP_load_color_texture("assets/callum_andrews_ghibli_grass.png")

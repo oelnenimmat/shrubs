@@ -152,10 +152,11 @@ layout (std430, binding = 11) buffer grass_instances {
 
 float sample_height (float x, float y) {
 	// transform to grid scale
-	x *= noise_params.y;
-	y *= noise_params.y;
+	x /= noise_params.y;
+	y /= noise_params.y;
 
-	return value_noise_2D(x, y, int(noise_params.x)) * noise_params.z;
+	float noise = value_noise_2D(x, y, int(noise_params.x)) * 2 - 1;
+	return noise * noise_params.z + noise_params.w;
 }
 
 void main() {

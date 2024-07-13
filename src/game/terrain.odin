@@ -9,8 +9,8 @@ import "core:math/linalg"
 import "core:math/rand"
 
 // Squares!!! for now..
-TERRAIN_CHUNK_COUNT :: 5 // x 5
-TERRAIN_CHUNK_SIZE :: 10 // x 10
+TERRAIN_CHUNK_SIZE_1D 		:: 10 // x 10
+TERRAIN_QUADS_PER_CHUNK_1D 	:: 10
 
 GRASS_DENSITY_PER_UNIT :: 10
 GRASS_CHUNK_WORLD_SIZE :: 10
@@ -18,11 +18,42 @@ GRASS_BLADES_IN_CHUNK_1D :: 128
 
 // "World" as in isolated part of "world" that makes up this specific scene 
 WorldSettings :: struct {
-	seed : int,
+	seed 		: int,
+	noise_scale : f32,
+	z_scale 	: f32,
+	z_offset 	: f32,
+
+	chunk_count_1D : int,
 }
 
+check_dirty_bool :: proc(dirty : ^bool, edited : bool) {
+	if edited {
+		dirty^ = true
+	}
+}
+
+check_dirty_b8 :: proc(dirty : ^bool, edited : b8) {
+	if edited {
+		dirty^ = true
+	}
+}
+
+check_dirty :: proc { check_dirty_bool, check_dirty_b8 }
+
 edit_world_settings :: proc(w : ^WorldSettings) {
-	imgui.input_int("seed", &w.seed)
+	dirty := false
+
+	check_dirty(&dirty, imgui.input_int("seed", &w.seed))
+	check_dirty(&dirty, imgui.DragFloat("noise scale", &w.noise_scale, 0.01))
+	check_dirty(&dirty, imgui.DragFloat("z scale", &w.z_scale, 0.01))
+	check_dirty(&dirty, imgui.DragFloat("z offset", &w.z_offset, 0.01))
+
+	check_dirty(&dirty, imgui.input_int("chunk count(1D)", &w.chunk_count_1D))
+	imgui.text("world size: {}", w.chunk_count_1D * TERRAIN_CHUNK_SIZE_1D)
+
+	if imgui.button("generate") || dirty {
+		generate_terrain_mesh = true
+	}
 }
 
 Terrain :: struct {
@@ -42,29 +73,8 @@ create_terrain :: proc(
 ) -> Terrain {
 	t := Terrain {}
 
-	chunk_count := TERRAIN_CHUNK_COUNT * TERRAIN_CHUNK_COUNT
 	// Todo(Leo): allocator!!!
-	t.positions = make([]vec3, chunk_count)
-	t.meshes = make([]graphics.Mesh, chunk_count)
-
-	terrain_world_size := TERRAIN_CHUNK_COUNT * TERRAIN_CHUNK_SIZE
-	min_chunk_min_corner := -0.5 * f32(terrain_world_size)
-
-	for i in 0..<chunk_count {
-		chunk_x := i % TERRAIN_CHUNK_COUNT
-		chunk_y := i / TERRAIN_CHUNK_COUNT
-
-		x := f32(chunk_x) * TERRAIN_CHUNK_SIZE + min_chunk_min_corner
-		y := f32(chunk_y) * TERRAIN_CHUNK_SIZE + min_chunk_min_corner
-
-		uv_offset := vec2 {
-			f32(chunk_x) / f32(TERRAIN_CHUNK_COUNT),
-			f32(chunk_y) / f32(TERRAIN_CHUNK_COUNT),
-		}
-
-		t.positions[i] = {x, y, 0}
-		t.meshes[i] = create_static_terrain_mesh(t.positions[i].xy, uv_offset, world)
-	}
+	t.positions, t.meshes = create_terrain_meshes(world)
 
 	t.grass_placement_map = grass_placement_map
 	t.grass_field_texture = grass_field_texture
@@ -73,31 +83,57 @@ create_terrain :: proc(
 	return t
 }
 
-destroy_terrain :: proc(terrain : ^Terrain) {
+create_terrain_meshes :: proc(world : ^WorldSettings) -> (positions : []vec3, meshes : []graphics.Mesh) {
+	chunk_count := world.chunk_count_1D * world.chunk_count_1D
+	// Todo(Leo): allocator!!!
+	positions = make([]vec3, chunk_count)
+	meshes = make([]graphics.Mesh, chunk_count)
+
+	terrain_world_size := world.chunk_count_1D * TERRAIN_CHUNK_SIZE_1D
+	min_chunk_min_corner := -0.5 * f32(terrain_world_size)
+
+	for i in 0..<chunk_count {
+		chunk_x := i % world.chunk_count_1D
+		chunk_y := i / world.chunk_count_1D
+
+		x := f32(chunk_x) * TERRAIN_CHUNK_SIZE_1D + min_chunk_min_corner
+		y := f32(chunk_y) * TERRAIN_CHUNK_SIZE_1D + min_chunk_min_corner
+
+		uv_offset := vec2 {
+			f32(chunk_x) / f32(world.chunk_count_1D),
+			f32(chunk_y) / f32(world.chunk_count_1D),
+		}
+
+		positions[i] = {x, y, 0}
+		meshes[i] = create_static_terrain_mesh(positions[i].xy, uv_offset, world)
+	}
+
+	return
+}
+
+destroy_terrain_meshes :: proc(terrain : ^Terrain) {
 	delete (terrain.positions)
 
-	// Todo(Leo): also delete all the meshes from graphics
 	for mesh in &terrain.meshes {
 		graphics.destroy_mesh(&mesh)
 	}
 	delete (terrain.meshes)
+}
 
+destroy_terrain :: proc(terrain : ^Terrain) {
+	destroy_terrain_meshes(terrain)
 	terrain^ = {}
 }
 
 sample_height :: proc(x, y : f32, world : ^WorldSettings) -> f32 {
-	
-	seed := 563 if world == nil else world.seed
 
-	// WORLD_SEED 			:: 563
-	WORLD_TO_GRID_SCALE :: 0.1
-	TERRAIN_Z_SCALE 	:: 5
+	// transform to grid scale. divide, so that noise_scale roughly
+	// describe a feature size on the biggest octave
+	x := x / world.noise_scale
+	y := y / world.noise_scale
 
-	// transform to grid scale
-	x := x * WORLD_TO_GRID_SCALE
-	y := y * WORLD_TO_GRID_SCALE
-
-	return value_noise_2D(x, y, i32(seed)) * TERRAIN_Z_SCALE
+	noise := value_noise_2D(x, y, i32(world.seed)) * 2 - 1
+	return noise * world.z_scale + world.z_offset
 }
 
 create_static_terrain_mesh :: proc(min_corner_position : vec2, uv_offset : vec2, world : ^WorldSettings) -> graphics.Mesh {
@@ -105,7 +141,7 @@ create_static_terrain_mesh :: proc(min_corner_position : vec2, uv_offset : vec2,
 	// per dimension
 	quad_count_1D := 10
 	quad_count := quad_count_1D * quad_count_1D
-	quad_size := f32(TERRAIN_CHUNK_SIZE) / f32(quad_count_1D)
+	quad_size := f32(TERRAIN_CHUNK_SIZE_1D) / f32(quad_count_1D)
 
 	// VERTICES
 	vertex_count := (quad_count_1D + 1) * (quad_count_1D + 1)
@@ -132,8 +168,8 @@ create_static_terrain_mesh :: proc(min_corner_position : vec2, uv_offset : vec2,
 
 		z := sample_height(x, y, world)
 
-		u := f32(cell_x) / f32(quad_count_1D) / f32(TERRAIN_CHUNK_COUNT) + uv_offset.x
-		v := f32(cell_y) / f32(quad_count_1D) / f32(TERRAIN_CHUNK_COUNT) + uv_offset.y
+		u := f32(cell_x) / f32(quad_count_1D) / f32(world.chunk_count_1D) + uv_offset.x
+		v := f32(cell_y) / f32(quad_count_1D) / f32(world.chunk_count_1D) + uv_offset.y
 
 		positions[i] 	= {local_x, local_y, z}
 		// set normals to zero for now, we accumulatecalculate them later

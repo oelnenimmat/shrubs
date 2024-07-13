@@ -1,6 +1,10 @@
 {
 	"world": {
-		"seed": 4
+		"seed": 16,
+		"noise_scale": 13.73999977,
+		"z_scale": 4.44000006,
+		"z_offset": 1.05999994,
+		"chunk_count_1D": 10
 	},
 	"lighting": {
 		"direction_polar": [
@@ -19,7 +23,7 @@
 			1.54499996,
 			1.08333337
 		],
-		"exposure": 0.80000001
+		"exposure": 0.93000001
 	},
 	"greyboxing": {
 		"boxes": [
