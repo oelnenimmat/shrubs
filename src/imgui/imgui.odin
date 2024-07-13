@@ -118,6 +118,27 @@ enum_dropdown :: proc(label : string, v : ^$T) -> bool where intrinsics.type_is_
 	return edited
 } 
 
+slice_dropdown :: proc(label : string, selection : ^int, options : []string) -> bool {
+	label := to_u8_array(label, 32)
+	selected_name := to_u8_array(options[selection^], 32)
+
+	edited := false
+
+	if BeginCombo(cstring(&label[0]), cstring(&selected_name[0])) {
+		for option, index in options {
+			current_name := to_u8_array(option, 32)
+
+			if Selectable(cstring(&current_name[0]), index == selection^) {
+				selection^ = index
+				edited = true
+			}
+		}
+		EndCombo()
+	}
+
+	return edited
+} 
+
 input_int :: proc(label : string, v : ^int, step := 1, step_fast := 100, flags := ImGuiInputTextFlags(0)) -> bool {
 	label := to_u8_array(label, 32)
 

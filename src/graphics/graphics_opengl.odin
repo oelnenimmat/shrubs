@@ -196,8 +196,8 @@ initialize :: proc() {
 	gl.GenTextures(1, &gc.resolve_image)
 	gl.BindTexture(gl.TEXTURE_2D, gc.resolve_image)
 	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGB32F, i32(gc.main_framebuffer_width), i32(gc.main_framebuffer_height), 0, gl.RGB, gl.FLOAT, nil)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
 	gl.FramebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, gc.resolve_image, 0)
 
 	if gl.CheckFramebufferStatus(gl.FRAMEBUFFER) == gl.FRAMEBUFFER_COMPLETE {

@@ -385,7 +385,7 @@ solve_epa :: proc(s : Simplex, a : ^$A, b : ^$B) -> Collision {
 		out_min_distance + SKIN_WIDTH,
 		-linalg.normalize(out_min_normal),
 		{ /* velocity here, but rn we dont have access to it so it is filled later */ },
-		{ /* this is tag, also not set here */ }
+		{ /* this is tag, also not set here */ },
 	}
 }
 

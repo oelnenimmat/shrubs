@@ -6,7 +6,6 @@ update all systems from this file
 */
 
 import "shrubs:assets"
-import "shrubs:common"
 import "shrubs:debug"
 import "shrubs:graphics"
 import "shrubs:imgui"
@@ -21,13 +20,14 @@ import "core:math/linalg"
 import "core:os"
 import "core:path/filepath"
 import "core:reflect"
+import "core:slice"
 import "core:strings"
 import "core:time"
 
+import "shrubs:common"
 vec2 		:: common.vec2
 vec3 		:: common.vec3
 vec4 		:: common.vec4
-dvec3 		:: common.dvec3
 mat3 		:: common.mat3
 mat4 		:: common.mat4
 quaternion 	:: common.quaternion
@@ -42,6 +42,10 @@ WINDOW_WIDTH :: 960
 WINDOW_HEIGHT :: 540
 
 APPLICATION_NAME :: "Shrubs"
+
+SCENES_DIRECTORY :: "scenes/"
+SCENE_FILE_EXTENSION :: ".scene"
+
 
 // Todo(Leo): All the components should not be here in the wild,
 // can easily lead into spaghetti and/or confusion. Some more 
@@ -70,11 +74,8 @@ grass_chunk_size := f32(5)
 grass_type_to_edit : GrassType
 
 // Resources
-white_texture 	: graphics.Texture
-black_texture 	: graphics.Texture
-DEBUG_rock_texture : graphics.Texture
-capsule_mesh 	: graphics.Mesh
-cube_mesh 		: graphics.Mesh
+// this is in its own file for now
+// asset_provider : AssetProvider
 
 application : struct {
 	wants_to_quit 	: bool,
@@ -92,6 +93,12 @@ test_position : vec3
 save_screenshot := false
 generate_terrain_mesh := false
 
+available_scenes : struct {
+	filenames 		: []string,
+	display_names 	: []string,
+}
+
+
 initialize :: proc() {
 	// Todo(Leo): some of this stuff seems to bee "application" or "engine" and not "game"
 	window.initialize(WINDOW_WIDTH, WINDOW_HEIGHT, APPLICATION_NAME)
@@ -102,18 +109,7 @@ initialize :: proc() {
 	physics.initialize()
 
 	// Common resources
-	white_texture = graphics.create_color_texture(
-		1, 1, []common.Color_u8_rgba{{255, 255, 255, 255}}, .Nearest,
-	)
-
-	black_texture = graphics.create_color_texture(
-		1, 1, []common.Color_u8_rgba{{0, 0, 0, 255}}, .Nearest,
-	)
-	DEBUG_rock_texture = TEMP_load_color_texture("assets/rock_01_diff_4k.jpg")
-
-
-	capsule_mesh = TEMP_load_mesh_gltf("assets/shapes.glb", "shape_capsule")
-	cube_mesh = TEMP_load_mesh_gltf("assets/shapes.glb", "shape_cube")
+	load_asset_provider()
 
 	// Scene independent systems
 	camera 				= create_camera()
@@ -128,39 +124,79 @@ initialize :: proc() {
 	load_grass_types(&grass_types)
 	grass_system = create_grass()
 
+	// Detect available scenes
+	{
+
+		// Todo(Leo): check error :)
+		h, e := os.open(SCENES_DIRECTORY)
+		defer os.close(h)
+		
+		// Todo(Leo): check error :)
+		scene_directory, err := os.read_dir(h, 10, context.temp_allocator)
+		// found_scenes := make([dynamic]SceneInfo, 0, 100, context.temp_allocator)
+		
+		filenames 		:= make([dynamic]string, context.temp_allocator)
+		display_names 	:= make([dynamic]string, context.temp_allocator)
+
+		for f in scene_directory {
+			fmt.println(f.name, filepath.ext(f.name))
+			if filepath.ext(f.name) == SCENE_FILE_EXTENSION {
+
+				// Todo(Leo): maybe validate this somehow?
+				b := strings.builder_make(context.temp_allocator)
+				fmt.sbprintf(&b, "{}{}", SCENES_DIRECTORY, f.name)
+
+				// info 				:= SceneInfo{}
+				// info.filename 		= strings.clone(strings.to_string(b), context.allocator)
+				// info.display_name 	= strings.clone(filepath.stem(f.name), context.allocator)
+
+				// append(&found_scenes, info)
+
+				append(&filenames, strings.clone(strings.to_string(b), context.allocator))
+				append(&display_names, strings.clone(filepath.stem(f.name), context.allocator))
+			} else {
+				// fmt.println("NOT SCENE!")
+			}
+		}
+
+		// available_scenes = slice.clone(found_scenes[:], context.allocator)
+
+		available_scenes.filenames = slice.clone(filenames[:], context.allocator)
+		available_scenes.display_names = slice.clone(display_names[:], context.allocator)
+	}
+
+
 	// Scene
 	if IS_ACTUALLY_EDITOR {
 		load_editor_state()
-		scene = load_scene(editor.loaded_scene_name)
-	}
 
-	// test detecting all scene files
-	{
-		h, e := os.open("scenes/")
-		defer os.close(h)
-		fs, err := os.read_dir(h, 10, context.temp_allocator)
-		for f in fs {
-			fmt.println(f.name, filepath.ext(f.name))
-			if filepath.ext(f.name) == ".scene" {
-				fmt.println("SCENE!", filepath.stem(f.name))
-			} else {
-				fmt.println("NOT SCENE!")
+		// If we good, we load the previously loaded scene
+		for name, index in available_scenes.display_names {
+			if name == editor.loaded_scene_name {
+				scene = load_scene(index)
 			}
+		}
+
+		// otherwise, lets hope we at least have some
+		if scene == nil {
+			scene = load_scene(0)
 		}
 	}
 
 }
 
 terminate :: proc() {
+	save_editor_state()
+
 	destroy_grass(&grass_system)
 	save_grass_types(&grass_types)
 	destroy_grass_types(&grass_types)
 
-	save_editor_state()
 
 	// Todo(Leo): not really necessary at this point, but I keep these here
 	// to remeber that destroying stuff is at times actually necessary.
 	unload_scene(scene)
+	unload_asset_provider()
 
 	physics.terminate()
 	debug.terminate()
@@ -280,10 +316,9 @@ update :: proc(delta_time: f64) {
 	///////////////////////////////////////////////////////////////////////////
 	// GUI
 
-
-	// Todo(Leo): these are from last frame, does it matter? Probably not much, as
-	// typically we are not operating camera and gizmo in the same frame
 	{
+		// Todo(Leo): these are from last frame, does it matter? Probably not much, as
+		// typically we are not operating camera and gizmo in the same frame
 		projection, view := camera_get_projection_and_view_matrices(&camera)
 
 		imgui.begin_frame(projection, view)
@@ -336,32 +371,26 @@ update :: proc(delta_time: f64) {
 						linalg.matrix4_rotate_f32(scene.lighting.direction_polar.x * math.PI / 180, OBJECT_UP) *
 						linalg.matrix4_rotate_f32(scene.lighting.direction_polar.y * math.PI / 180, OBJECT_RIGHT),
 						OBJECT_FORWARD)
-	light_color := scene.lighting.directional_color.rgb * scene.lighting.directional_color.w
-	ambient_color := scene.lighting.ambient_color.rgb * scene.lighting.ambient_color.w
+	light_color := scene.lighting.directional_color.rgb
+	ambient_color := scene.lighting.ambient_color.rgb
 
 	projection_matrix, view_matrix := camera_get_projection_and_view_matrices(&camera)
 
 	graphics.set_per_frame_data(view_matrix, projection_matrix)
 	graphics.set_lighting_data(camera.position, light_direction, light_color, ambient_color)
-	graphics.set_wind_data(wind_offset, 0.005, &scene.textures[.Wind])
+	graphics.set_wind_data(wind_offset, 0.005, scene.textures[.Wind])
 	graphics.set_debug_data(draw_normals, draw_backfacing, draw_lod)
 
 	graphics.setup_basic_pipeline()
-
-	for sp in scene.set_pieces {
-		graphics.set_basic_material(sp.color, sp.texture)
-		model_matrix := linalg.matrix4_translate_f32(sp.position)
-		graphics.draw_mesh(sp.mesh, model_matrix)
-	}
 	
 	render_tank(&tank)
 	render_greyboxing(&scene.greyboxing)
 
 	// Player character as a capsule for debug purposes
-	graphics.set_basic_material({0.6, 0.2, 0.4}, &white_texture)
+	graphics.set_basic_material({0.6, 0.2, 0.4}, &asset_provider.textures[.White])
 	model_matrix := linalg.matrix4_translate_f32(player_character.physics_position + OBJECT_UP) *
 					linalg.matrix4_scale_f32(2)
-	graphics.draw_mesh(&capsule_mesh, model_matrix)
+	graphics.draw_mesh(&asset_provider.meshes[.Capsule], model_matrix)
 
 	// NEXT PIPELINE
 	graphics.setup_debug_pipeline()
@@ -422,7 +451,7 @@ update :: proc(delta_time: f64) {
 			lod_instance_counts[i],
 			grass_system.positions[i],
 			grass_chunk_size,
-			int(scene.name),
+			int(scene.grass_type),
 			noise_params,
 		)
 	}
@@ -488,42 +517,6 @@ update :: proc(delta_time: f64) {
 // their corresponding parts there. Not sure though. 
 editor_gui :: proc() {
 
-	// Careful! Window means here both application window and the gui window inside the application!
-	// GUI_WINDOW_OUTER_PADDING 	:: 25
-
-	// FULL_CONTENT_WIDTH :: 260
-	// content_width := FULL_CONTENT_WIDTH - ctx.style.indent
-
-	// label_column_width 			:= i32(0.35 * f32(content_width))
-	// element_column_width 		:= content_width - label_column_width - ctx.style.spacing
-	// label_and_element_layout 	:= []i32 { label_column_width, element_column_width}
-
-	// two_elements_column_width 		:= i32(0.5 * f32(element_column_width)) - i32(math.ceil(f32(ctx.style.spacing) / 2))
-	// label_and_two_elements_layout 	:= []i32 {label_column_width, two_elements_column_width, two_elements_column_width}
-
-	// single_element_layout := []i32 {content_width}
-	
-	// two_columns_width 		:= i32(0.5 * f32(content_width)) - i32(math.ceil(f32(ctx.style.spacing) / 2))
-	// two_left_over			:= content_width - (2 * two_columns_width + 1 * ctx.style.spacing)
-	// two_elements_layout 	:= []i32{two_columns_width, two_columns_width + two_left_over}
-
-	// three_columns_width 	:= i32(0.333 * f32(content_width)) - i32(math.ceil(0.667 * f32(ctx.style.spacing)))
-	// three_left_over			:= content_width - (3 * three_columns_width + 2 * ctx.style.spacing)
-	// three_columns_layout 	:= []i32{three_columns_width, three_columns_width, three_columns_width + three_left_over}
-
-	// four_columns_width 		:= i32(0.25 * f32(content_width)) - i32(math.ceil(0.75 * f32(ctx.style.spacing)))
-	// four_left_over			:= content_width - (4 * four_columns_width + 3 * ctx.style.spacing)
-	// four_columns_layout		:= []i32{four_columns_width, four_columns_width, four_columns_width, four_columns_width + four_left_over}
-
-
-	_, window_height := window.get_window_size()
-	// rectangle 	:= mu.Rect{
-	// 					GUI_WINDOW_OUTER_PADDING, 
-	// 					GUI_WINDOW_OUTER_PADDING,
-	// 					FULL_CONTENT_WIDTH + 2*ctx.style.padding,
-	// 					// Very arbitrary value for now
-	// 					900,
-	// 				} 
 	if imgui.Begin("Shrubs!!") {
 
 		// Gizmo options now always visible
@@ -550,13 +543,26 @@ editor_gui :: proc() {
 				save_scene(scene)
 			}
 
-			imgui.text("Load scene")
-			for name in SceneName {
-				if imgui.button(reflect.enum_string(name)) {
-					unload_scene(scene)
-					scene = load_scene(name)
-					editor.loaded_scene_name = name
+			imgui.text("Current scene: {}", scene.name)
+
+			@static selected_scene_index : int
+			imgui.slice_dropdown("##scene", &selected_scene_index, available_scenes.display_names)
+			imgui.SameLine()
+			if imgui.button("load") {
+				unload_scene(scene)
+				scene = load_scene(selected_scene_index)
+				editor.loaded_scene_name = available_scenes.display_names[selected_scene_index]
+			}
+
+
+			imgui.Separator()
+			if imgui.TreeNode("Textures") {
+				for t in TextureUseName {
+					if imgui.enum_dropdown(reflect.enum_string(t), &scene.texture_uses[t]) {
+						scene.textures[t] = &asset_provider.textures[scene.texture_uses[t]]
+					}
 				}
+				imgui.TreePop()
 			}
 		}
 
@@ -577,6 +583,8 @@ editor_gui :: proc() {
 				save_grass_types(&grass_types)
 			}
 
+			imgui.enum_dropdown("Scene type", &scene.grass_type)
+
 			imgui.enum_dropdown("Edit type", &grass_type_to_edit)
 			settings := &grass_types.settings[grass_type_to_edit]
 
@@ -584,10 +592,10 @@ editor_gui :: proc() {
 			if imgui.button("auto") { lod_enabled = -1 }; imgui.SameLine() 
 			if imgui.button("0") { lod_enabled = 0 }; imgui.SameLine() 
 			if imgui.button("1") { lod_enabled = 1 }; imgui.SameLine() 
-			if imgui.button("2") { lod_enabled = 2 };
+			if imgui.button("2") { lod_enabled = 2 }
 
 
-			imgui.text("Blade");
+			imgui.text("Blade")
 			// mu.layout_row(ctx, label_and_element_layout)
 			imgui.SliderFloat("Height", &settings.height, 0, 2)
 			imgui.SliderFloat("Variation", &settings.height_variation, 0, 2)

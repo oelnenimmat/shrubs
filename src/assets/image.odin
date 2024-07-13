@@ -1,21 +1,15 @@
 package assets
 
-import "shrubs:common"
-
 import "core:strings"
-
 import stbi "vendor:stb/image"
-
-
-Color_u8_rgba :: common.Color_u8_rgba
 
 LoadedColorImage :: struct {
 	width, height 	: int,
-	pixels 			: []Color_u8_rgba
+	pixels_u8_rgba 	: []u8,
 }
 
 free_loaded_color_image :: proc(image : ^LoadedColorImage) {
-	stbi.image_free(raw_data(image.pixels))
+	stbi.image_free(raw_data(image.pixels_u8_rgba))
 
 	image^ = {}
 }
@@ -26,7 +20,7 @@ load_color_image :: proc(filename : cstring) -> LoadedColorImage {
 
 	pixels := stbi.load(filename, &width, &height, &channels, 4)
 	pixel_count := width * height
-	return { int(width), int(height), (cast([^]Color_u8_rgba)pixels)[0:pixel_count] }
+	return { int(width), int(height), (cast([^]u8)pixels)[0:4 * pixel_count] }
 }
 
 write_color_image :: proc(filename : string, width, height : int, pixels_u8_rgba : []u8) {

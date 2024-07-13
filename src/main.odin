@@ -21,16 +21,14 @@ main :: proc() {
 	frame_start_time 	:= time.now()
 	delta_time 			:= 0.0
 
-	for {
+	main_loop: for {
 
 		// UPDATE APPLICATION
 		// -------------------------------------------------
 		
 		game.update(delta_time)
 
-		if game.does_want_to_quit() {
-			break;
-		}
+		if game.does_want_to_quit() { break main_loop }
 
 		// TRACK TIME
 		// ---------------------------------------------------------

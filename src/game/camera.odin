@@ -52,7 +52,7 @@ camera_get_projection_and_view_matrices :: proc(camera : ^Camera) -> (mat4, mat4
 	view_matrix: = glsl.mat4LookAt(
 		auto_cast camera.position, 
 		auto_cast (camera.position + forward), 
-		auto_cast up
+		auto_cast up,
 	)
 
 	// Can get each frame; is simpler and is quick lookup. Unnecessary though.
@@ -67,7 +67,7 @@ camera_get_projection_and_view_matrices :: proc(camera : ^Camera) -> (mat4, mat4
 		VERTICAL_FIELD_OF_VIEW, 
 		aspect_ratio, 
 		NEAR_CLIPPING_PLANE, 
-		FAR_CLIPPING_PLANE
+		FAR_CLIPPING_PLANE,
 	)
 
 	return projection_matrix, view_matrix

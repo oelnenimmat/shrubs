@@ -14,7 +14,7 @@ NOT_MEMORY_SAFE_gltf_load_node :: proc (filename : cstring, node_name : cstring)
 	positions : []vec3, 
 	normals : []vec3,
 	texcoords : []vec2,
-	indices : [] u16
+	indices : [] u16,
 ) {
 
 	options : cgltf.options = {}

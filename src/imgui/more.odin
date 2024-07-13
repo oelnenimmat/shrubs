@@ -86,7 +86,7 @@ ImGuizmo_OPERATION :: enum c.int {
 	ROTATE 		= ROTATE_X | ROTATE_Y | ROTATE_Z | ROTATE_SCREEN,
 	SCALE 		= SCALE_X | SCALE_Y | SCALE_Z,
 	SCALEU 		= SCALE_XU | SCALE_YU | SCALE_ZU, // universal
-	UNIVERSAL 	= TRANSLATE | ROTATE | SCALEU
+	UNIVERSAL 	= TRANSLATE | ROTATE | SCALEU,
 }
 
 @(default_calling_convention = "c")

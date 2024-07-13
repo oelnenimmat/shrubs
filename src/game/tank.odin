@@ -67,8 +67,8 @@ Tank :: struct {
 	old_body_rotation : quaternion,
 
 	// rendering
-	body_mesh	: graphics.Mesh,
-	wheel_mesh 	: graphics.Mesh,
+	body_mesh	: ^graphics.Mesh,
+	wheel_mesh 	: ^graphics.Mesh,
 }
 
 create_tank :: proc() -> Tank {
@@ -132,8 +132,8 @@ create_tank :: proc() -> Tank {
 	t.wheel_constraints[18] = {R3, R2, small_length}
 	t.wheel_constraints[19] = {R2, R1, small_length}
 
-	t.body_mesh = TEMP_load_mesh_gltf("assets/tank.glb", "tank_body")
-	t.wheel_mesh = TEMP_load_mesh_gltf("assets/tank.glb", "tank_wheel")
+	t.body_mesh = &asset_provider.meshes[.Tank_Body]
+	t.wheel_mesh = &asset_provider.meshes[.Tank_Wheel]
 
 	return t
 }
@@ -271,7 +271,7 @@ update_tank :: proc(tank : ^Tank, delta_time : f32) {
 		[]physics.BoxCollider{{center + (0.2 + 0.15) * up, base_rotation_q, vec3{2, 3.5, 0.3}}},
 		// []vec3{vec3(body_velocity)},
 		nil,
-		[]int{int(TEMP_ColliderTag.Tank)}
+		[]int{int(TEMP_ColliderTag.Tank)},
 	)
 
 	// spin wheels
@@ -288,13 +288,13 @@ update_tank :: proc(tank : ^Tank, delta_time : f32) {
 
 render_tank :: proc(tank : ^Tank) {
 	// // body
-	graphics.set_basic_material({0.4, 0.44, 0.5}, &white_texture)
-	graphics.draw_mesh(&tank.body_mesh, tank.body_transform)
+	graphics.set_basic_material({0.4, 0.44, 0.5}, &asset_provider.textures[.White])
+	graphics.draw_mesh(tank.body_mesh, tank.body_transform)
 
 	// wheels
-	graphics.set_basic_material({0.25, 0.22, 0.2}, &white_texture)
+	graphics.set_basic_material({0.25, 0.22, 0.2}, &asset_provider.textures[.White])
 	for p, i in tank.wheel_positions {
 		local_transform := linalg.matrix4_translate_f32(p) * tank.wheel_rotations[i]
-		graphics.draw_mesh(&tank.wheel_mesh, local_transform)
+		graphics.draw_mesh(tank.wheel_mesh, local_transform)
 	}
 }

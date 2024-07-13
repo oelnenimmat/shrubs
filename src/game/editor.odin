@@ -16,7 +16,7 @@ EditorGizmoType :: enum { None, Translate, Rotate, Size }
 EditorGizmoOrientation :: enum { Local, World }
 
 editor : struct {
-	loaded_scene_name : SceneName,
+	loaded_scene_name : string,
 
 	mode : EditorMode,
 
@@ -41,7 +41,7 @@ editor_gizmo_transform :: proc(position : ^vec3, rotation_euler : ^vec3, size : 
 		rotation_euler.x, 
 		rotation_euler.y, 
 		rotation_euler.z, 
-		.XYZ
+		.XYZ,
 	)
 
 	// Todo(Leo): as this is the only channel to use imguizmos from, move those functions here,

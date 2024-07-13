@@ -56,12 +56,12 @@ deserialize_greyboxing :: proc(g : ^Greyboxing, s : ^SerializedGreyboxing) {
 
 render_greyboxing :: proc(g : ^Greyboxing) {
 
-	graphics.set_basic_material({1, 1, 1}, &DEBUG_rock_texture)
+	graphics.set_basic_material({1, 1, 1}, scene.textures[.Rock])
 	for b in g.boxes {
-		graphics.draw_mesh(&cube_mesh, linalg.matrix4_from_trs(
+		graphics.draw_mesh(&asset_provider.meshes[.Cube], linalg.matrix4_from_trs(
 			b.position, 
 			linalg.quaternion_from_euler_angles(b.rotation.x, b.rotation.y, b.rotation.z, .XYZ), 
-			b.size
+			b.size,
 		))
 	}
 }

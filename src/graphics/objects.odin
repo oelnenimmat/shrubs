@@ -1,7 +1,5 @@
 package graphics
 
-import "shrubs:common"
-
 import "core:fmt"
 
 import gl "vendor:OpenGL"
@@ -18,7 +16,7 @@ create_mesh :: proc(
 	vertex_positions 	: []vec3,
 	vertex_normals 		: []vec3,
 	vertex_texcoords	: []vec2, 
-	elements 			: []u16
+	elements 			: []u16,
 ) -> Mesh {
 	// Vertex arrays/slices need to match in size
 	vertex_count := len(vertex_positions)
@@ -88,7 +86,7 @@ draw_mesh :: proc(mesh : ^Mesh, model : mat4) {
 }
 
 Texture :: struct {
-	opengl_name : u32
+	opengl_name : u32,
 }
 
 TextureFilterMode :: enum { Nearest, Linear }
@@ -112,12 +110,12 @@ use_texture :: proc(texture : Texture, slot := 0) {
 
 create_color_texture :: proc(
 	width, height : int,
-	pixels : []common.Color_u8_rgba,
+	pixels_u8_rgba : []u8,
 	filter_mode : TextureFilterMode,
 ) -> Texture {
-
 	pixel_count := width * height
-	assert(pixel_count == len(pixels))
+	assert(len(pixels_u8_rgba) % 4 == 0)
+	assert(pixel_count == len(pixels_u8_rgba) / 4)
 
 	min_filter_mode := opengl_texture_filter_mode(filter_mode)
 	mag_filter_mode := gl.LINEAR if min_filter_mode == gl.LINEAR_MIPMAP_LINEAR else min_filter_mode
@@ -131,7 +129,7 @@ create_color_texture :: proc(
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, min_filter_mode)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, mag_filter_mode)
 
-	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, i32(width), i32(height), 0, gl.RGBA, gl.UNSIGNED_BYTE, raw_data(pixels))
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, i32(width), i32(height), 0, gl.RGBA, gl.UNSIGNED_BYTE, raw_data(pixels_u8_rgba))
 
 	if min_filter_mode == gl.LINEAR_MIPMAP_LINEAR {
 		gl.GenerateMipmap(gl.TEXTURE_2D)

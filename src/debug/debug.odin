@@ -10,7 +10,6 @@ import "core:math/linalg"
 vec2 		:: common.vec2
 vec3 		:: common.vec3
 vec4 		:: common.vec4
-dvec3 		:: common.dvec3
 mat3 		:: common.mat3
 mat4 		:: common.mat4
 quaternion 	:: common.quaternion

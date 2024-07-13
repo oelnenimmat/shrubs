@@ -20,32 +20,4 @@ import "shrubs:assets"
 import "shrubs:graphics"
 import "shrubs:physics"
 
-// Todo(Leo): I do not think assets package should own the memory, as
-// there might be cases where we want to keep the the mesh info on CPU
-// ram after uploading it into GPU ram.  
-TEMP_load_mesh_gltf :: proc(mesh_file_name, mesh_node_name : cstring) -> graphics.Mesh {
-	positions, normals, texcoords, elements := assets.NOT_MEMORY_SAFE_gltf_load_node(mesh_file_name, mesh_node_name)
-	mesh := graphics.create_mesh(positions, normals, texcoords, elements)
-
-	delete(positions)
-	delete(normals)
-	delete(texcoords)
-	delete(elements)
-
-	return mesh
-}
-
-// Todo(Leo): similar to TEMP_load_mesh_gltf
-TEMP_load_color_texture :: proc(filename : cstring, filter_mode := graphics.TextureFilterMode.Linear) -> graphics.Texture {
-	image := assets.load_color_image(filename)
-	defer assets.free_loaded_color_image(&image)
-	texture := graphics.create_color_texture(
-		image.width,
-		image.height,
-		image.pixels,
-		filter_mode,
-	)
-	return texture
-}
-
 TEMP_ColliderTag :: enum { None = 0, Tank }

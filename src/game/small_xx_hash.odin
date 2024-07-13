@@ -15,7 +15,7 @@ PRIME_D : u32 : 668265263 //0b00100111110101001110101100101111
 PRIME_E : u32 : 374761393 //0b00010110010101100110011110110001
 
 SmallXXHash :: struct {
-	accumulator : u32
+	accumulator : u32,
 }
 
 small_xx_hash_make :: proc(seed : i32) -> SmallXXHash {

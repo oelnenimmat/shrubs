@@ -39,7 +39,7 @@ Key :: enum {
 DEBUG_get_key_axis :: proc(negative, positive : Key) -> f32 {
 	return f32(
 		cast(int)DEBUG_get_key_held(positive) - 
-		cast(int)DEBUG_get_key_held(negative)
+		cast(int)DEBUG_get_key_held(negative),
 	)
 }
 
