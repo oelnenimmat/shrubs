@@ -174,7 +174,12 @@ input_int :: proc(label : string, v : ^int, step := 1, step_fast := 100, flags :
 	return edited
 }
 
-drag_vec3 :: proc(label : string, v : ^vec3, v_speed := f32(1.0), v_min := f32(0.0), v_max := f32(0.0), format := cstring("%.3f"), flags := ImGuiSliderFlags{}) -> bool {
+drag_vec2 :: proc(label : string, v : ^vec2, v_speed := f32(0.01), v_min := f32(0.0), v_max := f32(0.0), format := cstring("%.3f"), flags := ImGuiSliderFlags{}) -> bool {
+	label := to_u8_array(label, 32)
+	return cast(bool) DragFloat2(cstring(&label[0]), cast(^f32)v, v_speed, v_min, v_max, format, flags)
+}
+
+drag_vec3 :: proc(label : string, v : ^vec3, v_speed := f32(0.01), v_min := f32(0.0), v_max := f32(0.0), format := cstring("%.3f"), flags := ImGuiSliderFlags{}) -> bool {
 	label := to_u8_array(label, 32)
 	return cast(bool) DragFloat3(cstring(&label[0]), cast(^f32)v, v_speed, v_min, v_max, format, flags)
 }

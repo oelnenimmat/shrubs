@@ -7,6 +7,8 @@ PipelineShared :: struct {
 	per_frame_ubo 	: u32,
 	lighting_ubo 	: u32,
 	wind_ubo 		: u32,
+	world_ubo 		: u32,
+
 	debug_ubo 		: u32,
 
 	wind_texture : ^Texture,
@@ -28,6 +30,8 @@ create_pipeline_shared :: proc() -> PipelineShared {
 	ps.per_frame_ubo 	= create_buffer(size_of(PerFrameUniformBuffer))
 	ps.lighting_ubo 	= create_buffer(size_of(LightingUniformBuffer))
 	ps.wind_ubo 		= create_buffer(size_of(WindUniformBuffer))
+	ps.world_ubo 		= create_buffer(size_of(WorldUniformBuffer))
+
 	ps.debug_ubo 		= create_buffer(size_of(DebugUniformBuffer))
 
 	return ps
@@ -99,6 +103,26 @@ set_wind_data :: proc(texture_offset : vec2, texture_scale : f32, texture : ^Tex
 	gl.BindBufferBase(gl.UNIFORM_BUFFER, WIND_BUFFER_BINDING, ps.wind_ubo)
 
 	ps.wind_texture = texture
+}
+
+@private
+WorldUniformBuffer :: struct #align(16) {
+	placement_texcoord_scale : vec2,
+	placement_texcoord_offset : vec2,
+}
+#assert(size_of(WorldUniformBuffer) == 16)
+
+set_world_data :: proc(scale, offset : vec2) {
+	ps := &graphics_context.pipeline_shared
+
+	w : WorldUniformBuffer
+	w.placement_texcoord_scale 	= scale
+	w.placement_texcoord_offset = offset
+
+	gl.BindBuffer(gl.UNIFORM_BUFFER, ps.world_ubo)
+	gl.BufferSubData(gl.UNIFORM_BUFFER, 0, size_of(WorldUniformBuffer), &w)
+
+	gl.BindBufferBase(gl.UNIFORM_BUFFER, WORLD_BUFFER_BINDING, ps.world_ubo)
 }
 
 // Seems waste to use full floats as booleans, but there is one (or at most

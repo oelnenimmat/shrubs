@@ -24,6 +24,10 @@ WorldSettings :: struct {
 	z_offset 	: f32,
 
 	chunk_count_1D : int,
+
+	placement_match_world_size 	: bool,
+	placement_scale 			: vec2,
+	placement_offset 			: vec2,
 }
 
 check_dirty_bool :: proc(dirty : ^bool, edited : bool) {
@@ -54,6 +58,18 @@ edit_world_settings :: proc(w : ^WorldSettings) {
 	if imgui.button("generate") || dirty {
 		generate_terrain_mesh = true
 	}
+
+	imgui.Separator()
+	imgui.text("Placement texture")
+	imgui.checkbox("match world size", &w.placement_match_world_size)
+	imgui.drag_vec2("scale", &w.placement_scale)
+	imgui.drag_vec2("offset", &w.placement_offset)
+
+	if w.placement_match_world_size {
+		w.placement_scale = vec2(f32(w.chunk_count_1D * TERRAIN_CHUNK_SIZE_1D))
+		w.placement_offset = -0.5 * w.placement_scale
+	}
+
 }
 
 Terrain :: struct {

@@ -423,6 +423,7 @@ update :: proc(delta_time: f64) {
 	graphics.set_per_frame_data(view_matrix, projection_matrix)
 	graphics.set_lighting_data(camera.position, light_direction, light_color, ambient_color)
 	graphics.set_wind_data(wind_offset, 0.005, scene.textures[.Wind])
+	graphics.set_world_data(scene.world.placement_scale, scene.world.placement_offset)
 	graphics.set_debug_data(draw_normals, draw_backfacing, draw_lod)
 
 	graphics.setup_basic_pipeline()

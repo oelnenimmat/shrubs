@@ -17,7 +17,7 @@ layout(std140, binding = 1) uniform Lighting {
 	vec4 ambient_color;
 };
 
-layout(std140, binding = 3) uniform Debug {
+layout(std140, binding = 20) uniform Debug {
 	float draw_normals;
 	float draw_backfacing;
 	float draw_lod;

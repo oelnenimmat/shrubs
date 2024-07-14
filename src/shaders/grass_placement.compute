@@ -142,6 +142,11 @@ struct GrassInstanceData {
 	float 	_more_data;
 };
 
+layout(std140, binding = 3) uniform World {
+	vec2 placement_texcoord_scale;
+	vec2 placement_texcoord_offset;
+};
+
 layout (std140, binding = 10) uniform grass_types {
 	GrassTypeData types[];
 };
@@ -173,39 +178,27 @@ void main() {
 
 	vec2 cell_size = chunk_params.zz / chunk_params.w;
 
-	float x = chunk_params.x + (cell_x + hash_get_float(hx)) * cell_size.x;
-	float y = chunk_params.y + (cell_y + hash_get_float(hy)) * cell_size.y;
-	float z = sample_height(x, y);
+	// World space!
 
-	vec2 uv = vec2(
-		(x + world_params.x) / world_params.z,
-		(y + world_params.y) / world_params.z
+	// base position before clumping. clumping moves this, so z component is found after that
+	vec3 position_WS = vec3(
+		chunk_params.x + (cell_x + hash_get_float(hx)) * cell_size.x,
+		chunk_params.y + (cell_y + hash_get_float(hy)) * cell_size.y,
+		0
 	);
-
-	// Todo(Leo): this piece of code is supposed to remove unplaceable grass blades
-	// but for now we just scale them to zero. Please fix if possible.
-	float placement_value = textureLod(placement_texture, uv, 0).r;
-	if (placement_value < 0.5) {
-		instances[index].position = vec3(0);
-		instances[index].width = 0;
-		instances[index].height = 0;
-		return;
-	}
 
 	// Eat some prime numbers to get variation, quite arbitrary, and could do without
 	// float h_noise = sample_height(x * 3, y * 3) / noise_params.z;
 	float h = types[type_index].base_height + types[type_index].height_variation * (hash_get_float(hash_eat(hash, 13)));
 	float r = hash_get_float(hash_eat(hash, 37)) * 2 * pi;
 
-	// base position before clumping
-	vec3 position = vec3(x, y, z);
 
 	// test voronoi hashing
 	float clump_cell_size = types[type_index].clump_size;
-	int vx = int(floor(x / clump_cell_size));
-	int vy = int(floor(y / clump_cell_size));
+	int vx = int(floor(position_WS.x / clump_cell_size));
+	int vy = int(floor(position_WS.y / clump_cell_size));
 
-	vec2 pos = vec2(x, y);
+	vec2 pos = position_WS.xy;
 
 	ivec2 closest_cell;
 	vec2 closest_position;
@@ -228,11 +221,34 @@ void main() {
 	float extra_height 	= pow(hash_get_float(clump_hash), 3) * types[type_index].clump_height_variation;
 
 	vec3 clump_position = vec3(closest_position, sample_height(closest_position.x, closest_position.y));
-	vec3 to_clump 		= clump_position - position;
-	position 			= position + to_clump * types[type_index].clump_squeeze_in;
-	position.z 			= sample_height(position.x, position.y);
+	vec3 to_clump 		= clump_position - position_WS;
+	position_WS 			= position_WS + to_clump * types[type_index].clump_squeeze_in;
+	position_WS.z 			= sample_height(position_WS.x, position_WS.y);
 
-	instances[index].position 	= position;
+	// scale and offset are in world units, and the end must be in texcoord units
+	// ([0,1] and wrapping) so add offset first, scale then. Also scale is used to
+	// divide as it is essentially a normalizing factor.
+	// Todo(Leo): make a function of this in the common shader files once we get those.
+	vec2 uv = (position_WS.xy + placement_texcoord_offset) / placement_texcoord_scale;
+
+
+	// Todo(Leo): ideally we would like this to be early as possible (or would we?
+	// this is a shader after all) but we need uv for this, and uv must be computed
+	// after clumping. This could be compromised and just use the unclumped position
+	// for uv though.
+	// Todo(Leo): this piece of code is supposed to remove unplaceable grass blades
+	// but for now we just scale them to zero. Please fix if possible.
+	float placement_value = textureLod(placement_texture, uv, 0).r;
+	if (placement_value < 0.5) {
+		instances[index].position = vec3(0);
+		instances[index].width = 0;
+		instances[index].height = 0;
+		return;
+	}
+
+
+
+	instances[index].position 	= position_WS;
 	instances[index].test_color = random_color(closest_cell.x + 2000 * closest_cell.y);
 	instances[index].field_uv 	= uv;
 	instances[index].height 	= h + extra_height;

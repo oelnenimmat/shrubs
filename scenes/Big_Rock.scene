@@ -4,7 +4,16 @@
 		"noise_scale": 15.61999989,
 		"z_scale": 4.19999981,
 		"z_offset": 1.89999998,
-		"chunk_count_1D": 10
+		"chunk_count_1D": 9,
+		"placement_match_world_size": true,
+		"placement_scale": [
+			90.00000000,
+			90.00000000
+		],
+		"placement_offset": [
+			-45.00000000,
+			-45.00000000
+		]
 	},
 	"lighting": {
 		"direction_polar": [

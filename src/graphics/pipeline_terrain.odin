@@ -30,7 +30,7 @@ create_terrain_pipeline :: proc() -> TerrainPipeline {
 
 	// Compile time generated slices to program memory, no need to delete after.
 	// Now we don't need to worry about shader files being present runtime.
-	vertex_shader_source := #load("../shaders/basic.vert", cstring)
+	vertex_shader_source := #load("../shaders/terrain.vert", cstring)
 	frag_shader_source := #load("../shaders/terrain.frag", cstring)
 
 	pl.shader_program = create_shader_program(vertex_shader_source, frag_shader_source)
