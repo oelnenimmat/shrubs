@@ -277,6 +277,10 @@ update :: proc(delta_time: f64) {
 		}
 	}
 
+	if input.DEBUG_get_key_pressed(.F12) {
+		save_screenshot = true
+	}
+
 
 	///////////////////////////////////////////////////////////////////////////
 	// START OF GAME UPDATE

@@ -248,8 +248,16 @@ update_player_character :: proc(pc : ^PlayerCharacter, cam : ^Camera, delta_time
 				tank_controls_hold_button(&tank, selected_button_index)
 			}
 		}
+	}
 
-
+	// check being inside the tank
+	checking_collider := physics.SphereCollider { pc.physics_position + {0, 0, 0.5 * PLAYER_COLLIDER_HEIGHT}, 0.1}
+	if physics.is_colliding (&checking_collider, &tank.inside_trigger_volume) {
+		pc.is_attached_on_tank = true
+		debug.draw_wire_cube(tank.inside_trigger_volume.position, tank.inside_trigger_volume.rotation, tank.inside_trigger_volume.size, debug.GREEN)
+	} else {
+		pc.is_attached_on_tank = false
+		debug.draw_wire_cube(tank.inside_trigger_volume.position, tank.inside_trigger_volume.rotation, tank.inside_trigger_volume.size, debug.RED)
 	}
 }
 

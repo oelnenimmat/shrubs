@@ -73,6 +73,9 @@ Tank :: struct {
 	body_mesh	: ^graphics.Mesh,
 	wheel_mesh 	: ^graphics.Mesh,
 
+	// 
+	inside_trigger_volume : physics.BoxCollider,
+
 	// Buttons
 	buttons_positions : [3]vec3,
 	auto_drive_on : bool,
@@ -331,14 +334,12 @@ update_tank :: proc(tank : ^Tank, delta_time : f32) {
 		}
 	}
 
-
-	// {
-	// 	for b in tank.buttons_positions {
-	// 		p := linalg.quaternion_mul_vector3(tank.body_rotation, b) + tank.body_position
-	// 		// p := tank.body_position + b
-	// 		debug.draw_wire_sphere(p, 0.2, debug.BLUE)	
-	// 	}
-	// }
+	// inside trigger volume
+	tank.inside_trigger_volume = {
+		center + linalg.quaternion_mul_vector3(base_rotation_q, vec3{0, 0, 1}),
+		base_rotation_q,
+		{TANK_HULL_WIDTH, TANK_HULL_LENGTH, 2},
+	}
 }
 
 // Todo(Leo): Allocates from temp_allocator

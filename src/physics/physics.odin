@@ -163,9 +163,9 @@ begin_frame :: proc(delta_time : f32) {
 	// append(&p.ticks_this_frame_2, p.last_incomplete_tick)
 }
 
-// ticks_this_frame_2 :: proc() -> []f32 {
-// 	return physics.ticks_this_frame_2[:]
-// }
+ticks_this_frame_2 :: proc() -> []f32 {
+	return physics.ticks_this_frame_2[:]
+}
 
 is_colliding :: proc(a : ^$A, b : ^$B) -> bool {
 	a_aabb := get_aabb(a)
