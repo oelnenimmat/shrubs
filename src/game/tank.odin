@@ -207,35 +207,36 @@ update_tank :: proc(tank : ^Tank, delta_time : f32) {
 			tank.old_wheel_positions[i] = current_position
 			tank.wheel_positions[i] = new_position
 		}
-	}
 
-	for _ in 0..<TANK_CONSTRAINT_ITERATIONS {
+		for _ in 0..<TANK_CONSTRAINT_ITERATIONS {
 
-		// Constrain to ground
-		for i in 0..<TANK_WHEEL_COUNT {
-			position 	:= tank.wheel_positions[i]
-			min_z 		:= sample_height(position.x, position.y, &scene.world) + TANK_WHEEL_RADIUS
+			// Constrain to ground
+			for i in 0..<TANK_WHEEL_COUNT {
+				position 	:= tank.wheel_positions[i]
+				min_z 		:= sample_height(position.x, position.y, &scene.world) + TANK_WHEEL_RADIUS
 
-			if position.z < min_z {
-				position.z = min_z
+				if position.z < min_z {
+					position.z = min_z
+				}
+
+				tank.wheel_positions[i] = position
 			}
 
-			tank.wheel_positions[i] = position
+			// Constrain to each others
+			for c in tank.wheel_constraints {
+				a_to_b 				:= tank.wheel_positions[c.index_b] - tank.wheel_positions[c.index_a]
+				distance 			:= linalg.length(a_to_b)
+				error 				:= distance - c.distance
+				error_per_wheel 	:= error / 2
+
+				direction_a := linalg.normalize(a_to_b)
+				direction_b := -direction_a
+
+				tank.wheel_positions[c.index_a] += direction_a * error_per_wheel
+				tank.wheel_positions[c.index_b] += direction_b * error_per_wheel
+			}
 		}
-
-		// Constrain to each others
-		for c in tank.wheel_constraints {
-			a_to_b 				:= tank.wheel_positions[c.index_b] - tank.wheel_positions[c.index_a]
-			distance 			:= linalg.length(a_to_b)
-			error 				:= distance - c.distance
-			error_per_wheel 	:= error / 2
-
-			direction_a := linalg.normalize(a_to_b)
-			direction_b := -direction_a
-
-			tank.wheel_positions[c.index_a] += direction_a * error_per_wheel
-			tank.wheel_positions[c.index_b] += direction_b * error_per_wheel
-		}
+	
 	}
 
 	// Find the wheel rotations

@@ -68,6 +68,31 @@ render :: proc () {
 ///////////////////////////////////////////////////////////////////////////////
 /// Usage API
 
+value_int :: proc(label : string, v : int) {
+	label := to_u8_array(label, 32)
+	Value(cstring(&label[0]), i32(v))
+}
+
+value_f32 :: proc(label : string, v : f32) {
+	label := to_u8_array(label, 32)
+	Value(cstring(&label[0]), v)
+}
+
+value_bool :: proc(label : string, v : bool) {
+	text("{}: {}", label, "true" if v else "false")
+}
+
+value_vec3 :: proc(label : string, v : vec3) {
+	text("{}: ({:.3f}, {:.3f}, {:.3f})", label, v.x, v.y, v.z)
+}
+
+value :: proc {
+	value_int,
+	value_f32,
+	value_bool,
+	value_vec3,
+}
+
 text :: proc(format : string, stuff : ..any) {
 	// todo(Leo): use imgui specific allocator
 	// thoguh, why? becuse context temp allocator may be used by game and imgui is not supposed to ship
@@ -207,6 +232,9 @@ size_gizmo :: proc(size : ^vec3, position : vec3, rotation : quaternion) {
 ///////////////////////////////////////////////////////////////////////////////
 // Internal helpers
 
+// Todo(Leo): do an arena allocator for this instead
+// Copies the string to a stack variable, preserving a one character for the null
+// terminator for imgui c++ calls
 @private
 to_u8_array :: proc(s : string, $size : int) -> [size]u8 {
 	out 		:= [size]u8 {}

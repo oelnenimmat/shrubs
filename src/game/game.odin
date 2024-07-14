@@ -63,7 +63,7 @@ grass_system : Grass
 grass_blade_count := 32
 grass_segment_count := 3
 
-lod_enabled := -1
+lod_enabled := 0
 draw_normals := false
 draw_backfacing := false
 draw_lod := false
@@ -85,8 +85,43 @@ application : struct {
 show_imgui_demo := false
 show_timings := true
 timings : struct {
-	frame_time : SmoothValue,
+	frame_time : SmoothValue(30),
 }
+
+DebugValue :: struct {
+	label : string,
+	value : union { int, f32, bool, vec3 }
+}
+debug_values : [dynamic] DebugValue
+
+put_debug_value_f32 :: proc(label : string, value : f32) {
+	append(&debug_values, DebugValue{label, value})
+}
+
+put_debug_value_int :: proc(label : string, value : int) {
+	append(&debug_values, DebugValue{label, value})
+}
+
+put_debug_value_bool :: proc(label : string, value : bool) {
+	append(&debug_values, DebugValue{label, value})
+}
+
+put_debug_value_vec3 :: proc(label : string, value : vec3) {
+	append(&debug_values, DebugValue{label, value})
+}
+
+put_debug_value :: proc {
+	put_debug_value_int,
+	put_debug_value_f32,
+	put_debug_value_bool,
+	put_debug_value_vec3,
+}
+
+clear_debug_values :: proc() {
+	debug_values = make([dynamic]DebugValue, 0, 20, context.temp_allocator)
+}
+
+show_debug_values := true
 
 test_position : vec3
 
@@ -146,21 +181,12 @@ initialize :: proc() {
 				b := strings.builder_make(context.temp_allocator)
 				fmt.sbprintf(&b, "{}{}", SCENES_DIRECTORY, f.name)
 
-				// info 				:= SceneInfo{}
-				// info.filename 		= strings.clone(strings.to_string(b), context.allocator)
-				// info.display_name 	= strings.clone(filepath.stem(f.name), context.allocator)
-
-				// append(&found_scenes, info)
-
 				append(&filenames, strings.clone(strings.to_string(b), context.allocator))
 				append(&display_names, strings.clone(filepath.stem(f.name), context.allocator))
 			} else {
 				// fmt.println("NOT SCENE!")
 			}
 		}
-
-		// available_scenes = slice.clone(found_scenes[:], context.allocator)
-
 		available_scenes.filenames = slice.clone(filenames[:], context.allocator)
 		available_scenes.display_names = slice.clone(display_names[:], context.allocator)
 	}
@@ -218,6 +244,7 @@ update :: proc(delta_time: f64) {
 	// Todo(Leo): this doesn't feel like "game" thing, more "application" or "engine"
 	// clear the temp allocator here
 	free_all(context.temp_allocator)
+	clear_debug_values()
 
 	// note(Leo): in main we have delta time as f64, but for the most part
 	// we now use f32 for rendering reasons, so it is more straightforward
@@ -332,7 +359,7 @@ update :: proc(delta_time: f64) {
 	imgui.SetNextWindowSize({300, 0})
 	next_window_Y := f32(10)
 	if show_timings {
-		if imgui.Begin("Timings") {
+		if imgui.Begin("Timings", nil, .NoResize | .NoScrollbar | .NoCollapse | .NoNav) {
 			if imgui.BeginTable("time table", 2) {
 
 				imgui.TableNextRow()
@@ -344,10 +371,27 @@ update :: proc(delta_time: f64) {
 				imgui.EndTable()
 			}
 		}
-		next_window_Y = 10 + imgui.GetWindowHeight() + 10
+		next_window_Y += imgui.GetWindowHeight() + 10
 		imgui.End()
 	}
-	
+	imgui.SetNextWindowPos({10, next_window_Y})
+
+	imgui.SetNextWindowSize({300, 0})
+	if show_debug_values {
+		if imgui.Begin("Debug Values", nil, .NoResize | .NoScrollbar | .NoCollapse | .NoNav) {
+			for v in debug_values {
+				switch value in v.value {
+					case f32: imgui.value(v.label, value)
+					case int: imgui.value(v.label, value)
+					case bool: imgui.value(v.label, value)
+					case vec3: imgui.value(v.label, value)
+				}
+
+			}
+		}
+		next_window_Y += imgui.GetWindowHeight() + 10
+		imgui.End()
+	}
 	imgui.SetNextWindowPos({10, next_window_Y})
 
 	if application.mode == .Edit {
@@ -388,7 +432,7 @@ update :: proc(delta_time: f64) {
 
 	// Player character as a capsule for debug purposes
 	graphics.set_basic_material({0.6, 0.2, 0.4}, &asset_provider.textures[.White])
-	model_matrix := linalg.matrix4_translate_f32(player_character.physics_position + OBJECT_UP) *
+	model_matrix := linalg.matrix4_translate_f32(player_get_position(&player_character) + OBJECT_UP) *
 					linalg.matrix4_scale_f32(2)
 	graphics.draw_mesh(&asset_provider.meshes[.Capsule], model_matrix)
 
@@ -413,7 +457,7 @@ update :: proc(delta_time: f64) {
 	grass_lods 			: [100]int
 	lod_segment_counts 	: [100]int
 	lod_instance_counts : [100]int
-	lod_check_position 	:= player_character.physics_position
+	lod_check_position 	:= player_get_position(&player_character)
 	for lod, i in &grass_lods {
 		chunk_center := grass_system.positions[i] + vec2(2.5)
 
@@ -620,6 +664,7 @@ editor_gui :: proc() {
 
 		if imgui.CollapsingHeader("Debug") {
 			imgui.checkbox("Show Timinfs", &show_timings)
+			imgui.checkbox("Show Debug Values", &show_debug_values)
 			imgui.checkbox("Show Imgui Demo", &show_imgui_demo)
 
 			imgui.checkbox("Draw Normals", &draw_normals)

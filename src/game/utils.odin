@@ -1,12 +1,12 @@
 package game
 
-SmoothValue :: struct {
+SmoothValue :: struct($BufferSize : int) {
 	value 	: f32,
-	buffer 	: [30]f32,
+	buffer 	: [BufferSize]f32,
 	index 	: int,
 }
 
-smooth_value_put :: proc(sv : ^SmoothValue, value : f32) {
+smooth_value_put :: proc(sv : ^SmoothValue($S), value : f32) {
 	sv.value 			-= sv.buffer[sv.index] / (f32(len(sv.buffer)))
 	sv.buffer[sv.index] = value
 	sv.value 			+= sv.buffer[sv.index] / (f32(len(sv.buffer)))

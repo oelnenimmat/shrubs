@@ -26,12 +26,11 @@ import "shrubs:physics"
 PLAYER_CHARACTER_MOVE_SPEED :: 6.0
 
 PlayerCharacter :: struct {
-	physics_position : vec3,
-	old_physics_position : vec3,
+	physics_position 		: vec3,
+	old_physics_position 	: vec3,
 
-	view_forward 	: vec3,
-
-	head_height 	: f32,
+	view_forward 			: vec3,
+	head_height 			: f32,
 }
 
 create_player_character :: proc() -> PlayerCharacter {
@@ -43,6 +42,10 @@ create_player_character :: proc() -> PlayerCharacter {
 	pc.view_forward = OBJECT_FORWARD
 
 	return pc
+}
+
+player_get_position :: proc (pc : ^PlayerCharacter) -> vec3 {
+	return pc.physics_position
 }
 
 // //https://stackoverflow.com/questions/3684269/component-of-a-quaternion-rotation-around-an-axis
@@ -92,75 +95,106 @@ update_player_character :: proc(pc : ^PlayerCharacter, cam : ^Camera, delta_time
 	// Move
 	move_vector := move_right_input * flat_right +
 					move_forward_input * flat_forward
-	move_step := PLAYER_CHARACTER_MOVE_SPEED * delta_time
-	pc.physics_position += move_vector * move_step
-	pc.old_physics_position += move_vector * move_step
+	// move_step := PLAYER_CHARACTER_MOVE_SPEED * delta_time
+	// pc.physics_position 	+= move_vector * move_step
+	// pc.old_physics_position += move_vector * move_step
 
 	pc.head_height += HACK_move_head_up_input * PLAYER_CHARACTER_MOVE_SPEED * delta_time
 
+	GROUNDING_SKIN_WIDTH :: 0.02
 	// Physicsy -> apply forces
+	grounded := false
+	collider_height := f32(2)
+	collider_radius := f32(0.5)
+	collider_offset := vec3{0, 0, 0.5 * collider_height}
+	// collider_position := pc.physics_position + vec3{0, 0, 0.5 * collider_height}
+
+	collider := physics.CapsuleCollider { {}, collider_radius, collider_height }
+
 	for _ in 0..<physics.ticks_this_frame() {
+
+		move_step := cast(f32) PLAYER_CHARACTER_MOVE_SPEED * physics.DELTA_TIME
+		pc.physics_position 	+= move_vector * move_step
+		pc.old_physics_position += move_vector * move_step
+
 		current_physics_position := pc.physics_position
 		old_physics_position := pc.old_physics_position
 		new_physics_position := current_physics_position + 
 								(current_physics_position - old_physics_position) + 
 								vec3{0, 0, -physics.GRAVITATIONAL_ACCELERATION} * physics.DELTA_TIME * physics.DELTA_TIME
 
+
+		// Collide/constrain
+		min_z := sample_height(new_physics_position.x, new_physics_position.y, &scene.world)
+		correction := math.max(0, min_z - new_physics_position.z)
+		new_physics_position.z += correction
+
+		grounded = new_physics_position.z < (min_z + GROUNDING_SKIN_WIDTH)
+		// pc.physics_position.z = max(min_z, pc.physics_position.z)
+
+		collider.position = new_physics_position + collider_offset
+		for c in physics.collide(&collider) {
+			correction := c.direction * c.depth
+
+			new_physics_position += correction
+
+			velocity_vector := new_physics_position - current_physics_position
+			velocity_vector -= linalg.projection(velocity_vector, c.direction)
+			current_physics_position = new_physics_position - velocity_vector
+		}
+
+
+
 		pc.old_physics_position = current_physics_position
 		pc.physics_position 	= new_physics_position
 	}
 
-	// Collide/constrain
-	min_z := sample_height(pc.physics_position.x, pc.physics_position.y, &scene.world)
-	GROUNDING_SKIN_WIDTH :: 0.02
-	grounded := pc.physics_position.z < (min_z + GROUNDING_SKIN_WIDTH)
-
-	pc.physics_position.z = max(min_z, pc.physics_position.z)
-
 	
+	// grounded := pc.physics_position.z < (min_z + GROUNDING_SKIN_WIDTH)
 	// Start using physics colliders
+	if true
 	{
-		collider_height := f32(2)
-		collider_radius := f32(0.5)
-		collider_position := pc.physics_position + vec3{0, 0, 0.5 * collider_height}
+		// collider_height := f32(2)
+		// collider_radius := f32(0.5)
+		// collider_position := pc.physics_position + vec3{0, 0, 0.5 * collider_height}
 
-		collider := physics.CapsuleCollider { collider_position, collider_radius, collider_height }
+		// collider := physics.CapsuleCollider { collider_position, collider_radius, collider_height }
 
-		for c in physics.collide(&collider) {
-			correction := c.direction * c.depth
-			pc.physics_position += correction
+		// for c in physics.collide(&collider) {
+		// 	correction := c.direction * c.depth
+		// 	pc.physics_position += correction
 
-			velocity_vector := pc.physics_position - pc.old_physics_position
-			velocity_vector -= linalg.projection(velocity_vector, c.direction)
-			pc.old_physics_position = pc.physics_position - velocity_vector
-		}
+		// 	velocity_vector := pc.physics_position - pc.old_physics_position
+		// 	velocity_vector -= linalg.projection(velocity_vector, c.direction)
+		// 	pc.old_physics_position = pc.physics_position - velocity_vector
+		// }
 
-		// ground collider is slimmer to not hit walls and slightly below
+		// ground collider is slimmer to not hit walls and slightly below, also put it slighlyt down to hit the ground
 		ground_collider := collider
-		ground_collider.position.z -= 0.1 + GROUNDING_SKIN_WIDTH
+		ground_collider.position = pc.physics_position + collider_offset + {0, 0, -0.05}; // - GROUNDING_SKIN_WIDTH
 		ground_collider.radius -= 0.1
 		ground_collisions := physics.collide(&ground_collider)
 		if ground_collisions != nil {
 			grounded = true
 		}
-		for c in ground_collisions {
-			if cast(TEMP_ColliderTag)c.tag == .Tank {
-				tank_position_change := tank.body_position - tank.old_body_position
+		// for c in ground_collisions {
+		// 	if cast(TEMP_ColliderTag)c.tag == .Tank {
+		// 		tank_position_change := tank.body_position - tank.old_body_position
 
-				tank_rotation_change := normalize(quaternion_inverse(tank.old_body_rotation) * tank.body_rotation)
-				pc.view_forward = mul(tank_rotation_change, pc.view_forward)
+		// 		tank_rotation_change := normalize(quaternion_inverse(tank.old_body_rotation) * tank.body_rotation)
+		// 		pc.view_forward = mul(tank_rotation_change, pc.view_forward)
 
-				pc_local_position := pc.physics_position - tank.body_position
-				rotation_matrix := matrix4_from_quaternion(tank_rotation_change)
+		// 		pc_local_position := pc.physics_position - tank.body_position
+		// 		rotation_matrix := matrix4_from_quaternion(tank_rotation_change)
 
-				pc_local_position = matrix4_mul_point(rotation_matrix, pc_local_position)
-				pc_position := pc_local_position + tank.body_position
+		// 		pc_local_position = matrix4_mul_point(rotation_matrix, pc_local_position)
+		// 		pc_position := pc_local_position + tank.body_position
 
-				diff := pc_position - pc.physics_position + tank_position_change
-				pc.physics_position += diff
-				pc.old_physics_position += diff
-			}
-		}
+		// 		diff := pc_position - pc.physics_position + tank_position_change
+		// 		pc.physics_position += diff
+		// 		pc.old_physics_position += diff
+		// 	}
+		// }
 	}
 
 	// No sliding on the ground
@@ -172,6 +206,22 @@ update_player_character :: proc(pc : ^PlayerCharacter, cam : ^Camera, delta_time
 			pc.physics_position.z += physics.GRAVITATIONAL_ACCELERATION * physics.DELTA_TIME * 0.5
 		}
 	}
+
+
+	// Done updating the physics position, lets print the values
+	speed := linalg.length(pc.physics_position - pc.old_physics_position) / delta_time
+	z_speed := (pc.physics_position.z - pc.old_physics_position.z) / delta_time
+	smooth_value_put(&player_debug.speed, speed)
+	smooth_value_put(&player_debug.z_speed, z_speed)
+	smooth_value_put(&player_debug.physticks, f32(physics.ticks_this_frame()))
+
+	put_debug_value("player speed", player_debug.speed.value)
+	put_debug_value("z speed", player_debug.z_speed.value)
+	put_debug_value("ground correction", player_debug.ground_correction.value)
+	put_debug_value("physics ticks", int(math.round(player_debug.physticks.value)))
+	put_debug_value("grounded", grounded)
+	put_debug_value("position", pc.physics_position)
+	put_debug_value("old position", pc.old_physics_position)
 
 	debug.draw_wire_sphere(pc.physics_position, 0.2, debug.RED)
 
@@ -194,4 +244,12 @@ update_player_character :: proc(pc : ^PlayerCharacter, cam : ^Camera, delta_time
 		cam.rotation = view_rotation
 
 	}
+}
+
+@(private = "file")
+player_debug : struct {
+	speed 				: SmoothValue(10),
+	z_speed 			: SmoothValue(1),
+	ground_correction 	: SmoothValue(10),
+	physticks 			: SmoothValue(10),
 }
