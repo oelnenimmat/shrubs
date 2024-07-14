@@ -1,0 +1,50 @@
+{
+	"world": {
+		"seed": 16,
+		"noise_scale": 13.73999977,
+		"z_scale": 0.00000000,
+		"z_offset": 0.00000000,
+		"chunk_count_1D": 10,
+		"placement_match_world_size": true,
+		"placement_scale": [
+			100.00000000,
+			100.00000000
+		],
+		"placement_offset": [
+			-50.00000000,
+			-50.00000000
+		]
+	},
+	"lighting": {
+		"direction_polar": [
+			112.80000305,
+			-76.80000305
+		],
+		"directional_color": [
+			2.10599995,
+			1.94804823,
+			1.75499976,
+			1.75000000
+		],
+		"ambient_color": [
+			0.31540504,
+			0.95894343,
+			1.46700001,
+			1.08333337
+		],
+		"exposure": 0.81000000
+	},
+	"greyboxing": {
+		"boxes": [
+
+		]
+	},
+	"grass_type": 0,
+	"texture_uses": [
+		6,
+		4,
+		5,
+		6,
+		7
+	]
+}

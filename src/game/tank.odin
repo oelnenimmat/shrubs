@@ -72,6 +72,12 @@ Tank :: struct {
 	// rendering
 	body_mesh	: ^graphics.Mesh,
 	wheel_mesh 	: ^graphics.Mesh,
+
+	// Buttons
+	buttons_positions : [3]vec3,
+	auto_drive_on : bool,
+	turn_left : bool,
+	turn_right : bool,
 }
 
 create_tank :: proc() -> Tank {
@@ -138,19 +144,24 @@ create_tank :: proc() -> Tank {
 	t.body_mesh = &asset_provider.meshes[.Tank_Body]
 	t.wheel_mesh = &asset_provider.meshes[.Tank_Wheel]
 
-	return t
-}
+	t.buttons_positions[0] = {-0.7, 1.9, 1.5}
+	t.buttons_positions[1] = {0, 1.9, 1.5}
+	t.buttons_positions[2] = {0.7, 1.9, 1.5}
 
-transform_position :: proc(transform : mat4, v : vec3) -> vec3 {
-	v := vec4{v.x, v.y, v.z, 1}
-	v = transform * v
-	return {v.x, v.y, v.z}
+	return t
 }
 
 update_tank :: proc(tank : ^Tank, delta_time : f32) {
 
-	move_input := input.DEBUG_get_key_axis(.K, .I)
-	turn_input := -input.DEBUG_get_key_axis(.J, .L)
+	// move_input := input.DEBUG_get_key_axis(.K, .I)
+	// turn_input := -input.DEBUG_get_key_axis(.J, .L)
+
+	move_input := cast(f32) 1 if tank.auto_drive_on else 0
+	turn_input := cast(f32) (int(tank.turn_left) - int(tank.turn_right))
+
+	// reset these
+	tank.turn_left = false
+	tank.turn_right = false
 
 	// Todo(Leo): use physics delta time
 	step := TANK_SPEED * delta_time * move_input
@@ -319,8 +330,41 @@ update_tank :: proc(tank : ^Tank, delta_time : f32) {
 			tank.wheel_rotations[i] = base * linalg.matrix4_rotate_f32(-tank.wheel_spins[i], OBJECT_RIGHT)
 		}
 	}
+
+
+	// {
+	// 	for b in tank.buttons_positions {
+	// 		p := linalg.quaternion_mul_vector3(tank.body_rotation, b) + tank.body_position
+	// 		// p := tank.body_position + b
+	// 		debug.draw_wire_sphere(p, 0.2, debug.BLUE)	
+	// 	}
+	// }
 }
 
+// Todo(Leo): Allocates from temp_allocator
+tank_get_button_positions :: proc(t : ^Tank) -> []vec3 {
+
+	p := make([]vec3, len(t.buttons_positions), context.temp_allocator)
+	for b, i in tank.buttons_positions {
+		p[i] = linalg.quaternion_mul_vector3(t.body_rotation, b) + tank.body_position
+		debug.draw_wire_sphere(p[i], 0.15, debug.BLUE)	
+	}
+	return p
+}
+
+tank_controls_press_button :: proc(t : ^Tank, index : int) {
+	switch index {
+		case 1: t.auto_drive_on = !t.auto_drive_on
+	}
+} 
+
+tank_controls_hold_button :: proc(t : ^Tank, index : int) {
+	switch index {
+		case 0: t.turn_left = true 
+		case 2: t.turn_right = true 
+	}
+}
+ 
 render_tank :: proc(tank : ^Tank) {
 	// // body
 	graphics.set_basic_material({0.4, 0.44, 0.5}, &asset_provider.textures[.White])

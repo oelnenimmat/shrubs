@@ -308,10 +308,6 @@ update :: proc(delta_time: f64) {
 			physics.submit_colliders(colliders)
 		}
 
-
-		// test collider
-		physics.submit_colliders([]physics.BoxCollider{{{2, 4, 2}, quaternion(1), {2, 2, 1}}})
-
 		// tank submits colliders that player needs to use, so that need to update first
 		// Todo(Leo): maybe have a collider handle that is just updated or something, but this
 		// works now, when things are not too complicated. Also there will be a need to think

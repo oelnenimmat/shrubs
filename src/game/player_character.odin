@@ -216,6 +216,39 @@ update_player_character :: proc(pc : ^PlayerCharacter, cam : ^Camera, delta_time
 		eye_depth := f32(0.15)
 		cam.position = pc.physics_position + world_local_up * pc.head_height + view_forward * eye_depth 
 		cam.rotation = view_rotation
+	}
+
+	// Check tank buttons
+	{
+		button_positions := tank_get_button_positions(&tank)
+
+		biggest_dot 			:= f32(-10000)
+		selected_button_index 	:= -1
+
+		for b, index in button_positions {
+			// todo(Leo): store this also ourselves somehere here
+			view_to_button := b - cam.position
+			if linalg.length(view_to_button) < 2 {
+				debug.draw_wire_sphere(b, 0.2, debug.YELLOW)
+				
+				d := linalg.dot(linalg.normalize(view_to_button), view_forward)
+				if d > 0.707 && d > biggest_dot {
+					biggest_dot = d
+					selected_button_index = index
+				}
+			}
+		}
+
+		if selected_button_index >= 0 {
+			debug.draw_wire_sphere(button_positions[selected_button_index], 0.3, debug.GREEN)
+
+			if input.DEBUG_get_mouse_button_pressed(0) {
+				tank_controls_press_button(&tank, selected_button_index)
+			} else if input.DEBUG_get_mouse_button_held(0) {
+				tank_controls_hold_button(&tank, selected_button_index)
+			}
+		}
+
 
 	}
 }
