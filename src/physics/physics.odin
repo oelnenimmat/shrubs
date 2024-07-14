@@ -57,6 +57,13 @@ Physics :: struct {
 	// Todo(Leo): this should work instead, while avoiding precision issues :)
 	left_over_time : f32,
 	ticks_this_frame : int,
+
+
+	first_incomplete_tick 	: f32,
+	full_ticks 				: int,
+	last_incomplete_tick 	: f32,
+
+	ticks_this_frame_2 : [dynamic]f32,
 }
 
 @private
@@ -128,6 +135,8 @@ submit_colliders :: proc(new_colliders : []$T, velocities : []vec3 = nil, tags :
 begin_frame :: proc(delta_time : f32) {
 	p := &physics
 
+	og_dt := delta_time
+
 	resize(&p.aabbs, 0)
 	resize(&p.submitted_colliders, 0)
 	resize(&p.velocities, 0)
@@ -136,7 +145,27 @@ begin_frame :: proc(delta_time : f32) {
 	delta_time := delta_time + p.left_over_time
 	p.ticks_this_frame 	= int(delta_time / DELTA_TIME)
 	p.left_over_time 	= math.mod(delta_time, DELTA_TIME)
+
+	// first_incomplete_tick 	:= DELTA_TIME - p.last_incomplete_tick
+	// dt_reduced 				:= og_dt - first_incomplete_tick
+	// full_ticks 				:= int(dt_reduced / DELTA_TIME)
+	// last_incomplete_tick 	:= dt_reduced - f32(full_ticks) * DELTA_TIME
+
+	// p.first_incomplete_tick = first_incomplete_tick
+	// p.full_ticks 			= full_ticks
+	// p.last_incomplete_tick	= last_incomplete_tick
+
+	// resize(&p.ticks_this_frame_2, 0)
+	// append(&p.ticks_this_frame_2, p.first_incomplete_tick)
+	// for _ in 0..<p.full_ticks {
+	// 	append(&p.ticks_this_frame_2, DELTA_TIME)
+	// }
+	// append(&p.ticks_this_frame_2, p.last_incomplete_tick)
 }
+
+// ticks_this_frame_2 :: proc() -> []f32 {
+// 	return physics.ticks_this_frame_2[:]
+// }
 
 is_colliding :: proc(a : ^$A, b : ^$B) -> bool {
 	a_aabb := get_aabb(a)

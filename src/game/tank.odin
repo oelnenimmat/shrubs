@@ -23,7 +23,10 @@ control gear, slide down when on free
 actually different sounds from incidences like springs hitting bottom etc
 */
 
-TANK_HULL_WIDTH :: 2
+TANK_HULL_WIDTH :: 3
+TANK_HULL_LENGTH :: 6
+TANK_HULL_THICKNESS :: 0.3
+
 TANK_WHEEL_WIDTH :: f32(0.4)
 TANK_WHEEL_RADIUS :: 0.35
 TANK_SPEED :: 2.5
@@ -75,7 +78,7 @@ create_tank :: proc() -> Tank {
 	t := Tank{}
 
 	width := TANK_HULL_WIDTH + TANK_WHEEL_WIDTH
-	length := f32(3)
+	length := cast(f32) TANK_HULL_LENGTH - TANK_WHEEL_RADIUS
 	
 	// local wheel positions
 	hw := width / 2
@@ -124,7 +127,7 @@ create_tank :: proc() -> Tank {
 	t.wheel_constraints[12] = {L3, R3, width}
 	t.wheel_constraints[13] = {L2, R2, width}
 
-	small_length := f32(1)
+	small_length := length / 3
 	t.wheel_constraints[14] = {L4, L3, small_length}
 	t.wheel_constraints[15] = {L3, L2, small_length}
 	t.wheel_constraints[16] = {L2, L1, small_length}
@@ -149,6 +152,7 @@ update_tank :: proc(tank : ^Tank, delta_time : f32) {
 	move_input := input.DEBUG_get_key_axis(.K, .I)
 	turn_input := -input.DEBUG_get_key_axis(.J, .L)
 
+	// Todo(Leo): use physics delta time
 	step := TANK_SPEED * delta_time * move_input
 	forward_left 	:= linalg.normalize(tank.wheel_positions[L1] - tank.wheel_positions[L4])
 	forward_right 	:= linalg.normalize(tank.wheel_positions[R1] - tank.wheel_positions[R4])
@@ -163,7 +167,6 @@ update_tank :: proc(tank : ^Tank, delta_time : f32) {
 		center += tank.wheel_positions[i]
 	}
 	center /= f32(TANK_WHEEL_COUNT)
-
 
 	angle := turn_input * delta_time
 	rotation := linalg.quaternion_angle_axis(angle, up)
@@ -247,9 +250,9 @@ update_tank :: proc(tank : ^Tank, delta_time : f32) {
 		right.z, forward.z, up.z, 0,
 		0, 0, 0, 1,
 	}
-	old_body_transform := tank.body_transform
-	tank.body_transform = linalg.matrix4_translate_f32(center + 0.2 * up) * base_rotation
-	tank.body_transform_difference = linalg.inverse(old_body_transform) * tank.body_transform
+	old_body_transform 				:= tank.body_transform
+	tank.body_transform 			= linalg.matrix4_translate_f32(center + 0.2 * up) * base_rotation
+	tank.body_transform_difference 	= linalg.inverse(old_body_transform) * tank.body_transform
 
 	tank.old_body_position = tank.body_position
 	tank.body_position = center
@@ -268,11 +271,42 @@ update_tank :: proc(tank : ^Tank, delta_time : f32) {
 	// debug.draw_wire_cube(tank.wheel_positions[L1] + up, base_rotation_q, vec3(0.2), debug.GREEN)
 	// debug.draw_wire_cube(tank.wheel_positions[R1] + up, base_rotation_q, vec3(0.2), debug.YELLOW)
 
+	floor_collider_position := vec3{0, 0, 0.2 + 0.5 * TANK_HULL_THICKNESS}
+	floor_collider_size 	:= vec3{TANK_HULL_WIDTH, TANK_HULL_LENGTH, TANK_HULL_THICKNESS}
+
+	wall_collider_position_left := vec3{-(TANK_HULL_WIDTH * 0.5 + 0.05), 0, 1 + 0.2}
+	wall_collider_position_righ := vec3{TANK_HULL_WIDTH * 0.5 + 0.05, 0, 1 + 0.2}
+	wall_collider_size := vec3{0.1, TANK_HULL_LENGTH, 2}
+
+	front_collider_position := vec3{0, 2.4, 1 + 0.2}
+	front_collider_size := vec3{TANK_HULL_WIDTH, 1.2, 2}
+
+	// Cool, this part works great!
 	physics.submit_colliders(
-		[]physics.BoxCollider{{center + (0.2 + 0.15) * up, base_rotation_q, vec3{2, 3.5, 0.3}}},
-		// []vec3{vec3(body_velocity)},
+		[]physics.BoxCollider{
+			{
+				center + linalg.quaternion_mul_vector3(base_rotation_q, floor_collider_position), 
+				base_rotation_q, 
+				floor_collider_size
+			},
+			{
+				center + linalg.quaternion_mul_vector3(base_rotation_q, wall_collider_position_left),
+				base_rotation_q,
+				wall_collider_size
+			},
+			{
+				center + linalg.quaternion_mul_vector3(base_rotation_q, wall_collider_position_righ),
+				base_rotation_q,
+				wall_collider_size
+			},
+			{
+				center + linalg.quaternion_mul_vector3(base_rotation_q, front_collider_position),
+				base_rotation_q,
+				front_collider_size
+			},
+		},
 		nil,
-		[]int{int(TEMP_ColliderTag.Tank)},
+		[]int{int(TEMP_ColliderTag.Tank), 0, 0, 0},
 	)
 
 	// spin wheels
@@ -298,4 +332,8 @@ render_tank :: proc(tank : ^Tank) {
 		local_transform := linalg.matrix4_translate_f32(p) * tank.wheel_rotations[i]
 		graphics.draw_mesh(tank.wheel_mesh, local_transform)
 	}
+}
+
+tank_get_parent_position :: proc(t : ^Tank) -> vec3 {
+	return t.body_position
 }
