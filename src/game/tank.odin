@@ -27,6 +27,11 @@ TANK_HULL_WIDTH :: 3
 TANK_HULL_LENGTH :: 6
 TANK_HULL_THICKNESS :: 0.3
 
+TANK_FRONT_CAMERA_POSITION_LS :: vec3 {0, 3, 1.5}
+TANK_FRONT_CAMERA_SCREEN_POSITION_LS :: vec3{0, 2.2, 2}
+TANK_FRONT_CAMERA_SCREEN_SIZE :: vec3{1.7 * 0.6, 0.6, 1}
+
+
 TANK_WHEEL_WIDTH :: f32(0.4)
 TANK_WHEEL_RADIUS :: 0.35
 TANK_SPEED :: 2.5
@@ -81,7 +86,12 @@ Tank :: struct {
 	auto_drive_on : bool,
 	turn_left : bool,
 	turn_right : bool,
+
+	// cameras
+	front_camera : Camera,
 }
+
+
 
 create_tank :: proc() -> Tank {
 	t := Tank{}
@@ -340,6 +350,10 @@ update_tank :: proc(tank : ^Tank, delta_time : f32) {
 		base_rotation_q,
 		{TANK_HULL_WIDTH, TANK_HULL_LENGTH, 2},
 	}
+
+	// front camera_placement
+	tank.front_camera.position = tank.body_position + linalg.quaternion_mul_vector3(tank.body_rotation, TANK_FRONT_CAMERA_POSITION_LS)
+	tank.front_camera.rotation = tank.body_rotation
 }
 
 // Todo(Leo): Allocates from temp_allocator

@@ -22,7 +22,7 @@ create_post_process_pipeline :: proc() -> PostProcessPipeline {
 	return pl
 }
 
-dispatch_post_process_pipeline :: proc(exposure : f32) {
+dispatch_post_process_pipeline :: proc(render_target : ^RenderTarget, exposure : f32) {
 	pl := &graphics_context.post_process_pipeline
 
 	// gl.DebugMessageInsert(gl.DEBUG_SOURCE_APPLICATION, gl.DEBUG_TYPE_MARKER, 21, gl.DEBUG_SEVERITY_NOTIFICATION, 0, "")
@@ -31,7 +31,7 @@ dispatch_post_process_pipeline :: proc(exposure : f32) {
 
 	gl.ActiveTexture(gl.TEXTURE0)
 	gl.Enable(gl.TEXTURE_2D)
-	gl.BindTexture(gl.TEXTURE_2D, graphics_context.resolve_image)
+	gl.BindTexture(gl.TEXTURE_2D, render_target.resolve_image)
 
 	gl.Uniform4f(pl.params_location, exposure, 0, 0, 0)
 

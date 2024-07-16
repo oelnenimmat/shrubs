@@ -47,10 +47,8 @@ graphics_context : struct {
 	terrain_pipeline			: TerrainPipeline,
 	grass_placement_pipeline 	: GrassPlacementPipeline,
 	sky_pipeline 				: SkyPipeline,
-	// gui_pipeline 				: GuiPipeline,
 	post_process_pipeline 		: PostProcessPipeline,
 	debug_pipeline 				: DebugPipeline,
-
 
 	pipeline_shared 			: PipelineShared,
 
@@ -60,15 +58,7 @@ graphics_context : struct {
 	// intimately coupled anyway
 	model_matrix_location : i32,
 
-	// Todo(Leo): this is virtual frame stuff
-	main_framebuffer : u32,
-	main_color_attachment : u32,
-	main_depth_attachment : u32,
-	main_framebuffer_width : i32,
-	main_framebuffer_height : i32,
-
-	resolve_framebuffer : u32,
-	resolve_image : u32,
+	// main_render_target : RenderTarget,
 }
 
 initialize :: proc() {
@@ -89,7 +79,6 @@ initialize :: proc() {
 		print_info("max frag texture units", gl.MAX_TEXTURE_IMAGE_UNITS)
 		print_info("max vert texture units", gl.MAX_VERTEX_TEXTURE_IMAGE_UNITS)
 	}
-
 
 	// These SHOULD be same for all, if not, move to individual pipelines
 	{
@@ -129,82 +118,6 @@ initialize :: proc() {
 	}
 	glfw.SetFramebufferSizeCallback(window.get_glfw_window_handle(), glfw_resize_framebuffer_proc)
 
-	// Generate the framebuffer for post processing
-	gl.GenFramebuffers(1, &gc.main_framebuffer)
-	gl.BindFramebuffer(gl.FRAMEBUFFER, gc.main_framebuffer)
-
-	gc.main_framebuffer_width = 1920 / 1
-	gc.main_framebuffer_height = 1080 / 1
-
-	width := i32(gc.main_framebuffer_width)
-	height := i32(gc.main_framebuffer_height)
-
-	multisample_count := i32(2)
-
-	if multisample_count == 1 {
-		gl.GenRenderbuffers(1, &gc.main_color_attachment)
-		gl.BindRenderbuffer(gl.RENDERBUFFER, gc.main_color_attachment)
-		gl.RenderbufferStorage(gl.RENDERBUFFER, gl.RGB32F, width, height)
-		gl.FramebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, gc.main_color_attachment)
-
-		gl.GenRenderbuffers(1, &gc.main_depth_attachment)
-		gl.BindRenderbuffer(gl.RENDERBUFFER, gc.main_depth_attachment)
-		gl.RenderbufferStorage(gl.RENDERBUFFER, gl.DEPTH24_STENCIL8, width, height)
-		gl.FramebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_STENCIL_ATTACHMENT, gl.RENDERBUFFER, gc.main_depth_attachment)
-	} else {
-		gl.GenRenderbuffers(1, &gc.main_color_attachment)
-		gl.BindRenderbuffer(gl.RENDERBUFFER, gc.main_color_attachment)
-		gl.RenderbufferStorageMultisample(gl.RENDERBUFFER, multisample_count, gl.RGB32F, width, height)
-		gl.FramebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, gc.main_color_attachment)
-
-		gl.GenRenderbuffers(1, &gc.main_depth_attachment)
-		gl.BindRenderbuffer(gl.RENDERBUFFER, gc.main_depth_attachment)
-		gl.RenderbufferStorageMultisample(gl.RENDERBUFFER, multisample_count, gl.DEPTH24_STENCIL8, width, height)
-		gl.FramebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_STENCIL_ATTACHMENT, gl.RENDERBUFFER, gc.main_depth_attachment)
-	}
-
-	if gl.CheckFramebufferStatus(gl.FRAMEBUFFER) == gl.FRAMEBUFFER_COMPLETE {
-		fmt.println("Frambuffer GOOD!")
-	} else {
-		fmt.println("Frambuffer BAD!")
-	}
-
-	// status := gl.CheckFramebufferStatus(gl.FRAMEBUFFER)
-	// if status == gl.FRAMEBUFFER_COMPLETE {
-	// 	fmt.println("Frambuffer GOOD!")
-	// } else {
-	// 	fmt.println("Frambuffer BAD!", status)
-
-	// 	switch status {
-	// 		case gl.FRAMEBUFFER_UNDEFINED: fmt.println("GL_FRAMEBUFFER_UNDEFINED")
-	// 		case gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT: fmt.println("GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT")
-	// 		case gl.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT: fmt.println("GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT")
-	// 		case gl.FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER: fmt.println("GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER")
-	// 		case gl.FRAMEBUFFER_INCOMPLETE_READ_BUFFER: fmt.println("GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER")
-	// 		case gl.FRAMEBUFFER_UNSUPPORTED: fmt.println("GL_FRAMEBUFFER_UNSUPPORTED")
-	// 		case gl.FRAMEBUFFER_INCOMPLETE_MULTISAMPLE: fmt.println("GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE")
-	// 		case gl.FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS: fmt.println("GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS") 
-	// 		case: fmt.print("something else\n")
-	// 	}
-
-	// }
-
-	// Generate the framebuffer for post processing
-	gl.GenFramebuffers(1, &gc.resolve_framebuffer)
-	gl.BindFramebuffer(gl.FRAMEBUFFER, gc.resolve_framebuffer)
-
-	gl.GenTextures(1, &gc.resolve_image)
-	gl.BindTexture(gl.TEXTURE_2D, gc.resolve_image)
-	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGB32F, i32(gc.main_framebuffer_width), i32(gc.main_framebuffer_height), 0, gl.RGB, gl.FLOAT, nil)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-	gl.FramebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, gc.resolve_image, 0)
-
-	if gl.CheckFramebufferStatus(gl.FRAMEBUFFER) == gl.FRAMEBUFFER_COMPLETE {
-		fmt.println("Frambuffer GOOD!")
-	} else {
-		fmt.println("Frambuffer BAD!")
-	}
 }
 
 terminate :: proc() {
@@ -250,16 +163,115 @@ begin_frame :: proc() {
 // End of maintenance section
 /////////////////////////////////////////////////////
 
-bind_main_framebuffer :: proc() {
-	gc := &graphics_context
+RenderTarget :: struct {
+	// Todo(Leo): this is virtual frame stuff
+	render_fbo 			: u32,
+	color_attachment 	: u32,
+	depth_attachemnt 	: u32,
 
-	gl.BindFramebuffer(gl.FRAMEBUFFER, gc.main_framebuffer)
-	gl.Viewport(0, 0, gc.main_framebuffer_width, gc.main_framebuffer_height)
+	resolve_fbo 	: u32,
+	resolve_image 	: u32,
+
+	width, height : i32,
+}
+
+create_render_target :: proc(width, height, multisample_count : i32) -> RenderTarget{	
+	rt := RenderTarget{}
+
+	// Generate the framebuffer for post processing
+	gl.GenFramebuffers(1, &rt.render_fbo)
+	gl.BindFramebuffer(gl.FRAMEBUFFER, rt.render_fbo)
+
+	rt.width = width
+	rt.height = height
+
+	gl.GenRenderbuffers(1, &rt.color_attachment)
+	gl.GenRenderbuffers(1, &rt.depth_attachemnt)
+
+	if multisample_count == 1 {
+		gl.BindRenderbuffer(gl.RENDERBUFFER, rt.color_attachment)
+		gl.RenderbufferStorage(gl.RENDERBUFFER, gl.RGB32F, width, height)
+
+		gl.BindRenderbuffer(gl.RENDERBUFFER, rt.depth_attachemnt)
+		gl.RenderbufferStorage(gl.RENDERBUFFER, gl.DEPTH24_STENCIL8, width, height)
+	} else {
+		gl.BindRenderbuffer(gl.RENDERBUFFER, rt.color_attachment)
+		gl.RenderbufferStorageMultisample(gl.RENDERBUFFER, multisample_count, gl.RGB32F, width, height)
+
+		gl.BindRenderbuffer(gl.RENDERBUFFER, rt.depth_attachemnt)
+		gl.RenderbufferStorageMultisample(gl.RENDERBUFFER, multisample_count, gl.DEPTH24_STENCIL8, width, height)
+	}
+
+	gl.FramebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, rt.color_attachment)
+	gl.FramebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_STENCIL_ATTACHMENT, gl.RENDERBUFFER, rt.depth_attachemnt)
+
+	if gl.CheckFramebufferStatus(gl.FRAMEBUFFER) == gl.FRAMEBUFFER_COMPLETE {
+		fmt.println("Render Frambuffer GOOD!")
+	} else {
+		fmt.println("Render Frambuffer BAD!")
+	}
+
+	// Resolve image for flattening the multisample image
+	gl.GenFramebuffers(1, &rt.resolve_fbo)
+	gl.BindFramebuffer(gl.FRAMEBUFFER, rt.resolve_fbo)
+
+	gl.GenTextures(1, &rt.resolve_image)
+	gl.BindTexture(gl.TEXTURE_2D, rt.resolve_image)
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGB32F, rt.width, rt.height, 0, gl.RGB, gl.FLOAT, nil)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+	gl.FramebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, rt.resolve_image, 0)
+
+	if gl.CheckFramebufferStatus(gl.FRAMEBUFFER) == gl.FRAMEBUFFER_COMPLETE {
+		fmt.println("Resolve Frambuffer GOOD!")
+	} else {
+		fmt.println("Resolve Frambuffer BAD!")
+	}
+
+	return rt
+
+	// 	switch status {
+	// 		case gl.FRAMEBUFFER_UNDEFINED: fmt.println("GL_FRAMEBUFFER_UNDEFINED")
+	// 		case gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT: fmt.println("GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT")
+	// 		case gl.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT: fmt.println("GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT")
+	// 		case gl.FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER: fmt.println("GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER")
+	// 		case gl.FRAMEBUFFER_INCOMPLETE_READ_BUFFER: fmt.println("GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER")
+	// 		case gl.FRAMEBUFFER_UNSUPPORTED: fmt.println("GL_FRAMEBUFFER_UNSUPPORTED")
+	// 		case gl.FRAMEBUFFER_INCOMPLETE_MULTISAMPLE: fmt.println("GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE")
+	// 		case gl.FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS: fmt.println("GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS") 
+	// 		case: fmt.print("something else\n")
+	// 	}
+}
+
+destroy_render_target :: proc(rt : ^RenderTarget) {
+	gl.DeleteFramebuffers(1, &rt.render_fbo)
+	gl.DeleteRenderbuffers(1, &rt.color_attachment)
+	gl.DeleteRenderbuffers(1, &rt.depth_attachemnt)
+
+	rt^ = {}
+}
+
+bind_render_target :: proc(rt : ^RenderTarget) {
+	gl.BindFramebuffer(gl.FRAMEBUFFER, rt.render_fbo)
+	gl.Viewport(0, 0, rt.width, rt.height)
 
 	// Clear to hostile pink, so we see easily if some pixel is not rendered to.
 	gl.ClearColor(1, 0, 1, 1)
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 }
+
+resolve_render_target :: proc(rt : ^RenderTarget) {
+	// Todo(Leo): instead, we should look into just sampling the multisample image
+	// in the post process shader
+	gl.BindFramebuffer(gl.READ_FRAMEBUFFER, rt.render_fbo)
+	gl.BindFramebuffer(gl.DRAW_FRAMEBUFFER, rt.resolve_fbo)
+
+	w := rt.width
+	h := rt.height
+
+	gl.BlitFramebuffer(0, 0, w, h, 0, 0, w, h, gl.COLOR_BUFFER_BIT, gl.LINEAR)
+}
+
 
 bind_screen_framebuffer :: proc() {
 	gl.BindFramebuffer(gl.FRAMEBUFFER, 0)
@@ -270,20 +282,6 @@ bind_screen_framebuffer :: proc() {
 	// Clear to hostile pink, so we see easily if some pixel is not rendered to.
 	gl.ClearColor(1, 0, 1, 1)
 	gl.Clear(gl.COLOR_BUFFER_BIT)
-}
-
-blit_to_resolve_image :: proc() {
-	// Todo(Leo): instead, we should look into just sampling the multisample image
-	// in the post process shader
-	gc := &graphics_context
-
-	gl.BindFramebuffer(gl.READ_FRAMEBUFFER, gc.main_framebuffer)
-	gl.BindFramebuffer(gl.DRAW_FRAMEBUFFER, gc.resolve_framebuffer)
-
-	w := gc.main_framebuffer_width
-	h := gc.main_framebuffer_height
-
-	gl.BlitFramebuffer(0, 0, w, h, 0, 0, w, h, gl.COLOR_BUFFER_BIT, gl.LINEAR)
 }
 
 bind_uniform_buffer :: proc(buffer : ^Buffer, binding : u32) {

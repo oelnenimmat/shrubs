@@ -27,6 +27,7 @@ main :: proc() {
 		// -------------------------------------------------
 		
 		game.update(delta_time)
+		game.render()
 
 		if game.does_want_to_quit() { break main_loop }
 

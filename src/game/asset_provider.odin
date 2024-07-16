@@ -34,6 +34,7 @@ to those when required.
 MeshAssetName :: enum {
 	Capsule,
 	Cube,
+	Quad,
 
 	Tank_Body,
 	Tank_Wheel,
@@ -72,6 +73,7 @@ load_asset_provider :: proc() {
 	asset_provider.meshes = [MeshAssetName]graphics.Mesh {
 		.Capsule 	= load_mesh_gltf("assets/shapes.glb", "shape_capsule"),
 		.Cube 		= load_mesh_gltf("assets/shapes.glb", "shape_cube"),
+		.Quad 		= load_mesh_gltf("assets/shapes.glb", "shape_quad"),
 
 		.Tank_Body = load_mesh_gltf("assets/tank.glb", "tank_body"),
 		.Tank_Wheel = load_mesh_gltf("assets/tank.glb", "tank_wheel"),

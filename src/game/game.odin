@@ -53,7 +53,7 @@ SCENE_FILE_EXTENSION :: ".scene"
 
 // Actors??
 player_character 	: PlayerCharacter
-camera 				: Camera
+main_camera 		: Camera
 tank 				: Tank
 
 scene : ^Scene
@@ -63,10 +63,10 @@ grass_system : Grass
 grass_blade_count := 32
 grass_segment_count := 3
 
-lod_enabled := 0
-draw_normals := false
+lod_enabled 	:= 2
+draw_normals 	:= false
 draw_backfacing := false
-draw_lod := false
+draw_lod 		:= false
 grass_cull_back := false
 
 grass_chunk_size := f32(5)
@@ -133,6 +133,14 @@ available_scenes : struct {
 	display_names 	: []string,
 }
 
+wind : struct {
+	enabled : bool,
+	time 	: f32,
+	offset 	: vec2
+}
+
+main_render_target : graphics.RenderTarget
+tank_render_target : graphics.RenderTarget
 
 initialize :: proc() {
 	// Todo(Leo): some of this stuff seems to bee "application" or "engine" and not "game"
@@ -143,11 +151,15 @@ initialize :: proc() {
 	debug.initialize(256)
 	physics.initialize()
 
+	// render targets
+	main_render_target = graphics.create_render_target(1920, 1080, 2)
+	tank_render_target = graphics.create_render_target(800, 600, 2)
+
 	// Common resources
 	load_asset_provider()
 
 	// Scene independent systems
-	camera 				= create_camera()
+	main_camera 		= create_camera()
 	tank 				= create_tank()
 	player_character 	= create_player_character()
 
@@ -209,6 +221,7 @@ initialize :: proc() {
 		}
 	}
 
+	wind.enabled = true
 }
 
 terminate :: proc() {
@@ -317,24 +330,20 @@ update :: proc(delta_time: f64) {
 		// works now, when things are not too complicated. Also there will be a need to think
 		// about the order of execution
 		update_tank(&tank, delta_time)
-		update_player_character(&player_character, &camera, delta_time)
+		update_player_character(&player_character, &main_camera, delta_time)
 	} else if application.mode == .Edit {
-		update_editor_camera(&camera, delta_time)
+		update_editor_camera(&main_camera, delta_time)
 	}
 
-	@static wind_time := f32 (0)
-	@static wind_on := true
-	@static wind_offset : vec2
-
-	if wind_on {
-		wind_time += delta_time
-		wind_offset.x += delta_time * 0.06
-		wind_offset.y += delta_time * 0.03
+	if wind.enabled {
+		wind.time += delta_time
+		wind.offset.x += delta_time * 0.06
+		wind.offset.y += delta_time * 0.03
 	}
-	wind_amount := math.sin(wind_time) * 0.5
+	wind_amount := math.sin(wind.time) * 0.5
 
 	if input.DEBUG_get_key_pressed(.U) {
-		wind_on = !wind_on
+		wind.enabled = !wind.enabled
 	}
 
 	// END OF UPDATE
@@ -346,7 +355,7 @@ update :: proc(delta_time: f64) {
 	{
 		// Todo(Leo): these are from last frame, does it matter? Probably not much, as
 		// typically we are not operating camera and gizmo in the same frame
-		projection, view := camera_get_projection_and_view_matrices(&camera)
+		projection, view := camera_get_projection_and_view_matrices(&main_camera)
 
 		imgui.begin_frame(projection, view)
 		if show_imgui_demo {
@@ -404,12 +413,63 @@ update :: proc(delta_time: f64) {
 	editor_do_gizmos()
 
 	imgui.end_frame()
+}
 
+render :: proc() {
+
+	graphics.begin_frame()
+
+	render_camera(&tank.front_camera, &tank_render_target)
+	render_camera(&main_camera, &main_render_target)
+
+	// NEXT PIPELINE
+	graphics.bind_screen_framebuffer()
+	graphics.dispatch_post_process_pipeline(&main_render_target, scene.lighting.exposure)
+
+	// Currently we provide a service to save screenshots from the final game view, before gui :thumbs_up:
+	if save_screenshot {
+		save_screenshot = false
+
+		width, height, pixels := graphics.read_screen_framebuffer()
+		defer delete(pixels)
+
+		now := time.now()
+
+		NANOSECS_IN_HOUR :: 3.6e12
+		now_but_in_my_timezone := time.Time { now._nsec + 3 * NANOSECS_IN_HOUR }
+
+		buffer : [128]u8
+		filename_builder := strings.builder_from_bytes(buffer[:])
+		fmt.sbprintf(
+			&filename_builder,
+
+			// year is always 4 chars, pad rest with leading zeros so file system
+			// sorts them properly
+			"local/screenshots/screen_framebuffer_{}_{:2i}_{:2i}_{:2i}_{:2i}_{:2i}.png",
+			time.date(now_but_in_my_timezone),
+			time.clock_from_time(now_but_in_my_timezone),
+		)
+		assets.write_color_image(strings.to_string(filename_builder), width, height, pixels)
+	}
+
+	// NEXT PIPELINE
+	imgui.render()
+
+	// End of pipelines
+	graphics.render()
+
+	// Need to always call window.XXX_frame(), then input.XXX_frame
+	// Todo(Leo): maybe combine, or move to main.odin
+	window.end_frame()
+	input.end_frame()
+}
+
+render_camera :: proc(camera : ^Camera, render_target : ^graphics.RenderTarget) {
 	///////////////////////////////////////////////////////////////////////////
 	// Rendering
 
-	graphics.begin_frame()
-	graphics.bind_main_framebuffer()
+	graphics.bind_render_target(render_target)
+	// graphics.bind_framebuffer(&render_target)
 
 	light_direction := matrix4_mul_vector(
 						linalg.matrix4_rotate_f32(scene.lighting.direction_polar.x * math.PI / 180, OBJECT_UP) *
@@ -418,16 +478,32 @@ update :: proc(delta_time: f64) {
 	light_color := scene.lighting.directional_color.rgb
 	ambient_color := scene.lighting.ambient_color.rgb
 
-	projection_matrix, view_matrix := camera_get_projection_and_view_matrices(&camera)
+	projection_matrix, view_matrix := camera_get_projection_and_view_matrices(camera)
 
 	graphics.set_per_frame_data(view_matrix, projection_matrix)
 	graphics.set_lighting_data(camera.position, light_direction, light_color, ambient_color)
-	graphics.set_wind_data(wind_offset, 0.005, scene.textures[.Wind])
+	graphics.set_wind_data(wind.offset, 0.005, scene.textures[.Wind])
 	graphics.set_world_data(scene.world.placement_scale, scene.world.placement_offset)
+	
 	graphics.set_debug_data(draw_normals, draw_backfacing, draw_lod)
+
+	// setupped shared stuff, can start drawink
 
 	graphics.setup_basic_pipeline()
 	
+	{
+		texture := graphics.Texture { tank_render_target.resolve_image }
+		graphics.set_basic_material({1, 1, 1}, &texture)
+		position := tank.body_position + linalg.quaternion_mul_vector3(tank.body_rotation, TANK_FRONT_CAMERA_SCREEN_POSITION_LS)
+		rotation := tank.body_rotation * linalg.quaternion_from_euler_angles_f32(0.5 * math.PI, 0, 0, .XYZ)
+		model := linalg.matrix4_from_trs (
+			position,
+			rotation,
+			TANK_FRONT_CAMERA_SCREEN_SIZE,
+		)
+		graphics.draw_mesh(&asset_provider.meshes[.Quad], model)
+	}
+
 	render_tank(&tank)
 	render_greyboxing(&scene.greyboxing)
 
@@ -515,47 +591,9 @@ update :: proc(delta_time: f64) {
 	// NEXT PIPELINE
 	graphics.draw_sky()
 
-	// NEXT PIPELINE
-	graphics.blit_to_resolve_image()
-	graphics.bind_screen_framebuffer()
-	graphics.dispatch_post_process_pipeline(scene.lighting.exposure)
 
-	// Currently we provide a service to save screenshots from the final game view, before gui :thumbs_up:
-	if save_screenshot {
-		save_screenshot = false
-
-		width, height, pixels := graphics.read_screen_framebuffer()
-		defer delete(pixels)
-
-		now := time.now()
-
-		NANOSECS_IN_HOUR :: 3.6e12
-		now_but_in_my_timezone := time.Time { now._nsec + 3 * NANOSECS_IN_HOUR }
-
-		buffer : [128]u8
-		filename_builder := strings.builder_from_bytes(buffer[:])
-		fmt.sbprintf(
-			&filename_builder,
-
-			// year is always 4 chars, pad rest with leading zeros so file system
-			// sorts them properly
-			"local/screenshots/screen_framebuffer_{}_{:2i}_{:2i}_{:2i}_{:2i}_{:2i}.png",
-			time.date(now_but_in_my_timezone),
-			time.clock_from_time(now_but_in_my_timezone),
-		)
-		assets.write_color_image(strings.to_string(filename_builder), width, height, pixels)
-	}
-
-	// NEXT PIPELINE
-	imgui.render()
-
-	// End of pipelines
-	graphics.render()
-
-	// Need to always call window.XXX_frame(), then input.XXX_frame
-	// Todo(Leo): maybe combine, or move to main.odin
-	window.end_frame()
-	input.end_frame()
+	// FINISH
+	graphics.resolve_render_target(render_target)
 }
 
 // This is a mockup, really probably each component (e.g. playback) should have
