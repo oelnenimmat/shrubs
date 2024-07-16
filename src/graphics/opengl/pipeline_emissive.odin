@@ -18,8 +18,8 @@ EmissivePipeline :: struct {
 create_emissive_pipeline :: proc() -> EmissivePipeline {
 	pl := EmissivePipeline {}
 
-	vert := #load("../shaders/basic.vert", cstring)
-	frag := #load("../shaders/emissive.frag", cstring)
+	vert := #load("../../shaders/basic.vert", cstring)
+	frag := #load("../../shaders/emissive.frag", cstring)
 	pl.program = create_shader_program(vert, frag)
 
 	pl.model_matrix_location = gl.GetUniformLocation(pl.program, "model")

@@ -28,8 +28,8 @@ BasicPipeline :: struct {
 create_basic_pipeline :: proc() -> BasicPipeline {
 	pl : BasicPipeline
 
-	vertex_shader_source 	:= #load("../shaders/basic.vert", cstring)
-	frag_shader_source 		:= #load("../shaders/basic.frag", cstring)
+	vertex_shader_source 	:= #load("../../shaders/basic.vert", cstring)
+	frag_shader_source 		:= #load("../../shaders/basic.frag", cstring)
 	pl.shader_program 		= create_shader_program(vertex_shader_source, frag_shader_source)
 
 	pl.model_matrix_location 		= gl.GetUniformLocation(pl.shader_program, "model")

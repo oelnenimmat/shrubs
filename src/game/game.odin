@@ -7,7 +7,7 @@ update all systems from this file
 
 import "shrubs:assets"
 import "shrubs:debug"
-import "shrubs:graphics"
+import graphics "shrubs:graphics/opengl"
 import "shrubs:imgui"
 import "shrubs:input"
 import "shrubs:physics"

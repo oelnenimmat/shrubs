@@ -20,7 +20,7 @@ GrassPlacementPipeline :: struct {
 create_grass_placement_pipeline :: proc () -> GrassPlacementPipeline {
 	pl : GrassPlacementPipeline
 
-	compute_shader_source := #load("../shaders/grass_placement.compute", cstring)
+	compute_shader_source := #load("../../shaders/grass_placement.compute", cstring)
 
 	pl.program = create_compute_shader_program(compute_shader_source)
 

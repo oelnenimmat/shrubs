@@ -19,8 +19,8 @@ DebugPipeline :: struct {
 create_debug_pipeline :: proc() -> DebugPipeline {
 	pl : DebugPipeline
 
-	vertex_shader_source 	:= #load("../shaders/debug_line.vert", cstring)
-	frag_shader_source 		:= #load("../shaders/debug_line.frag", cstring)
+	vertex_shader_source 	:= #load("../../shaders/debug_line.vert", cstring)
+	frag_shader_source 		:= #load("../../shaders/debug_line.frag", cstring)
 	pl.shader_program 		= create_shader_program(vertex_shader_source, frag_shader_source)
 
 	pl.model_matrix_location 	= gl.GetUniformLocation(pl.shader_program, "model")

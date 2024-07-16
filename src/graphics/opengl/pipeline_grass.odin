@@ -24,8 +24,8 @@ create_grass_pipeline :: proc() -> GrassPipeline {
 
 	// Todo(Leo): if we load these like these, they gonna stay in the program 
 	// memory the entire duration, unnecessarily eating up ram
-	vertex_shader_source 	:= #load("../shaders/grass.vert", cstring)
-	frag_shader_source		:= #load("../shaders/grass.frag", cstring)
+	vertex_shader_source 	:= #load("../../shaders/grass.vert", cstring)
+	frag_shader_source		:= #load("../../shaders/grass.frag", cstring)
 	pl.shader_program 		= create_shader_program(vertex_shader_source, frag_shader_source)
 
 	pl.segment_count_location 		= gl.GetUniformLocation(pl.shader_program, "segment_count")

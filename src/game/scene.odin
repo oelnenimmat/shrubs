@@ -5,7 +5,7 @@ import "core:fmt"
 import "core:os"
 import "core:strings"
 
-import "shrubs:graphics"
+import graphics "shrubs:graphics/opengl"
 
 TextureUseName :: enum {
 	Grass_Field_Color,

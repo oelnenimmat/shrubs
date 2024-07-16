@@ -12,8 +12,8 @@ PostProcessPipeline :: struct {
 create_post_process_pipeline :: proc() -> PostProcessPipeline {
 	pl : PostProcessPipeline
 
-	vertex_source := #load("../shaders/post_process.vert", cstring)
-	fragment_source := #load("../shaders/post_process.frag", cstring)
+	vertex_source := #load("../../shaders/post_process.vert", cstring)
+	fragment_source := #load("../../shaders/post_process.frag", cstring)
 
 	pl.program = create_shader_program(vertex_source, fragment_source)
 

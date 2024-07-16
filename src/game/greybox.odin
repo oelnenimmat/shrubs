@@ -1,7 +1,7 @@
 package game
 
 import "shrubs:debug"
-import "shrubs:graphics"
+import graphics "shrubs:graphics/opengl"
 import "shrubs:imgui"
 
 import "core:math"

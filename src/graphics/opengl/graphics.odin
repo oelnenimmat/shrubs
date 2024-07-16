@@ -1,11 +1,17 @@
-////+private
 package graphics
+
+import "shrubs:common"
+
+vec2 :: common.vec2
+vec3 :: common.vec3
+vec4 :: common.vec4
+mat4 :: common.mat4
 
 /*
 Graphics interface implementation using OpenGL
 */
 
-import "../window"
+import "shrubs:window"
 
 import "core:fmt"
 import "core:mem"

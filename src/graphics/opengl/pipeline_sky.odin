@@ -11,8 +11,8 @@ SkyPipeline :: struct {
 create_sky_pipeline :: proc() -> SkyPipeline {
 	pl := SkyPipeline {}
 
-	vert := #load("../shaders/sky.vert", cstring)
-	frag := #load("../shaders/sky.frag", cstring)
+	vert := #load("../../shaders/sky.vert", cstring)
+	frag := #load("../../shaders/sky.frag", cstring)
 	pl.program = create_shader_program(vert, frag)
 
 	return pl
