@@ -7,7 +7,7 @@ update all systems from this file
 
 import "shrubs:assets"
 import "shrubs:debug"
-import graphics "shrubs:graphics/opengl"
+import graphics "shrubs:graphics/vulkan"
 import "shrubs:imgui"
 import "shrubs:input"
 import "shrubs:physics"
@@ -147,7 +147,7 @@ initialize :: proc() {
 	window.initialize(WINDOW_WIDTH, WINDOW_HEIGHT, APPLICATION_NAME)
 	input.initialize()
 	graphics.initialize()
-	imgui.initialize(window.get_glfw_window_handle())
+	// imgui.initialize(window.get_glfw_window_handle())
 	debug.initialize(256)
 	physics.initialize()
 
@@ -239,7 +239,7 @@ terminate :: proc() {
 
 	physics.terminate()
 	debug.terminate()
-	imgui.terminate()
+	// imgui.terminate()
 	graphics.terminate()
 	input.terminate()
 	window.terminate()
@@ -351,7 +351,7 @@ update :: proc(delta_time: f64) {
 
 	///////////////////////////////////////////////////////////////////////////
 	// GUI
-
+	/*
 	{
 		// Todo(Leo): these are from last frame, does it matter? Probably not much, as
 		// typically we are not operating camera and gizmo in the same frame
@@ -413,6 +413,7 @@ update :: proc(delta_time: f64) {
 	editor_do_gizmos()
 
 	imgui.end_frame()
+	*/
 }
 
 render :: proc() {
@@ -453,7 +454,7 @@ render :: proc() {
 	}
 
 	// NEXT PIPELINE
-	imgui.render()
+	// imgui.render()
 
 	// End of pipelines
 	graphics.render()
@@ -600,6 +601,7 @@ render_camera :: proc(camera : ^Camera, render_target : ^graphics.RenderTarget) 
 	graphics.resolve_render_target(render_target)
 }
 
+/*
 // This is a mockup, really probably each component (e.g. playback) should have
 // their corresponding parts there. Not sure though. 
 editor_gui :: proc() {
@@ -720,3 +722,4 @@ editor_gui :: proc() {
 
 	
 }
+*/

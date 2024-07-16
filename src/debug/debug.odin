@@ -2,7 +2,7 @@ package debug
 
 import "shrubs:assets"
 import "shrubs:common"
-import graphics "shrubs:graphics/opengl"
+import graphics "shrubs:graphics/vulkan"
 
 import "core:fmt"
 import "core:math/linalg"

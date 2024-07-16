@@ -2,7 +2,7 @@ package game
 
 import "shrubs:assets"
 import "shrubs:debug"
-import graphics "shrubs:graphics/opengl"
+import graphics "shrubs:graphics/vulkan"
 import "shrubs:input"
 import "shrubs:physics"
 

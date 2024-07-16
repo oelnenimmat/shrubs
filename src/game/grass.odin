@@ -4,7 +4,7 @@ import "core:encoding/json"
 import "core:fmt"
 import "core:os"
 
-import graphics "shrubs:graphics/opengl"
+import graphics "shrubs:graphics/vulkan"
 
 Grass :: struct {
 	// chunk min corner positions, curresponding to same index instance buffers

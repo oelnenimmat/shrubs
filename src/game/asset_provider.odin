@@ -1,6 +1,6 @@
 package game
 
-import graphics "shrubs:graphics/opengl"
+import graphics "shrubs:graphics/vulkan"
 import "shrubs:assets"
 
 /*

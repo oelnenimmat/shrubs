@@ -17,7 +17,7 @@ describing the issue.
 package game
 
 import "shrubs:assets"
-import graphics "shrubs:graphics/opengl"
+import graphics "shrubs:graphics/vulkan"
 import "shrubs:physics"
 
 TEMP_ColliderTag :: enum { None = 0, Tank }
