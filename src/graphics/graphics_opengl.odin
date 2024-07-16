@@ -43,11 +43,13 @@ graphics_context : struct {
 
 	// Pipelines :)
 	basic_pipeline 				: BasicPipeline,
+	emissive_pipeline 			: EmissivePipeline,
 	grass_pipeline 				: GrassPipeline,
 	terrain_pipeline			: TerrainPipeline,
 	grass_placement_pipeline 	: GrassPlacementPipeline,
 	sky_pipeline 				: SkyPipeline,
 	post_process_pipeline 		: PostProcessPipeline,
+
 	debug_pipeline 				: DebugPipeline,
 
 	pipeline_shared 			: PipelineShared,
@@ -100,6 +102,7 @@ initialize :: proc() {
 	gc^ = {}
 
 	gc.basic_pipeline 			= create_basic_pipeline()
+	gc.emissive_pipeline 		= create_emissive_pipeline()
 	gc.grass_pipeline 			= create_grass_pipeline()
 	gc.terrain_pipeline 		= create_terrain_pipeline()
 	gc.grass_placement_pipeline = create_grass_placement_pipeline()

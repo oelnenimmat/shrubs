@@ -491,18 +491,6 @@ render_camera :: proc(camera : ^Camera, render_target : ^graphics.RenderTarget) 
 
 	graphics.setup_basic_pipeline()
 	
-	{
-		texture := graphics.Texture { tank_render_target.resolve_image }
-		graphics.set_basic_material({1, 1, 1}, &texture)
-		position := tank.body_position + linalg.quaternion_mul_vector3(tank.body_rotation, TANK_FRONT_CAMERA_SCREEN_POSITION_LS)
-		rotation := tank.body_rotation * linalg.quaternion_from_euler_angles_f32(0.5 * math.PI, 0, 0, .XYZ)
-		model := linalg.matrix4_from_trs (
-			position,
-			rotation,
-			TANK_FRONT_CAMERA_SCREEN_SIZE,
-		)
-		graphics.draw_mesh(&asset_provider.meshes[.Quad], model)
-	}
 
 	render_tank(&tank)
 	render_greyboxing(&scene.greyboxing)
@@ -512,6 +500,22 @@ render_camera :: proc(camera : ^Camera, render_target : ^graphics.RenderTarget) 
 	model_matrix := linalg.matrix4_translate_f32(player_get_position(&player_character) + OBJECT_UP) *
 					linalg.matrix4_scale_f32(2)
 	graphics.draw_mesh(&asset_provider.meshes[.Capsule], model_matrix)
+
+	// NEXT PIPELINE
+	{
+		graphics.setup_emissive_pipeline()
+
+		texture := graphics.Texture { tank_render_target.resolve_image }
+		graphics.set_emissive_material(&texture)
+		position := tank.body_position + linalg.quaternion_mul_vector3(tank.body_rotation, TANK_FRONT_CAMERA_SCREEN_POSITION_LS)
+		rotation := tank.body_rotation * linalg.quaternion_from_euler_angles_f32(0.5 * math.PI, 0, 0, .XYZ)
+		model := linalg.matrix4_from_trs (
+			position,
+			rotation,
+			TANK_FRONT_CAMERA_SCREEN_SIZE,
+		)
+		graphics.draw_mesh(&asset_provider.meshes[.Quad], model)
+	}
 
 	// NEXT PIPELINE
 	graphics.setup_debug_pipeline()
