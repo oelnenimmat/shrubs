@@ -505,7 +505,7 @@ render_camera :: proc(camera : ^Camera, render_target : ^graphics.RenderTarget) 
 	{
 		graphics.setup_emissive_pipeline()
 
-		texture := graphics.Texture { tank_render_target.resolve_image }
+		texture := graphics.render_target_as_texture(&tank_render_target)
 		graphics.set_emissive_material(&texture)
 		position := tank.body_position + linalg.quaternion_mul_vector3(tank.body_rotation, TANK_FRONT_CAMERA_SCREEN_POSITION_LS)
 		rotation := tank.body_rotation * linalg.quaternion_from_euler_angles_f32(0.5 * math.PI, 0, 0, .XYZ)

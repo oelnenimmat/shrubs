@@ -254,6 +254,10 @@ destroy_render_target :: proc(rt : ^RenderTarget) {
 	rt^ = {}
 }
 
+render_target_as_texture :: proc(rt : ^RenderTarget) -> Texture {
+	return Texture { rt.resolve_image }
+}
+
 bind_render_target :: proc(rt : ^RenderTarget) {
 	gl.BindFramebuffer(gl.FRAMEBUFFER, rt.render_fbo)
 	gl.Viewport(0, 0, rt.width, rt.height)
