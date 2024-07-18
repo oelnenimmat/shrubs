@@ -38,14 +38,13 @@ matrix4_mul_rotation 	:: common.matrix4_mul_rotation
 
 IS_ACTUALLY_EDITOR :: true
 
-WINDOW_WIDTH :: 960
-WINDOW_HEIGHT :: 540
+WINDOW_WIDTH :: 960 * 2
+WINDOW_HEIGHT :: 540 * 2
 
 APPLICATION_NAME :: "Shrubs"
 
 SCENES_DIRECTORY :: "scenes/"
 SCENE_FILE_EXTENSION :: ".scene"
-
 
 // Todo(Leo): All the components should not be here in the wild,
 // can easily lead into spaghetti and/or confusion. Some more 
@@ -147,7 +146,7 @@ initialize :: proc() {
 	window.initialize(WINDOW_WIDTH, WINDOW_HEIGHT, APPLICATION_NAME)
 	input.initialize()
 	graphics.initialize()
-	// imgui.initialize(window.get_glfw_window_handle())
+	imgui.initialize(window.get_glfw_window_handle())
 	debug.initialize(256)
 	physics.initialize()
 
@@ -225,6 +224,8 @@ initialize :: proc() {
 }
 
 terminate :: proc() {
+	graphics.wait_idle()
+
 	save_editor_state()
 
 	destroy_grass(&grass_system)
@@ -239,7 +240,7 @@ terminate :: proc() {
 
 	physics.terminate()
 	debug.terminate()
-	// imgui.terminate()
+	imgui.terminate()
 	graphics.terminate()
 	input.terminate()
 	window.terminate()
@@ -351,7 +352,6 @@ update :: proc(delta_time: f64) {
 
 	///////////////////////////////////////////////////////////////////////////
 	// GUI
-	/*
 	{
 		// Todo(Leo): these are from last frame, does it matter? Probably not much, as
 		// typically we are not operating camera and gizmo in the same frame
@@ -362,7 +362,6 @@ update :: proc(delta_time: f64) {
 			imgui.ShowDemoWindow()
 		}		
 	}
-
 
 	imgui.SetNextWindowPos({10, 10})
 	imgui.SetNextWindowSize({300, 0})
@@ -413,7 +412,6 @@ update :: proc(delta_time: f64) {
 	editor_do_gizmos()
 
 	imgui.end_frame()
-	*/
 }
 
 render :: proc() {
@@ -454,7 +452,7 @@ render :: proc() {
 	}
 
 	// NEXT PIPELINE
-	// imgui.render()
+	imgui.render()
 
 	// End of pipelines
 	graphics.render()
@@ -604,7 +602,6 @@ render_camera :: proc(camera : ^Camera, render_target : ^graphics.RenderTarget) 
 	graphics.resolve_render_target(render_target)
 }
 
-/*
 // This is a mockup, really probably each component (e.g. playback) should have
 // their corresponding parts there. Not sure though. 
 editor_gui :: proc() {
@@ -725,4 +722,3 @@ editor_gui :: proc() {
 
 	
 }
-*/

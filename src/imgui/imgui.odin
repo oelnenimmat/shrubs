@@ -8,8 +8,10 @@ import "core:reflect"
 import "core:strings"
 
 import "vendor:glfw"
+import vk "vendor:vulkan"
 
 import "shrubs:common"
+import graphics "shrubs:graphics/vulkan"
 
 vec2 :: common.vec2
 vec3 :: common.vec3
@@ -30,20 +32,36 @@ initialize :: proc(window : glfw.WindowHandle) {
 	SetCurrentContext(imgui_context)
 	StyleColorsDark(nil)
 
-	ImGui_ImplGlfw_InitForOpenGL(window, true)
-	ImGui_ImplOpenGL3_Init()
+	// GLFW
+	ImGui_ImplGlfw_InitForVulkan(window, true)
+
+	// VULKAN
+	// We kinda only need to define this in graphics package
+	init_info := graphics.get_imgui_init_info()
+	
+	vk_loader_function := proc "c" (name : cstring, user_data : rawptr) -> vk.ProcVoidFunction {
+		p_instance := cast(^vk.Instance) user_data
+		return vk.GetInstanceProcAddr(p_instance^, name)
+	}
+	ImGui_ImplVulkan_LoadFunctions(vk_loader_function, &init_info.Instance)
+
+	ImGui_ImplVulkan_Init(auto_cast &init_info)
+	ImGui_ImplVulkan_CreateFontsTexture()
 }
 
 terminate :: proc() {
+
+	ImGui_ImplVulkan_DestroyFontsTexture()
+	ImGui_ImplVulkan_Shutdown()
+
 	ImGui_ImplGlfw_Shutdown()
-	ImGui_ImplOpenGL3_Shutdown()
 
 	DestroyContext(nil)
 }
 
 begin_frame :: proc(projection, view : mat4) {
 	ImGui_ImplGlfw_NewFrame()
-	ImGui_ImplOpenGL3_NewFrame()
+	ImGui_ImplVulkan_NewFrame()
 	NewFrame()
 
 	ImGuizmo_BeginFrame()
@@ -62,7 +80,8 @@ end_frame :: proc() {
 render :: proc () {
 	Render()
 
-	ImGui_ImplOpenGL3_RenderDrawData(GetDrawData())
+	command_buffer := graphics.get_imgui_command_buffer()
+	ImGui_ImplVulkan_RenderDrawData(GetDrawData(), command_buffer)
 }
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -43,6 +43,7 @@ graphics : struct {
 	device 			: vk.Device,
 
 	swapchain 				: vk.SwapchainKHR,
+	swapchain_image_index 	: u32,
 	swapchain_images 		: []vk.Image,
 	swapchain_image_views 	: []vk.ImageView,
 	swapchain_framebuffers 	: []vk.Framebuffer,
@@ -72,10 +73,11 @@ graphics : struct {
 	rendering_complete_semaphores : [VIRTUAL_FRAME_COUNT]vk.Semaphore,
 	present_complete_semaphores : [VIRTUAL_FRAME_COUNT]vk.Semaphore,
 
+	descriptor_pool : vk.DescriptorPool,
+
 	test_pipeline_layout 	: vk.PipelineLayout,
 	test_pipeline 			: vk.Pipeline,
 	test_render_pass 		: vk.RenderPass,
-
 }
 
 
@@ -499,6 +501,31 @@ initialize :: proc() {
 		}
 	}
 
+	// ------- DESCRIPTOR POOLS -------
+	{
+		g := &graphics
+
+		descriptor_pool_sizes := [] vk.DescriptorPoolSize {
+			{ .UNIFORM_BUFFER, 100 }
+		}
+
+		descriptor_pool_create_info := vk.DescriptorPoolCreateInfo {
+			sType 			= .DESCRIPTOR_POOL_CREATE_INFO,
+			flags 			= { .FREE_DESCRIPTOR_SET },
+			maxSets 		= 400, // no idea really. 100 is too little early on
+			poolSizeCount 	= u32(len(descriptor_pool_sizes)),
+			pPoolSizes 		= raw_data(descriptor_pool_sizes),
+		}
+
+		descriptor_pool_create_result := vk.CreateDescriptorPool (
+			graphics.device,
+			&descriptor_pool_create_info,
+			nil,
+			&g.descriptor_pool,
+		)
+		handle_result(descriptor_pool_create_result)
+	}
+
 	// ------- TEST RENDER PASS -------
 	{
 		g := &graphics
@@ -514,7 +541,7 @@ initialize :: proc() {
 
 		color_attachment_ref := vk.AttachmentReference{
 			attachment 	= 0,
-			layout 		= .COLOR_ATTACHMENT_OPTIMAL,			
+			layout 		= .COLOR_ATTACHMENT_OPTIMAL,
 		}
 
 		subpass := vk.SubpassDescription {
@@ -743,6 +770,7 @@ terminate :: proc() {
 	vk.DestroyPipelineLayout(g.device, g.test_pipeline_layout, nil)
 	vk.DestroyPipeline(g.device, g.test_pipeline, nil)
 
+	vk.DestroyDescriptorPool(g.device, g.descriptor_pool, nil)
 
 	for i in 0..<VIRTUAL_FRAME_COUNT {
 		vk.DestroyFence(g.device, g.virtual_frame_in_use_fences[i], nil)
@@ -772,6 +800,10 @@ terminate :: proc() {
 	fmt.println("Vulkan graphics terminated propely!")
 }
 
+wait_idle :: proc() {
+	vk.DeviceWaitIdle(graphics.device)
+}
+
 begin_frame :: proc() {
 	g := &graphics
 
@@ -791,12 +823,6 @@ begin_frame :: proc() {
 	}
 	main_cmd_begin_result := vk.BeginCommandBuffer(main_cmd, &main_cmd_begin_info)
 	handle_result(main_cmd_begin_result)
-}
-
-render :: proc() {
-	g := &graphics
-
-	main_cmd := g.main_command_buffers[g.virtual_frame_index]
 
 	// Todo(Leo): think again if present_complete_semaphores make sense with virtual frame stuff
 	virtual_frame_in_use_fence 		:= g.virtual_frame_in_use_fences[g.virtual_frame_index]
@@ -804,14 +830,13 @@ render :: proc() {
 	rendering_complete_semaphore 	:= g.rendering_complete_semaphores[g.virtual_frame_index]
 
 	// ---- PROCESS THE SWAPCHAIN IMAGE -----
-	swapchain_image_index : u32
 	acquire_result := vk.AcquireNextImageKHR(
 		g.device,
 		g.swapchain,
 		max(u64),
 		present_complete_semaphore,
 		VK_NULL_HANDLE,
-		&swapchain_image_index,
+		&g.swapchain_image_index,
 	)
 	handle_result(acquire_result)
 
@@ -821,7 +846,7 @@ render :: proc() {
 	render_pass_begin_info := vk.RenderPassBeginInfo {
 		sType 				= .RENDER_PASS_BEGIN_INFO,
 		renderPass 			= g.test_render_pass,
-		framebuffer 		= g.swapchain_framebuffers[swapchain_image_index],		
+		framebuffer 		= g.swapchain_framebuffers[g.swapchain_image_index],		
 		renderArea 			= {{0, 0}, g.swapchain_image_extent},
 		clearValueCount 	= 1,
 		pClearValues 		= &clear_color,
@@ -844,31 +869,19 @@ render :: proc() {
 	vk.CmdSetScissor(main_cmd, 0, 1, &scissor)
 
 	vk.CmdDraw(main_cmd, 3, 1, 0, 0)
+}
+
+render :: proc() {
+	g := &graphics
+
+	// Todo(Leo): think again if present_complete_semaphores make sense with virtual frame stuff
+	virtual_frame_in_use_fence 		:= g.virtual_frame_in_use_fences[g.virtual_frame_index]
+	present_complete_semaphore 		:= g.present_complete_semaphores[g.virtual_frame_index]
+	rendering_complete_semaphore 	:= g.rendering_complete_semaphores[g.virtual_frame_index]
+
+	main_cmd := g.main_command_buffers[g.virtual_frame_index]
 
 	vk.CmdEndRenderPass(main_cmd)
-
-	// {
-	// 	// Todo(Leo): this is still the test thing, so transfer is not correct one
-	// 	transition_barrier := vk.ImageMemoryBarrier {
-	// 		sType 				= .IMAGE_MEMORY_BARRIER,
-	// 		srcAccessMask 		= { .TRANSFER_WRITE }, // wait until TRANSFER_WRITE is done
-	// 		dstAccessMask 		= { .TRANSFER_READ }, // don't start TRANSFER_READ until waiting is done // here, TRANSFER_READ refers to presenting
-	// 		oldLayout 			= .UNDEFINED,
-	// 		newLayout 			= .PRESENT_SRC_KHR,
-	// 		srcQueueFamilyIndex = vk.QUEUE_FAMILY_IGNORED,
-	// 		dstQueueFamilyIndex = vk.QUEUE_FAMILY_IGNORED,
-	// 		image 				= g.swapchain_images[swapchain_image_index],
-	// 		subresourceRange 	= {{.COLOR}, 0, 1, 0, 1},
-	// 	}
-
-	// 	vk.CmdPipelineBarrier(
-	// 		main_cmd,
-	// 		{ .TRANSFER }, { .TRANSFER },
-	// 		{},
-	// 		0, nil, 0, nil, 1, &transition_barrier,
-	// 	)
-	// }
-
 
 	// --- MAIN COMMAND BUFFER ------
 	vk.EndCommandBuffer(main_cmd)
@@ -898,7 +911,7 @@ render :: proc() {
 		pWaitSemaphores 	= &rendering_complete_semaphore,
 		swapchainCount 		= 1,
 		pSwapchains 		= &g.swapchain,
-		pImageIndices 		= &swapchain_image_index,
+		pImageIndices 		= &g.swapchain_image_index,
 		pResults 			= nil,
 	}
 	present_result := vk.QueuePresentKHR(g.present_queue, &present_info)
@@ -909,6 +922,58 @@ render :: proc() {
 	g.virtual_frame_index %= VIRTUAL_FRAME_COUNT
 
 }
+
+// allocate_and_begin_command_buffer :: proc() -> vk.CommandBuffer {
+// 	g := &graphics
+
+// 	allocate_info := vk.CommandBufferAllocateInfo {
+// 		sType 				= .COMMAND_BUFFER_ALLOCATE_INFO,
+// 		commandPool 		= g.command_pools[.Graphics],
+// 		level 				= .PRIMARY,
+// 		commandBufferCount 	= 1,
+// 	}
+
+// 	cmd : vk.CommandBuffer
+// 	allocate_result := vk.AllocateCommandBuffers(g.device, &allocate_info, &cmd)
+// 	handle_result(allocate_result)
+
+// 	begin_info := vk.CommandBufferBeginInfo {
+// 		sType = .COMMAND_BUFFER_BEGIN_INFO,
+// 		flags = { .ONE_TIME_SUBMIT },
+// 	}
+// 	begin_result := vk.BeginCommandBuffer(cmd, &begin_info)
+// 	handle_result(begin_result)
+
+// 	return cmd
+// }
+
+// end_submit_wait_and_free_command_buffer :: proc(cmd : vk.CommandBuffer) {
+// 	g := &graphics
+
+// 	cmd := cmd
+
+// 	vk.EndCommandBuffer(cmd)
+
+// 	submit_info := vk.SubmitInfo {
+// 		sType 					= .SUBMIT_INFO,
+// 		waitSemaphoreCount 		= 0,
+// 		commandBufferCount 		= 1,
+// 		pCommandBuffers 		= &cmd,
+// 		signalSemaphoreCount 	= 0,
+// 	}
+
+// 	fence_create_info := vk.FenceCreateInfo { sType = .FENCE_CREATE_INFO }
+// 	fence : vk.Fence
+// 	fence_create_result := vk.CreateFence(g.device, &fence_create_info, nil, &fence)
+// 	handle_result(fence_create_result)
+
+// 	vk.QueueSubmit(g.graphics_queue, 1, &submit_info, fence)
+
+// 	vk.WaitForFences(g.device, 1, &fence, true, max(u64))
+// 	vk.DestroyFence(g.device, fence, nil)
+
+// 	vk.FreeCommandBuffers(g.device, g.command_pools[.Graphics], 1, &cmd)
+// }
 
 // rndom
 bind_screen_framebuffer :: proc() {}

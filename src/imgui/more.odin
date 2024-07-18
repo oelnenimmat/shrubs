@@ -5,16 +5,28 @@ package imgui
 
 import "core:c"
 import "vendor:glfw"
+import vk "vendor:vulkan"
 
 foreign import cimgui "../../lib/cimgui.lib"
 
-foreign cimgui {
-	ImGui_ImplOpenGL3_Init :: proc (glsl_version : cstring = nil) -> bool ---
-	ImGui_ImplOpenGL3_Shutdown :: proc () ---
-	ImGui_ImplOpenGL3_NewFrame :: proc () ---
-	ImGui_ImplOpenGL3_RenderDrawData :: proc (draw_data : ^ImDrawData) ---
+ImGui_ImplVulkan_InitInfo :: struct {}
 
-	ImGui_ImplGlfw_InitForOpenGL :: proc (window : glfw.WindowHandle, install_callbacks : bool) -> bool ---
+foreign cimgui {
+
+	ImGui_ImplVulkan_Init :: proc (info : ^ImGui_ImplVulkan_InitInfo) -> bool ---
+	ImGui_ImplVulkan_Shutdown :: proc () ---
+	ImGui_ImplVulkan_NewFrame :: proc () ---
+	ImGui_ImplVulkan_RenderDrawData :: proc (draw_data : ^ImDrawData, command_buffer : vk.CommandBuffer, pipeline : vk.Pipeline = 0) ---
+	ImGui_ImplVulkan_CreateFontsTexture :: proc () -> bool ---
+	ImGui_ImplVulkan_DestroyFontsTexture :: proc () ---
+	// ImGui_ImplVulkan_SetMinImageCount :: proc (min_image_count : u32) ---
+
+	ImGui_ImplVulkan_LoadFunctions :: proc(
+		loader_func : proc(function_name : cstring, user_data : rawptr) -> vk.ProcVoidFunction,
+		user_data : rawptr,
+	) ---
+
+	ImGui_ImplGlfw_InitForVulkan :: proc (window : glfw.WindowHandle, install_callbacks : bool) -> bool ---
 	ImGui_ImplGlfw_Shutdown :: proc () ---
 	ImGui_ImplGlfw_NewFrame :: proc () ---
 }
