@@ -459,6 +459,9 @@ render :: proc() {
 	// End of pipelines
 	graphics.render()
 
+
+	// Todo(Leo): not so nice to have these in render, this is a clue to put this stuff
+	// outside "game", to main.odin
 	// Need to always call window.XXX_frame(), then input.XXX_frame
 	// Todo(Leo): maybe combine, or move to main.odin
 	window.end_frame()

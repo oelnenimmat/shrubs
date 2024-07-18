@@ -26,7 +26,11 @@ initialize :: proc(width, height: int, application_name: string) {
 	application_name_cstring := strings.clone_to_cstring(application_name)
 	defer delete(application_name_cstring)
 
-	glfw.WindowHint(glfw.SAMPLES, 4)
+	// This was for opengl
+	// glfw.WindowHint(glfw.SAMPLES, 4)
+	
+	// This is needed for vulkan
+	glfw.WindowHint(glfw.CLIENT_API, glfw.NO_API)
 	window_handle = glfw.CreateWindow(i32(width), i32(height), application_name_cstring, nil, nil)
 	assert(window_handle != nil)
 
@@ -35,7 +39,7 @@ initialize :: proc(width, height: int, application_name: string) {
 	// Create window with small size, and then maximize so we get nice
 	// big screen but also if need to see the underlying console there
 	// is reasonable sized window to restore to with windows hotkeys quickly
-	glfw.MaximizeWindow(window_handle)
+	// glfw.MaximizeWindow(window_handle)
 }
 
 terminate :: proc() {
