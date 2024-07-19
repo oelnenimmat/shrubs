@@ -1,8 +1,6 @@
 package graphics
 
-import "core:os"
 import vk "vendor:vulkan"
-
 
 @private
 SkyPipeline :: struct {
@@ -12,65 +10,18 @@ SkyPipeline :: struct {
 
 @private
 create_sky_pipeline :: proc() {
-	g := &graphics
-	sky := &graphics.sky_pipeline
-	shared := &graphics.pipeline_shared
+	g 		:= &graphics
+	sky 	:= &graphics.sky_pipeline
+	shared 	:= &graphics.pipeline_shared
 
 	// Layout
-	{
-		layout_create_info := vk.PipelineLayoutCreateInfo {
-			sType 			= .PIPELINE_LAYOUT_CREATE_INFO,
-			setLayoutCount 	= 1,
-			pSetLayouts 	= &shared.lighting_descriptor_set_layout,
-		}
-		layout_create_result := vk.CreatePipelineLayout(g.device, &layout_create_info, nil, &sky.layout)
-		handle_result(layout_create_result)
-	}
+	sky.layout = create_pipeline_layout({shared.lighting.descriptor_set_layout})
 
 	// PIPELINE
 	{
-		vert_shader_code, vert_ok := os.read_entire_file("spirv_shaders/sky_vert.spv")
-		frag_shader_code, frag_ok := os.read_entire_file("spirv_shaders/sky_frag.spv")
-		defer { 
-			delete(vert_shader_code)
-			delete(frag_shader_code)
-		}
-		assert(vert_ok && frag_ok)
-
-		vert_module, frag_module : vk.ShaderModule
-
-		create_shader_module :: proc(device : vk.Device, code : []u8, loc := #caller_location) -> vk.ShaderModule {
-			info := vk.ShaderModuleCreateInfo {
-				sType 		= .SHADER_MODULE_CREATE_INFO, 
-				codeSize 	= len(code),
-				pCode 		= cast(^u32) raw_data(code)
-			}
-			module : vk.ShaderModule
-			result := vk.CreateShaderModule(device, &info, nil, &module)
-			handle_result(result, loc)
-		
-			return module
-		}
-
-		vert_module = create_shader_module(g.device, vert_shader_code)
-		frag_module = create_shader_module(g.device, frag_shader_code)
-		defer vk.DestroyShaderModule(g.device, vert_module, nil)
-		defer vk.DestroyShaderModule(g.device, frag_module, nil)
-
-
 		shader_stages := []vk.PipelineShaderStageCreateInfo {
-			{
-				sType = .PIPELINE_SHADER_STAGE_CREATE_INFO,
-				stage = { .VERTEX },
-				module = vert_module,
-				pName = "main"
-			},
-			{
-				sType = .PIPELINE_SHADER_STAGE_CREATE_INFO,
-				stage = { .FRAGMENT },
-				module = frag_module,
-				pName = "main"
-			},
+			pipeline_shader_stage(g.device, "spirv_shaders/sky_vert.spv", {.VERTEX}),
+			pipeline_shader_stage(g.device, "spirv_shaders/sky_frag.spv", {.FRAGMENT}),
 		}
 
 		dynamic_states 	:= []vk.DynamicState{ .VIEWPORT, .SCISSOR }
@@ -117,6 +68,10 @@ create_sky_pipeline :: proc() {
 			&sky.pipeline,
 		)
 		handle_result(create_result)
+
+		// No more needed, destroy
+		vk.DestroyShaderModule(g.device, shader_stages[0].module, nil)
+		vk.DestroyShaderModule(g.device, shader_stages[1].module, nil)
 	}
 
 }
@@ -133,10 +88,25 @@ destroy_sky_pipeline :: proc() {
 draw_sky :: proc() {
 	g 		:= &graphics
 	sky 	:= &graphics.sky_pipeline
+	shared 	:= &graphics.pipeline_shared
 
 	main_cmd := g.main_command_buffers[g.virtual_frame_index]
 	
 	vk.CmdBindPipeline(main_cmd, .GRAPHICS, sky.pipeline)
+	
+	descriptor_sets := []vk.DescriptorSet {
+		shared.lighting.descriptor_set,
+	}
 
+	vk.CmdBindDescriptorSets(
+		main_cmd,
+		.GRAPHICS, 
+		sky.layout, 
+		0,
+		u32(len(descriptor_sets)),
+		raw_data(descriptor_sets),
+		0,
+		nil
+	)
 	vk.CmdDraw(main_cmd, 3, 1, 0, 0)
 }

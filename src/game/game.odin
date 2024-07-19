@@ -562,7 +562,7 @@ render_camera :: proc(camera : ^Camera, render_target : ^graphics.RenderTarget) 
 	}
 
 	// This is bound both for the grass placement and grass rendering
-	graphics.bind_uniform_buffer(&grass_types.types_buffer, graphics.GRASS_TYPES_BUFFER_BINDING)
+	// graphics.bind_uniform_buffer(&grass_types.types_buffer, graphics.GRASS_TYPES_BUFFER_BINDING)
 	
 	noise_params := vec4 {
 		f32(scene.world.seed),
