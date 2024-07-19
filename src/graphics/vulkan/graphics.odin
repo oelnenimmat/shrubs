@@ -78,6 +78,10 @@ graphics : struct {
 	test_pipeline_layout 	: vk.PipelineLayout,
 	test_pipeline 			: vk.Pipeline,
 	test_render_pass 		: vk.RenderPass,
+
+	// Pipelines
+	pipeline_shared : PipelineShared,
+	sky_pipeline 	: SkyPipeline,
 }
 
 
@@ -754,6 +758,9 @@ initialize :: proc() {
 		}
 	}
 
+	// -------- PIPELINES ------------
+	create_pipelines()
+
 	// -------- DONE ------------
 	fmt.println("[VULKAN]: Vulkan graphics initialized propely!")
 }
@@ -761,6 +768,11 @@ initialize :: proc() {
 terminate :: proc() {
 	g := &graphics
 	vk.DeviceWaitIdle(g.device)
+
+	// "Custom" ??
+	destroy_pipelines()
+
+	// "Standard" ??
 
 	for i in 0..<len(g.swapchain_framebuffers) {
 		vk.DestroyFramebuffer(g.device, g.swapchain_framebuffers[i], nil)

@@ -7,7 +7,7 @@ layout(std140, binding = 1) uniform Lighting {
 	vec4 ambient_color;
 };
 
-out vec4 out_color;
+layout(location = 0) out vec4 out_color;
 
 void main() {
 	// Simple, but quite nice approximation

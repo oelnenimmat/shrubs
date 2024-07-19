@@ -38,8 +38,8 @@ matrix4_mul_rotation 	:: common.matrix4_mul_rotation
 
 IS_ACTUALLY_EDITOR :: true
 
-WINDOW_WIDTH :: 960 * 2
-WINDOW_HEIGHT :: 540 * 2
+WINDOW_WIDTH :: 960
+WINDOW_HEIGHT :: 540
 
 APPLICATION_NAME :: "Shrubs"
 
