@@ -69,6 +69,7 @@ load_scene :: proc(scene_index : int) -> ^Scene {
 	s^ = {}
 
 	// info := &available_scenes[scene_index]
+	s.greyboxing = create_greyboxing()
 
 	serialized : SerializedScene
 	{

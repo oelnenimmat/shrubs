@@ -77,6 +77,7 @@ Tank :: struct {
 	// rendering
 	body_mesh	: ^graphics.Mesh,
 	wheel_mesh 	: ^graphics.Mesh,
+	material 	: graphics.BasicMaterial,
 
 	// 
 	inside_trigger_volume : physics.BoxCollider,
@@ -161,7 +162,14 @@ create_tank :: proc() -> Tank {
 	t.buttons_positions[1] = {0, 1.9, 1.5}
 	t.buttons_positions[2] = {0.7, 1.9, 1.5}
 
+	t.material = graphics.create_basic_material()
+	t.material.mapped.surface_color = {0.25, 0.22, 0.2, 1}
+
 	return t
+}
+
+destroy_tank :: proc(t : ^Tank) {
+	graphics.destroy_basic_material(&t.material)
 }
 
 update_tank :: proc(tank : ^Tank, delta_time : f32) {
@@ -382,11 +390,12 @@ tank_controls_hold_button :: proc(t : ^Tank, index : int) {
  
 render_tank :: proc(tank : ^Tank) {
 	// // body
-	graphics.set_basic_material({0.4, 0.44, 0.5}, &asset_provider.textures[.White])
+	graphics.set_basic_material(&tank.material)
+	// graphics.set_basic_material({0.4, 0.44, 0.5}, &asset_provider.textures[.White])
 	graphics.draw_mesh(tank.body_mesh, tank.body_transform)
 
 	// wheels
-	graphics.set_basic_material({0.25, 0.22, 0.2}, &asset_provider.textures[.White])
+	// graphics.set_basic_material({0.25, 0.22, 0.2}, &asset_provider.textures[.White])
 	for p, i in tank.wheel_positions {
 		local_transform := linalg.matrix4_translate_f32(p) * tank.wheel_rotations[i]
 		graphics.draw_mesh(tank.wheel_mesh, local_transform)

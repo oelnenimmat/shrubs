@@ -192,28 +192,53 @@ create_uniform_stuff :: proc($Data : typeid, stages : vk.ShaderStageFlags) -> Un
 	)
 
 	// Descriptor Set
-	descriptor_allocate_info := vk.DescriptorSetAllocateInfo {
-		sType 				= .DESCRIPTOR_SET_ALLOCATE_INFO,
-		descriptorPool 		= g.descriptor_pool,
-		descriptorSetCount 	= 1,
-		pSetLayouts 		= &us.descriptor_set_layout,
+	us.descriptor_set = allocate_descriptor_set(us.descriptor_set_layout)
+	descriptor_set_write_buffer(us.descriptor_set, us.buffer, 0, buffer_size)
+
+	return us
+}
+
+@private
+allocate_descriptor_set :: proc(
+	layout : vk.DescriptorSetLayout,
+	loc := #caller_location,
+) -> vk.DescriptorSet {
+	g := &graphics
+
+	layout := layout
+
+	info := vk.DescriptorSetAllocateInfo {
+		sType = .DESCRIPTOR_SET_ALLOCATE_INFO,
+		descriptorPool = g.descriptor_pool,
+		descriptorSetCount = 1,
+		pSetLayouts = &layout,
 	}
-	descriptor_allocate_result := vk.AllocateDescriptorSets(
-		g.device,
-		&descriptor_allocate_info,
-		&us.descriptor_set,
-	)
-	handle_result(descriptor_allocate_result)
+
+	set : vk.DescriptorSet
+	result := vk.AllocateDescriptorSets(g.device, &info, &set)
+	handle_result(result, loc)
+
+	return set
+}
+
+@private
+descriptor_set_write_buffer :: proc(
+	set : vk.DescriptorSet, 
+	buffer : vk.Buffer,
+	#any_int offset : vk.DeviceSize,
+	#any_int size : vk.DeviceSize,
+) {
+	g := &graphics
 
 	buffer_info := vk.DescriptorBufferInfo {
-		buffer 	= us.buffer,
-		offset 	= 0,
-		range 	= vk.DeviceSize(buffer_size),
-	}
+		buffer 	= buffer,
+		offset 	= offset,
+		range 	= size,
+	}			
 
 	write := vk.WriteDescriptorSet {
 		sType 			= .WRITE_DESCRIPTOR_SET,
-		dstSet 			= us.descriptor_set,
+		dstSet 			= set,
 		dstBinding 		= 0,
 		dstArrayElement = 0,
 		descriptorType 	= .UNIFORM_BUFFER,
@@ -221,8 +246,6 @@ create_uniform_stuff :: proc($Data : typeid, stages : vk.ShaderStageFlags) -> Un
 		pBufferInfo 	= &buffer_info,
 	}
 	vk.UpdateDescriptorSets(g.device, 1, &write, 0, nil)
-
-	return us
 }
 
 @private

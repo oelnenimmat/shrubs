@@ -20,21 +20,28 @@ Greyboxing :: struct {
 	selection_index : int,
 
 	boxes : [dynamic]Box,
+
+	material : graphics.BasicMaterial,
 }
 
 // Todo(Leo): add allocator
-// create_greyboxing :: proc() -> Greyboxing {
-// 	g : Greyboxing
+create_greyboxing :: proc() -> Greyboxing {
+	g : Greyboxing
 
-// 	// Todo(Leo): no need to do this explicitly now, as we dont have a
-// 	// specific allocator
-// 	// g.boxes = make([dynamic]Box, 0)
+	g.material = graphics.create_basic_material()
+	g.material.mapped.surface_color = {1, 1, 1, 1}
 
-// 	return g
-// }
+	// Todo(Leo): no need to do this explicitly now, as we dont have a
+	// specific allocator
+	// g.boxes = make([dynamic]Box, 0)
+
+	return g
+}
 
 destroy_greyboxing :: proc(g : ^Greyboxing) {
 	delete (g.boxes)
+	graphics.destroy_basic_material(&g.material)
+
 	g^ = {}
 }
 
@@ -56,7 +63,8 @@ deserialize_greyboxing :: proc(g : ^Greyboxing, s : ^SerializedGreyboxing) {
 
 render_greyboxing :: proc(g : ^Greyboxing) {
 
-	graphics.set_basic_material({1, 1, 1}, scene.textures[.Rock])
+	// graphics.set_basic_material({1, 1, 1}, scene.textures[.Rock])
+	graphics.set_basic_material(&g.material)
 	for b in g.boxes {
 		graphics.draw_mesh(&asset_provider.meshes[.Cube], linalg.matrix4_from_trs(
 			b.position, 

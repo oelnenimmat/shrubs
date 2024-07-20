@@ -55,6 +55,8 @@ player_character 	: PlayerCharacter
 main_camera 		: Camera
 tank 				: Tank
 
+player_material : graphics.BasicMaterial
+
 scene : ^Scene
 grass_types : GrassTypes
 grass_system : Grass
@@ -221,6 +223,9 @@ initialize :: proc() {
 	}
 
 	wind.enabled = true
+
+	player_material = graphics.create_basic_material()
+	player_material.mapped.surface_color = {0.6, 0.2, 0.4, 1}
 }
 
 terminate :: proc() {
@@ -228,6 +233,9 @@ terminate :: proc() {
 
 	save_editor_state()
 
+	graphics.destroy_basic_material(&player_material)
+
+	destroy_tank(&tank)
 	destroy_grass(&grass_system)
 	save_grass_types(&grass_types)
 	destroy_grass_types(&grass_types)
@@ -498,7 +506,8 @@ render_camera :: proc(camera : ^Camera, render_target : ^graphics.RenderTarget) 
 	render_greyboxing(&scene.greyboxing)
 
 	// Player character as a capsule for debug purposes
-	graphics.set_basic_material({0.6, 0.2, 0.4}, &asset_provider.textures[.White])
+	// graphics.set_basic_material({0.6, 0.2, 0.4}, &asset_provider.textures[.White])
+	graphics.set_basic_material(&player_material)
 	model_matrix := linalg.matrix4_translate_f32(player_get_position(&player_character) + OBJECT_UP) *
 					linalg.matrix4_scale_f32(2)
 	graphics.draw_mesh(&asset_provider.meshes[.Capsule], model_matrix)

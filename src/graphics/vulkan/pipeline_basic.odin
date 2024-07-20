@@ -1,6 +1,15 @@
 package graphics
 
+import "core:fmt"
+
 import vk "vendor:vulkan"
+
+BasicMaterial :: struct {
+	descriptor_set 	: vk.DescriptorSet,
+	buffer 			: vk.Buffer,
+	memory 			: vk.DeviceMemory,
+	mapped 			: ^BasicMaterialBuffer,
+}
 
 @private
 BasicPipeline :: struct {
@@ -9,17 +18,60 @@ BasicPipeline :: struct {
 
 	material_layout : vk.DescriptorSetLayout,
 
-	DEBUG_material_buffer 	: vk.Buffer,
-	DEBUG_material_memory 	: vk.DeviceMemory,
-	DEBUG_material_mapped 	: ^BasicMaterial,
-	DEBUG_material_set 		: vk.DescriptorSet,
+	// DEBUG_material : BasicMaterial,
+
+	// DEBUG_material_buffer 	: vk.Buffer,
+	// DEBUG_material_memory 	: vk.DeviceMemory,
+	// DEBUG_material_mapped 	: ^BasicMaterialBuffer,
+	// DEBUG_material_set 		: vk.DescriptorSet,
 }
 
-BasicMaterial :: struct #align(16) {
+@private
+BasicMaterialBuffer :: struct #align(16) {
 	surface_color : vec4,
 }
-#assert(size_of(BasicMaterial) == 16)
-#assert(align_of(BasicMaterial) == 16)
+#assert(size_of(BasicMaterialBuffer) == 16)
+
+create_basic_material :: proc() -> BasicMaterial {
+	g 		:= &graphics
+	basic 	:= &graphics.basic_pipeline
+
+	m : BasicMaterial
+
+	// Debug buffer
+	m.buffer, m.memory = create_buffer_and_memory(
+		size_of(BasicMaterialBuffer),
+		{ .UNIFORM_BUFFER },
+		{ .HOST_VISIBLE, .HOST_COHERENT },
+	)
+	vk.MapMemory(
+		g.device, 
+		m.memory, 
+		0, 
+		size_of(BasicMaterialBuffer), 
+		{}, 
+		cast(^rawptr)&m.mapped,
+	)
+
+	m.descriptor_set = allocate_descriptor_set(basic.material_layout)
+
+	descriptor_set_write_buffer(
+		m.descriptor_set,
+		m.buffer,
+		0,
+		size_of(BasicMaterialBuffer),
+	)
+
+	return m
+}
+
+destroy_basic_material :: proc(m : ^BasicMaterial) {
+	g := &graphics
+
+	vk.DestroyBuffer(g.device, m.buffer, nil)
+	vk.FreeMemory(g.device, m.memory, nil)
+	vk.FreeDescriptorSets(g.device, g.descriptor_pool, 1, &m.descriptor_set)
+}
 
 @private
 create_basic_pipeline :: proc() {
@@ -46,60 +98,7 @@ create_basic_pipeline :: proc() {
 		handle_result(layout_create_result)
 
 		// Debug buffer
-		basic.DEBUG_material_buffer, basic.DEBUG_material_memory = create_buffer_and_memory(
-			size_of(BasicMaterial),
-			{ .UNIFORM_BUFFER },
-			{ .HOST_VISIBLE, .HOST_COHERENT },
-		)
-		vk.MapMemory(
-			g.device, 
-			basic.DEBUG_material_memory, 
-			0, 
-			size_of(BasicMaterial), 
-			{}, 
-			cast(^rawptr)&basic.DEBUG_material_mapped,
-		)
-
-		allocate_descriptor_set :: proc(
-			layout : vk.DescriptorSetLayout,
-			loc := #caller_location,
-		) -> vk.DescriptorSet {
-			g := &graphics
-
-			layout := layout
-
-			info := vk.DescriptorSetAllocateInfo {
-				sType = .DESCRIPTOR_SET_ALLOCATE_INFO,
-				descriptorPool = g.descriptor_pool,
-				descriptorSetCount = 1,
-				pSetLayouts = &layout,
-			}
-
-			set : vk.DescriptorSet
-			result := vk.AllocateDescriptorSets(g.device, &info, &set)
-			handle_result(result, loc)
-
-			return set
-
-		}
-		basic.DEBUG_material_set = allocate_descriptor_set(basic.material_layout)
-
-		buffer_info := vk.DescriptorBufferInfo {
-			buffer 	= basic.DEBUG_material_buffer,
-			offset 	= 0,
-			range 	= vk.DeviceSize(size_of(BasicMaterial)),
-		}
-
-		write := vk.WriteDescriptorSet {
-			sType 			= .WRITE_DESCRIPTOR_SET,
-			dstSet 			= basic.DEBUG_material_set,
-			dstBinding 		= 0,
-			dstArrayElement = 0,
-			descriptorType 	= .UNIFORM_BUFFER,
-			descriptorCount = 1,
-			pBufferInfo 	= &buffer_info,
-		}
-		vk.UpdateDescriptorSets(g.device, 1, &write, 0, nil)
+		// basic.DEBUG_material = create_basic_material()
 	}
 
 	basic.layout = create_pipeline_layout({
@@ -184,8 +183,7 @@ create_basic_pipeline :: proc() {
 destroy_basic_pipeline :: proc() {
 	g := &graphics
 
-	vk.DestroyBuffer(g.device, g.basic_pipeline.DEBUG_material_buffer, nil)
-	vk.FreeMemory(g.device, g.basic_pipeline.DEBUG_material_memory, nil)
+	// destroy_basic_material(&graphics.basic_pipeline.DEBUG_material)
 
 	vk.DestroyDescriptorSetLayout(g.device, g.basic_pipeline.material_layout, nil)
 
@@ -219,23 +217,24 @@ setup_basic_pipeline :: proc () {
 	)
 }
 
-set_basic_material :: proc(color : vec3, texture : ^Texture) {
+set_basic_material :: proc(material : ^BasicMaterial) {
 	g 		:= &graphics
 	basic 	:= &graphics.basic_pipeline
-
-	basic.DEBUG_material_mapped.surface_color.rgb = color
+	shared 	:= &graphics.pipeline_shared
 
 	main_cmd := g.main_command_buffers[g.virtual_frame_index]
 
 	descriptor_sets := []vk.DescriptorSet {
-		basic.DEBUG_material_set,
+		material.descriptor_set
 	}
+
+	BASIC_MATERIAL_FIRST_SET :: 2
 
 	vk.CmdBindDescriptorSets(
 		main_cmd,
 		.GRAPHICS, 
 		basic.layout, 
-		2,
+		BASIC_MATERIAL_FIRST_SET,
 		u32(len(descriptor_sets)),
 		raw_data(descriptor_sets),
 		0,
