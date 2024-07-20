@@ -105,6 +105,11 @@ load_editor_state :: proc() {
 			editor.camera_view_up = OBJECT_UP
 		}
 	}
+
+	// Todo(Leo): remove; this is just a hack to get the vulkan camera working
+	editor.camera_view_forward = {0, 1, 0}
+	editor.camera_view_up = {0, 0, 1}
+	editor.camera_position = {0, -10, 0}
 }
 
 update_editor_camera :: proc(camera : ^Camera, delta_time : f32) {

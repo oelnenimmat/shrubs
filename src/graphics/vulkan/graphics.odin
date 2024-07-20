@@ -82,6 +82,13 @@ graphics : struct {
 	// Pipelines
 	pipeline_shared : PipelineShared,
 	sky_pipeline 	: SkyPipeline,
+	basic_pipeline 	: BasicPipeline,
+
+	// Deepth
+	depth_format 		: vk.Format,
+	depth_image 		: vk.Image,
+	depth_image_view 	: vk.ImageView,
+	depth_memory 		: vk.DeviceMemory,
 }
 
 
@@ -505,7 +512,70 @@ initialize :: proc() {
 		}
 	}
 
-	// ------- DESCRIPTOR POOLS -------
+	// DEPTH
+	{
+		g := &graphics
+
+    	g.depth_format = vk.Format.D32_SFLOAT
+
+		image_create_info := vk.ImageCreateInfo {
+			sType 					= .IMAGE_CREATE_INFO,
+			imageType 				= .D2,
+			format 					= g.depth_format,
+			extent 					= {g.swapchain_image_extent.width, g.swapchain_image_extent.height, 1},
+			mipLevels 				= 1,
+			arrayLayers 			= 1,
+			samples 				= { ._1 },
+			tiling 					= .OPTIMAL,
+			usage 					= { .DEPTH_STENCIL_ATTACHMENT },
+			sharingMode 			= .EXCLUSIVE,
+			queueFamilyIndexCount 	= 1,
+			pQueueFamilyIndices 	= &g.graphics_queue_family,
+			initialLayout 			= .UNDEFINED,
+		}
+		image_create_result := vk.CreateImage(
+			g.device,
+			&image_create_info,
+			nil,
+			&g.depth_image,
+		)
+		handle_result(image_create_result)
+
+		memory_requirements : vk.MemoryRequirements
+		vk.GetImageMemoryRequirements(g.device, g.depth_image, &memory_requirements)
+
+		memory_type_index := find_memory_type(
+			memory_requirements,
+			{ .DEVICE_LOCAL },
+		)
+
+		allocate_info := vk.MemoryAllocateInfo {
+			sType 			= .MEMORY_ALLOCATE_INFO,
+			allocationSize 	= memory_requirements.size,
+			memoryTypeIndex = memory_type_index, 
+		}
+		allocate_result := vk.AllocateMemory(g.device, &allocate_info, nil, &g.depth_memory)
+		handle_result(allocate_result)
+
+		vk.BindImageMemory(g.device, g.depth_image, g.depth_memory, 0)
+	
+		image_view_create_info := vk.ImageViewCreateInfo {
+			sType 				= .IMAGE_VIEW_CREATE_INFO,
+			image 				= g.depth_image,
+			viewType 			= .D2,
+			format 				= g.depth_format,
+			subresourceRange 	= {{ .DEPTH }, 0, 1, 0, 1 }
+		}
+		image_view_create_result := vk.CreateImageView(
+			g.device,
+			&image_view_create_info,
+			nil,
+			&g.depth_image_view
+		)
+		handle_result(image_view_create_result)
+	}
+
+	// DESCRIPTOR POOLS
 	{
 		g := &graphics
 
@@ -534,30 +604,43 @@ initialize :: proc() {
 	{
 		g := &graphics
 
-		color_attachment := vk.AttachmentDescription {
-			format 			= g.swapchain_image_format,
-			samples 		= { ._1 },
-			loadOp 			= .CLEAR,
-			storeOp 		= .STORE,
-			initialLayout 	= .UNDEFINED,
-			finalLayout 	= .PRESENT_SRC_KHR,
+		attachments := []vk.AttachmentDescription {
+			{
+				format 			= g.swapchain_image_format,
+				samples 		= { ._1 },
+				loadOp 			= .CLEAR,
+				storeOp 		= .STORE,
+				initialLayout 	= .UNDEFINED,
+				finalLayout 	= .PRESENT_SRC_KHR,
+			},
+			{
+				format 			= g.depth_format,
+				samples 		= { ._1 },
+				loadOp 			= .CLEAR,
+				storeOp 		= .DONT_CARE,
+				stencilLoadOp 	= .DONT_CARE,
+				stencilStoreOp 	= .DONT_CARE,
+				initialLayout 	= .UNDEFINED,
+				finalLayout 	= .DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+			}
 		}
 
-		color_attachment_ref := vk.AttachmentReference{
-			attachment 	= 0,
-			layout 		= .COLOR_ATTACHMENT_OPTIMAL,
-		}
+
+
+		color_attachment_ref := vk.AttachmentReference{0, .COLOR_ATTACHMENT_OPTIMAL}
+		depth_attachment_ref := vk.AttachmentReference{1, .DEPTH_STENCIL_ATTACHMENT_OPTIMAL}
 
 		subpass := vk.SubpassDescription {
 			pipelineBindPoint 		= .GRAPHICS,
 			colorAttachmentCount 	= 1,
-			pColorAttachments 		= &color_attachment_ref
+			pColorAttachments 		= &color_attachment_ref,
+			pDepthStencilAttachment = &depth_attachment_ref,
 		}
 
 		render_pass_create_info := vk.RenderPassCreateInfo {
 			sType 			= .RENDER_PASS_CREATE_INFO,
-			attachmentCount = 1,
-			pAttachments 	= &color_attachment,
+			attachmentCount = u32(len(attachments)),
+			pAttachments 	= raw_data(attachments),
 			subpassCount 	= 1,
 			pSubpasses 		= &subpass
 		}
@@ -580,8 +663,6 @@ initialize :: proc() {
 		layout_create_result := vk.CreatePipelineLayout(g.device, &layout_create_info, nil, &g.test_pipeline_layout)
 		handle_result(layout_create_result)
 	}	
-
-
 
 	// ------- TEST SHADER/PIPELINE -------
 	{
@@ -666,9 +747,11 @@ initialize :: proc() {
 			polygonMode 			= .FILL,
 			lineWidth 				= 1.0,
 			cullMode	 			= { .BACK },
-			frontFace 				= .CLOCKWISE,
+			frontFace 				= .COUNTER_CLOCKWISE,
 			depthBiasEnable			= VK_FALSE,
 		}
+
+		depth_stencil := pipeline_depth_stencil()
 
 		multisampling := vk.PipelineMultisampleStateCreateInfo {
 			sType 					= .PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
@@ -703,7 +786,7 @@ initialize :: proc() {
 			pViewportState 		= &viewport_state,
 			pRasterizationState = &rasterization,
 			pMultisampleState 	= &multisampling,
-			pDepthStencilState 	= nil,
+			pDepthStencilState 	= &depth_stencil,
 			pColorBlendState 	= &color_blend,
 			pDynamicState 		= &dynamic_state,
 
@@ -738,11 +821,16 @@ initialize :: proc() {
 		g.swapchain_framebuffers = make([]vk.Framebuffer, swapchain_image_count, g.allocator)
 
 		for i in 0..<swapchain_image_count {
+			attachments := []vk.ImageView {
+				g.swapchain_image_views[i],
+				g.depth_image_view,
+			}
+
 			framebuffer_create_info := vk.FramebufferCreateInfo {
 				sType 			= .FRAMEBUFFER_CREATE_INFO,
 				renderPass 		= g.test_render_pass,
-				attachmentCount = 1,
-				pAttachments 	= &g.swapchain_image_views[i],
+				attachmentCount = u32(len(attachments)),
+				pAttachments 	= raw_data(attachments),
 				width 			= g.swapchain_image_extent.width,
 				height 			= g.swapchain_image_extent.height,
 				layers 			= 1,
@@ -773,6 +861,9 @@ terminate :: proc() {
 	destroy_pipelines()
 
 	// "Standard" ??
+	vk.DestroyImageView(g.device, g.depth_image_view, nil)
+	vk.DestroyImage(g.device, g.depth_image, nil)
+	vk.FreeMemory(g.device, g.depth_memory, nil)
 
 	for i in 0..<len(g.swapchain_framebuffers) {
 		vk.DestroyFramebuffer(g.device, g.swapchain_framebuffers[i], nil)
@@ -853,24 +944,28 @@ begin_frame :: proc() {
 	handle_result(acquire_result)
 
 	// Testingfgjogisj	
-	clear_color := vk.ClearValue { color = { float32 = {1, 0, 0, 1}}}
+	clear_values := []vk.ClearValue { 
+		{ color = { float32 = {1, 0, 0, 1}}},
+		{ depthStencil = { 1.0, 0 }},
+	}
 
 	render_pass_begin_info := vk.RenderPassBeginInfo {
 		sType 				= .RENDER_PASS_BEGIN_INFO,
 		renderPass 			= g.test_render_pass,
 		framebuffer 		= g.swapchain_framebuffers[g.swapchain_image_index],		
 		renderArea 			= {{0, 0}, g.swapchain_image_extent},
-		clearValueCount 	= 1,
-		pClearValues 		= &clear_color,
+		clearValueCount 	= u32(len(clear_values)),
+		pClearValues 		= raw_data(clear_values),
 	}
 	vk.CmdBeginRenderPass(main_cmd, &render_pass_begin_info, .INLINE)
 
-	vk.CmdBindPipeline(main_cmd, .GRAPHICS, g.test_pipeline)
 	viewport := vk.Viewport {
 		x 		= 0,
 		y 		= 0,
 		width 	= f32(g.swapchain_image_extent.width),
 		height 	= f32(g.swapchain_image_extent.height),
+		minDepth = 0.0,
+		maxDepth = 1.0,
 	}
 	vk.CmdSetViewport(main_cmd, 0, 1, &viewport)
 
@@ -880,6 +975,7 @@ begin_frame :: proc() {
 	}
 	vk.CmdSetScissor(main_cmd, 0, 1, &scissor)
 
+	vk.CmdBindPipeline(main_cmd, .GRAPHICS, g.test_pipeline)
 	vk.CmdDraw(main_cmd, 3, 1, 0, 0)
 }
 
@@ -992,4 +1088,29 @@ bind_screen_framebuffer :: proc() {}
 bind_uniform_buffer :: proc(buffer : ^Buffer, binding : u32) {}
 read_screen_framebuffer :: proc() -> (width, height : int, pixels_u8_rgba : []u8) {
 	return width, height, pixels_u8_rgba
+}
+
+find_memory_type :: proc(
+	requirements : vk.MemoryRequirements,
+	properties : vk.MemoryPropertyFlags,
+) -> u32 {
+	g := &graphics
+
+	memory_type_index := u32(0)
+	memory_type_bits := requirements.memoryTypeBits
+
+	memory_properties : vk.PhysicalDeviceMemoryProperties
+	vk.GetPhysicalDeviceMemoryProperties (g.physical_device, &memory_properties)
+
+	for i in 0..<memory_properties.memoryTypeCount {
+		bits_ok 	:= (memory_type_bits & (1 << i)) != 0
+		props_ok 	:= (memory_properties.memoryTypes[i].propertyFlags & properties) == properties
+		
+		if bits_ok && props_ok {
+			memory_type_index = i
+			break
+		}
+	}
+
+	return memory_type_index
 }

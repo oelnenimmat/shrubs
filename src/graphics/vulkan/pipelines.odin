@@ -47,6 +47,7 @@ create_pipelines :: proc() {
 	shared.lighting = create_uniform_stuff(LightingUniformBuffer, { .FRAGMENT })
 
 	create_sky_pipeline()
+	create_basic_pipeline()
 }
 
 @private
@@ -58,6 +59,7 @@ destroy_pipelines :: proc() {
 	destroy_uniform_stuff(&shared.lighting)
 
 	destroy_sky_pipeline()
+	destroy_basic_pipeline()
 }
 
 // Shared
@@ -188,25 +190,7 @@ create_uniform_stuff :: proc($Data : typeid, stages : vk.ShaderStageFlags) -> Un
 	buffer_memory_requirements : vk.MemoryRequirements
 	vk.GetBufferMemoryRequirements(g.device, us.buffer, &buffer_memory_requirements)
 
-	requested_properties := vk.MemoryPropertyFlags { .HOST_VISIBLE | .HOST_COHERENT }
-
-	memory_type_index := u32(0)
-	{
-		memory_type_bits := buffer_memory_requirements.memoryTypeBits
-
-		memory_properties : vk.PhysicalDeviceMemoryProperties
-		vk.GetPhysicalDeviceMemoryProperties (g.physical_device, &memory_properties)
-
-		for i in 0..<memory_properties.memoryTypeCount {
-			bits_ok 	:= (memory_type_bits & (1 << i)) != 0
-			props_ok 	:= (memory_properties.memoryTypes[i].propertyFlags & requested_properties) == requested_properties
-			
-			if bits_ok && props_ok {
-				memory_type_index = i
-				break
-			}
-		}
-	}
+	memory_type_index := find_memory_type(buffer_memory_requirements, {.HOST_VISIBLE, .HOST_COHERENT})
 
 	allocate_info := vk.MemoryAllocateInfo {
 		sType 			= .MEMORY_ALLOCATE_INFO,
@@ -344,16 +328,34 @@ pipeline_viewport :: proc() -> vk.PipelineViewportStateCreateInfo {
 }
 
 @private
-pipeline_rasterization :: proc()-> vk.PipelineRasterizationStateCreateInfo {
+pipeline_rasterization :: proc(cull_mode : vk.CullModeFlags)-> vk.PipelineRasterizationStateCreateInfo {
 	return {
 		sType 					= .PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
 		depthClampEnable 		= VK_FALSE,
 		rasterizerDiscardEnable = VK_FALSE,
 		polygonMode 			= .FILL,
 		lineWidth 				= 1.0,
-		cullMode	 			= { .BACK },
-		frontFace 				= .CLOCKWISE,
+		cullMode	 			= cull_mode,
+		frontFace 				= .COUNTER_CLOCKWISE,
 		depthBiasEnable			= VK_FALSE,
+	}
+}
+
+@private
+pipeline_depth_stencil :: proc() -> vk.PipelineDepthStencilStateCreateInfo {
+	return {
+		sType 					= .PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+		pNext 					= nil,
+		flags 					= {},
+		depthTestEnable 		= VK_TRUE,
+		depthWriteEnable 		= VK_TRUE,
+		depthCompareOp 			= .LESS_OR_EQUAL,
+		depthBoundsTestEnable 	= VK_FALSE,
+		stencilTestEnable 		= VK_FALSE,
+		front 					= {},
+		back 					= {},
+		minDepthBounds 			= 0.0,
+		maxDepthBounds 			= 1.0,
 	}
 }
 

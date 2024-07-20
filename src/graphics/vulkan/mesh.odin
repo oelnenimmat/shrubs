@@ -10,4 +10,6 @@ create_mesh :: proc(
 	return {}
 }
 destroy_mesh :: proc(mesh : ^Mesh) {}
-draw_mesh :: proc(mesh : ^Mesh, model : mat4) {}
+draw_mesh :: proc(mesh : ^Mesh, model : mat4) {
+	draw_basic_mesh()
+}

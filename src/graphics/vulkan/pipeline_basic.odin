@@ -3,34 +3,36 @@ package graphics
 import vk "vendor:vulkan"
 
 @private
-SkyPipeline :: struct {
+BasicPipeline :: struct {
 	layout : vk.PipelineLayout,
 	pipeline : vk.Pipeline,
 }
 
 @private
-create_sky_pipeline :: proc() {
+create_basic_pipeline :: proc() {
 	g 		:= &graphics
-	sky 	:= &graphics.sky_pipeline
+	basic 	:= &graphics.basic_pipeline
 	shared 	:= &graphics.pipeline_shared
 
-	// Layout
-	sky.layout = create_pipeline_layout({shared.lighting.descriptor_set_layout})
+	basic.layout = create_pipeline_layout({
+		shared.per_frame.descriptor_set_layout,
+		shared.lighting.descriptor_set_layout,
+	})
 
 	// PIPELINE
 	{
 		shader_stages := []vk.PipelineShaderStageCreateInfo {
-			pipeline_shader_stage(g.device, "spirv_shaders/sky_vert.spv", {.VERTEX}),
-			pipeline_shader_stage(g.device, "spirv_shaders/sky_frag.spv", {.FRAGMENT}),
+			pipeline_shader_stage(g.device, "spirv_shaders/basic_vert.spv", {.VERTEX}),
+			pipeline_shader_stage(g.device, "spirv_shaders/basic_frag.spv", {.FRAGMENT}),
 		}
 
 		dynamic_states 	:= []vk.DynamicState{ .VIEWPORT, .SCISSOR }
 		dynamic_state 	:= pipeline_dynamic(dynamic_states)
 
 		vertex_input 	:= pipeline_vertex_input()
-		input_assembly 	:= pipeline_input_assembly(.TRIANGLE_LIST)
+		input_assembly 	:= pipeline_input_assembly(.TRIANGLE_STRIP)
 		viewport 		:= pipeline_viewport()
-		rasterization 	:= pipeline_rasterization({ .BACK })
+		rasterization 	:= pipeline_rasterization({.BACK})
 		depth_stencil 	:= pipeline_depth_stencil()
 		multisample 	:= pipeline_multisample()
 
@@ -54,7 +56,7 @@ create_sky_pipeline :: proc() {
 			pColorBlendState 	= &color_blend,
 			pDynamicState 		= &dynamic_state,
 
-			layout = sky.layout,
+			layout = basic.layout,
 
 			renderPass 	= g.test_render_pass,
 			subpass 	= 0,
@@ -66,7 +68,7 @@ create_sky_pipeline :: proc() {
 			1,
 			&create_info,
 			nil,
-			&sky.pipeline,
+			&basic.pipeline,
 		)
 		handle_result(create_result)
 
@@ -76,37 +78,36 @@ create_sky_pipeline :: proc() {
 	}
 }
 
-@private
-destroy_sky_pipeline :: proc() {
+destroy_basic_pipeline :: proc() {
 	g := &graphics
-	sky := &graphics.sky_pipeline
 
-	vk.DestroyPipeline(g.device, sky.pipeline, nil)
-	vk.DestroyPipelineLayout(g.device, sky.layout, nil)
+	vk.DestroyPipeline(g.device, g.basic_pipeline.pipeline, nil)
+	vk.DestroyPipelineLayout(g.device, g.basic_pipeline.layout, nil)
 }
 
-draw_sky :: proc() {
+draw_basic_mesh :: proc() {
 	g 		:= &graphics
-	sky 	:= &graphics.sky_pipeline
-	shared 	:= &graphics.pipeline_shared
+	basic 	:= &graphics.basic_pipeline
+	shared 	:= graphics.pipeline_shared
 
 	main_cmd := g.main_command_buffers[g.virtual_frame_index]
-	
-	vk.CmdBindPipeline(main_cmd, .GRAPHICS, sky.pipeline)
-	
+
+	vk.CmdBindPipeline(main_cmd, .GRAPHICS, basic.pipeline)
+
 	descriptor_sets := []vk.DescriptorSet {
+		shared.per_frame.descriptor_set,
 		shared.lighting.descriptor_set,
 	}
 
 	vk.CmdBindDescriptorSets(
 		main_cmd,
 		.GRAPHICS, 
-		sky.layout, 
+		basic.layout, 
 		0,
 		u32(len(descriptor_sets)),
 		raw_data(descriptor_sets),
 		0,
 		nil
 	)
-	vk.CmdDraw(main_cmd, 3, 1, 0, 0)
+	vk.CmdDraw(main_cmd, 14, 1, 0, 0)
 }
