@@ -75,8 +75,6 @@ graphics : struct {
 
 	descriptor_pool : vk.DescriptorPool,
 
-	test_pipeline_layout 	: vk.PipelineLayout,
-	test_pipeline 			: vk.Pipeline,
 	test_render_pass 		: vk.RenderPass,
 
 	// Pipelines
@@ -653,166 +651,6 @@ initialize :: proc() {
 		handle_result(render_pass_create_result)
 	}
 
-	// Test pipeline layout
-	{
-		g := &graphics
-
-		layout_create_info := vk.PipelineLayoutCreateInfo {
-			sType = .PIPELINE_LAYOUT_CREATE_INFO,
-		}
-		layout_create_result := vk.CreatePipelineLayout(g.device, &layout_create_info, nil, &g.test_pipeline_layout)
-		handle_result(layout_create_result)
-	}	
-
-	// ------- TEST SHADER/PIPELINE -------
-	{
-		g := &graphics
-
-		// SHADERS
-		vert_shader_code, vert_ok := os.read_entire_file("test_vert.spv")
-		frag_shader_code, frag_ok := os.read_entire_file("test_frag.spv")
-		defer delete(vert_shader_code)
-		defer delete(frag_shader_code)
-
-		assert(vert_ok && frag_ok)
-
-		vert_module, frag_module : vk.ShaderModule
-
-		vert_module_create_info := vk.ShaderModuleCreateInfo{
-			sType 		= .SHADER_MODULE_CREATE_INFO,
-			codeSize 	= len(vert_shader_code),
-			pCode 		= cast(^u32) raw_data(vert_shader_code),
-		}
-		vert_module_create_result := vk.CreateShaderModule(g.device, &vert_module_create_info, nil, &vert_module)
-		handle_result(vert_module_create_result)
-
-		frag_module_create_info := vk.ShaderModuleCreateInfo{
-			sType 		= .SHADER_MODULE_CREATE_INFO,
-			codeSize 	= len(frag_shader_code),
-			pCode 		= cast(^u32) raw_data(frag_shader_code),
-		}
-		frag_module_create_result := vk.CreateShaderModule(g.device, &frag_module_create_info, nil, &frag_module)
-		handle_result(frag_module_create_result)
-
-		// SHADER STAGES
-		vert_stage_create_info := vk.PipelineShaderStageCreateInfo {
-			sType = .PIPELINE_SHADER_STAGE_CREATE_INFO,
-			stage = { .VERTEX },
-			module = vert_module,
-			pName = "main",
-		}
-
-		frag_stage_create_info := vk.PipelineShaderStageCreateInfo {
-			sType = .PIPELINE_SHADER_STAGE_CREATE_INFO,
-			stage = { .FRAGMENT },
-			module = frag_module,
-			pName = "main",
-		}
-
-		shader_stages := []vk.PipelineShaderStageCreateInfo {
-			vert_stage_create_info, 
-			frag_stage_create_info,
-		}
-
-		dynamic_states := []vk.DynamicState { .VIEWPORT, .SCISSOR }
-		dynamic_state := vk.PipelineDynamicStateCreateInfo {
-			sType 				= .PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-			dynamicStateCount 	= u32(len(dynamic_states)),
-			pDynamicStates 		= raw_data(dynamic_states)
-		}
-
-		vertex_input := vk.PipelineVertexInputStateCreateInfo {
-			sType = .PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-			vertexBindingDescriptionCount = 0,
-			vertexAttributeDescriptionCount = 0,
-		}
-
-		input_assembly := vk.PipelineInputAssemblyStateCreateInfo {
-			sType 					= .PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-			topology 				= .TRIANGLE_LIST,
-			primitiveRestartEnable 	= false,
-		}
-
-		// dynamic! details at render time
-		viewport_state := vk.PipelineViewportStateCreateInfo {
-			sType 			= .PIPELINE_VIEWPORT_STATE_CREATE_INFO,
-			viewportCount 	= 1,
-			scissorCount 	= 1
-		}
-
-		rasterization := vk.PipelineRasterizationStateCreateInfo {
-			sType 					= .PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
-			depthClampEnable 		= VK_FALSE,
-			rasterizerDiscardEnable = VK_FALSE,
-			polygonMode 			= .FILL,
-			lineWidth 				= 1.0,
-			cullMode	 			= { .BACK },
-			frontFace 				= .COUNTER_CLOCKWISE,
-			depthBiasEnable			= VK_FALSE,
-		}
-
-		depth_stencil := pipeline_depth_stencil()
-
-		multisampling := vk.PipelineMultisampleStateCreateInfo {
-			sType 					= .PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-			sampleShadingEnable 	= VK_FALSE,
-			rasterizationSamples 	= { ._1 },
-			minSampleShading 		= 1.0,
-			pSampleMask 			= nil,
-			alphaToCoverageEnable 	= VK_FALSE,
-			alphaToOneEnable 		= VK_FALSE,
-		}
-
-		color_blend_attachment := vk.PipelineColorBlendAttachmentState {
-			colorWriteMask = { .R, .G, .B },
-			blendEnable = VK_FALSE,
-		}
-
-		color_blend := vk.PipelineColorBlendStateCreateInfo {
-			sType = .PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-			logicOpEnable = VK_FALSE,
-			attachmentCount = 1,
-			pAttachments = &color_blend_attachment,
-		}
-
-		pipeline_create_info := vk.GraphicsPipelineCreateInfo {
-			sType = .GRAPHICS_PIPELINE_CREATE_INFO,
-			
-			stageCount 	= 2,
-			pStages 	= raw_data(shader_stages),
-
-			pVertexInputState 	= &vertex_input,
-			pInputAssemblyState = &input_assembly,
-			pViewportState 		= &viewport_state,
-			pRasterizationState = &rasterization,
-			pMultisampleState 	= &multisampling,
-			pDepthStencilState 	= &depth_stencil,
-			pColorBlendState 	= &color_blend,
-			pDynamicState 		= &dynamic_state,
-
-			layout = g.test_pipeline_layout,
-		
-			renderPass 	= g.test_render_pass,
-			subpass 	= 0,
-		}
-
-		pipeline_create_result := vk.CreateGraphicsPipelines(
-			g.device,
-			VK_NULL_HANDLE,
-			1,
-			&pipeline_create_info,
-			nil,
-			&g.test_pipeline,
-		)
-		handle_result(pipeline_create_result)
-
-
-		// ------------------------------------------------
-		vk.DestroyShaderModule(g.device, vert_module, nil)
-		vk.DestroyShaderModule(g.device, frag_module, nil)
-	}
-	fmt.println("[VULKAN]: test shaders good!")
-
 	// ------ MOCKUP SWAPCHAIN FRAMEBUFFERS -------
 	{
 		g := &graphics
@@ -870,8 +708,6 @@ terminate :: proc() {
 	}
 
 	vk.DestroyRenderPass(g.device, g.test_render_pass, nil)
-	vk.DestroyPipelineLayout(g.device, g.test_pipeline_layout, nil)
-	vk.DestroyPipeline(g.device, g.test_pipeline, nil)
 
 	vk.DestroyDescriptorPool(g.device, g.descriptor_pool, nil)
 
@@ -974,9 +810,6 @@ begin_frame :: proc() {
 		extent = g.swapchain_image_extent,
 	}
 	vk.CmdSetScissor(main_cmd, 0, 1, &scissor)
-
-	vk.CmdBindPipeline(main_cmd, .GRAPHICS, g.test_pipeline)
-	vk.CmdDraw(main_cmd, 3, 1, 0, 0)
 }
 
 render :: proc() {
