@@ -15,7 +15,7 @@ create_sky_pipeline :: proc() {
 	shared 	:= &graphics.pipeline_shared
 
 	// Layout
-	sky.layout = create_pipeline_layout({shared.lighting.descriptor_set_layout})
+	sky.layout = create_pipeline_layout({shared.lighting.descriptor_set_layout}, nil)
 
 	// PIPELINE
 	{

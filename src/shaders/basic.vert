@@ -4,7 +4,10 @@ layout(set = 0, binding = 0) uniform PerFrame {
 	mat4 projection;
 	mat4 view;
 };
-// layout(location = 0) uniform mat4 model;
+
+layout(push_constant) uniform MeshPerDraw {
+	mat4 model;
+};
 
 // layout(location = 0) in vec3 vertex_position;
 // layout(location = 1) in vec3 vertex_normal;
@@ -34,7 +37,7 @@ const vec3 v [14] = vec3[](
 
 void main() {
 	// HACKSTART
-	mat4 model = mat4(1);
+	// mat4 model = mat4(1);
 
 	vec3 vertex_position = v[gl_VertexIndex];
 
@@ -42,7 +45,7 @@ void main() {
 	vec2 vertex_texcoord = vertex_position.xy / 2 + 0.5;
 	// HACKEND
 
-	gl_Position 		= projection * view * /*model * */vec4(vertex_position, 1.0);
+	gl_Position 		= projection * view * model * vec4(vertex_position, 1.0);
 
 	mat3 normal_matrix 	= transpose(inverse(mat3(model)));
 	surface_normal 		= normalize(normal_matrix * vertex_normal);

@@ -17,6 +17,8 @@ create_basic_pipeline :: proc() {
 	basic.layout = create_pipeline_layout({
 		shared.per_frame.descriptor_set_layout,
 		shared.lighting.descriptor_set_layout,
+	}, {
+		{ {.VERTEX}, 0, 64,},
 	})
 
 	// PIPELINE
@@ -85,7 +87,7 @@ destroy_basic_pipeline :: proc() {
 	vk.DestroyPipelineLayout(g.device, g.basic_pipeline.layout, nil)
 }
 
-draw_basic_mesh :: proc() {
+draw_basic_mesh :: proc(model : mat4) {
 	g 		:= &graphics
 	basic 	:= &graphics.basic_pipeline
 	shared 	:= graphics.pipeline_shared
@@ -109,5 +111,16 @@ draw_basic_mesh :: proc() {
 		0,
 		nil
 	)
+
+	model := model
+	vk.CmdPushConstants(
+		main_cmd,
+		basic.layout,
+		{ .VERTEX },
+		0,
+		64,
+		&model,
+	)
+
 	vk.CmdDraw(main_cmd, 14, 1, 0, 0)
 }

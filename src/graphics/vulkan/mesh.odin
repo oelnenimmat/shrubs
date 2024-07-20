@@ -11,5 +11,5 @@ create_mesh :: proc(
 }
 destroy_mesh :: proc(mesh : ^Mesh) {}
 draw_mesh :: proc(mesh : ^Mesh, model : mat4) {
-	draw_basic_mesh()
+	draw_basic_mesh(model)
 }

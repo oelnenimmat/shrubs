@@ -124,6 +124,7 @@ set_terrain_material :: proc(
 @private
 create_pipeline_layout :: proc (
 	set_layouts : []vk.DescriptorSetLayout,
+	push_constants : []vk.PushConstantRange,
 	loc := #caller_location,
 ) -> vk.PipelineLayout {
 	info := vk.PipelineLayoutCreateInfo {
@@ -132,8 +133,8 @@ create_pipeline_layout :: proc (
 		flags 					= {},
 		setLayoutCount 			= u32(len(set_layouts)),
 		pSetLayouts 			= raw_data(set_layouts),
-		pushConstantRangeCount 	= 0,
-		pPushConstantRanges 	= nil
+		pushConstantRangeCount 	= u32(len(push_constants)),
+		pPushConstantRanges 	= raw_data(push_constants),
 	}
 
 	layout : vk.PipelineLayout
