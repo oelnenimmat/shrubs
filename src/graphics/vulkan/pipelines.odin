@@ -84,9 +84,6 @@ set_world_data :: proc(scale, offset : vec2) {}
 set_debug_data :: proc(draw_normals, draw_backfacing, draw_lod : bool) {}
 
 // Others
-setup_basic_pipeline :: proc () {}
-set_basic_material :: proc(color : vec3, texture : ^Texture) {}
-
 setup_debug_pipeline :: proc () {}
 draw_debug_mesh :: proc(mesh : ^Mesh, model : mat4, color : vec3) {}
 

@@ -70,6 +70,8 @@ camera_get_projection_and_view_matrices :: proc(camera : ^Camera) -> (mat4, mat4
 		FAR_CLIPPING_PLANE,
 	)
 
+	// Vulkan thing!
+	// https://www.saschawillems.de/blog/2019/03/29/flipping-the-vulkan-viewport/
 	projection_matrix[1,1] *= -1
 
 	return projection_matrix, view_matrix

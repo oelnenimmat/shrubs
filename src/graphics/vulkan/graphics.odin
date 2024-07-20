@@ -100,9 +100,18 @@ get_staging_memory :: proc($Type : typeid, count : int) -> []Type {
 	g := &graphics
 
 	size := vk.DeviceSize(size_of(Type) * count)
-	assert(size <= g.SWAG_staging_capacity)
+	fmt.assertf(size <= g.SWAG_staging_capacity, "capacity: {}, size: {}", g.SWAG_staging_capacity, size)
 
 	return (cast([^]Type)g.staging_mapped)[:count]
+}
+
+@private
+align_up :: proc(#any_int address, alignment : vk.DeviceSize) -> vk.DeviceSize {
+	if (address % alignment) == 0 {
+		return address
+	} else {
+		return (address / alignment + 1) * alignment
+	}
 }
 
 @private
