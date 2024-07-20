@@ -93,6 +93,9 @@ graphics : struct {
 	staging_buffer 		: vk.Buffer,
 	staging_memory 		: vk.DeviceMemory,
 	staging_mapped 		: rawptr,
+
+	// Textures
+	linear_sampler : vk.Sampler,
 }
 
 @private
@@ -537,6 +540,42 @@ initialize :: proc() {
 		) 
 	}
 
+	// Samplers
+	{
+		g := &graphics
+
+		// https://docs.vulkan.org/tutorial/latest/06_Texture_mapping/01_Image_view_and_sampler.html
+		// Todo(Leo): anisotropy sampling
+
+		create_info := vk.SamplerCreateInfo {
+			sType = .SAMPLER_CREATE_INFO,
+			pNext = nil,
+			flags = {},
+			magFilter = .LINEAR,
+			minFilter = .LINEAR,
+			mipmapMode = .LINEAR,
+			addressModeU = .REPEAT,
+			addressModeV = .REPEAT,
+			addressModeW = .REPEAT,
+
+			mipLodBias = 0,
+
+			// Todo(Leo): enable, see above, today im lazy
+			anisotropyEnable = false,
+			// maxAnisotropy = ,
+
+			compareEnable = false,
+			compareOp = .ALWAYS,
+
+			minLod = 0,
+			maxLod = 0,
+
+			borderColor = .INT_OPAQUE_BLACK,
+			unnormalizedCoordinates = false,
+		}
+		create_result := vk.CreateSampler(g.device, &create_info, nil, &g.linear_sampler)
+	}
+
 	// -------- DONE ------------
 	fmt.println("[VULKAN]: Vulkan graphics initialized propely!")
 }
@@ -551,6 +590,8 @@ terminate :: proc() {
 
 	vk.DestroyBuffer(g.device, g.staging_buffer, nil)
 	vk.FreeMemory(g.device, g.staging_memory, nil)
+
+	vk.DestroySampler(g.device, g.linear_sampler, nil)
 
 	// "Standard" ??
 	vk.DestroyRenderPass(g.device, g.test_render_pass, nil)

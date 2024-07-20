@@ -8,7 +8,7 @@ BasicMaterial :: struct {
 	descriptor_set 	: vk.DescriptorSet,
 	buffer 			: vk.Buffer,
 	memory 			: vk.DeviceMemory,
-	mapped 			: ^BasicMaterialBuffer,
+	using mapped 	: ^BasicMaterialBuffer,
 }
 
 @private
@@ -17,13 +17,6 @@ BasicPipeline :: struct {
 	pipeline : vk.Pipeline,
 
 	material_layout : vk.DescriptorSetLayout,
-
-	// DEBUG_material : BasicMaterial,
-
-	// DEBUG_material_buffer 	: vk.Buffer,
-	// DEBUG_material_memory 	: vk.DeviceMemory,
-	// DEBUG_material_mapped 	: ^BasicMaterialBuffer,
-	// DEBUG_material_set 		: vk.DescriptorSet,
 }
 
 @private
@@ -39,28 +32,16 @@ create_basic_material :: proc() -> BasicMaterial {
 	m : BasicMaterial
 
 	// Debug buffer
+	size := vk.DeviceSize(size_of(BasicMaterialBuffer))
 	m.buffer, m.memory = create_buffer_and_memory(
-		size_of(BasicMaterialBuffer),
+		size,
 		{ .UNIFORM_BUFFER },
 		{ .HOST_VISIBLE, .HOST_COHERENT },
 	)
-	vk.MapMemory(
-		g.device, 
-		m.memory, 
-		0, 
-		size_of(BasicMaterialBuffer), 
-		{}, 
-		cast(^rawptr)&m.mapped,
-	)
+	vk.MapMemory(g.device, m.memory, 0, size, {}, cast(^rawptr)&m.mapped)
 
 	m.descriptor_set = allocate_descriptor_set(basic.material_layout)
-
-	descriptor_set_write_buffer(
-		m.descriptor_set,
-		m.buffer,
-		0,
-		size_of(BasicMaterialBuffer),
-	)
+	descriptor_set_write_buffer(m.descriptor_set, m.buffer, 0, size)
 
 	return m
 }

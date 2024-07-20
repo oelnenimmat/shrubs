@@ -163,7 +163,7 @@ create_tank :: proc() -> Tank {
 	t.buttons_positions[2] = {0.7, 1.9, 1.5}
 
 	t.material = graphics.create_basic_material()
-	t.material.mapped.surface_color = {0.25, 0.22, 0.2, 1}
+	t.material.surface_color = {0.25, 0.22, 0.2, 1}
 
 	return t
 }
