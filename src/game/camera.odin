@@ -70,5 +70,7 @@ camera_get_projection_and_view_matrices :: proc(camera : ^Camera) -> (mat4, mat4
 		FAR_CLIPPING_PLANE,
 	)
 
+	projection_matrix[1,1] *= -1
+
 	return projection_matrix, view_matrix
 }

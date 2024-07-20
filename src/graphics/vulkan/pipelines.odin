@@ -179,29 +179,11 @@ create_uniform_stuff :: proc($Data : typeid, stages : vk.ShaderStageFlags) -> Un
 
 	// BUFFER
 	buffer_size := vk.DeviceSize(size_of(Data))
-	buffer_create_info := vk.BufferCreateInfo {
-		sType 		= .BUFFER_CREATE_INFO,
-		size 		= buffer_size,
-		usage 		= { .UNIFORM_BUFFER },
-		sharingMode = .EXCLUSIVE,
-	}
-	buffer_create_result := vk.CreateBuffer(g.device, &buffer_create_info, nil, &us.buffer)
-	handle_result(buffer_create_result)
-
-	buffer_memory_requirements : vk.MemoryRequirements
-	vk.GetBufferMemoryRequirements(g.device, us.buffer, &buffer_memory_requirements)
-
-	memory_type_index := find_memory_type(buffer_memory_requirements, {.HOST_VISIBLE, .HOST_COHERENT})
-
-	allocate_info := vk.MemoryAllocateInfo {
-		sType 			= .MEMORY_ALLOCATE_INFO,
-		allocationSize 	= buffer_memory_requirements.size,
-		memoryTypeIndex = memory_type_index, 
-	}
-	allocate_result := vk.AllocateMemory(g.device, &allocate_info, nil, &us.memory)
-	handle_result(allocate_result)
-
-	vk.BindBufferMemory(g.device, us.buffer, us.memory, 0)
+	us.buffer, us.memory = create_buffer_and_memory(
+		buffer_size,
+		{ .UNIFORM_BUFFER },
+		{ .HOST_VISIBLE, .HOST_COHERENT }
+	)
 
 	vk.MapMemory(
 		g.device, 
@@ -299,8 +281,19 @@ pipeline_dynamic :: proc(states : []vk.DynamicState) -> vk.PipelineDynamicStateC
 }
 
 @private
-pipeline_vertex_input :: proc() -> vk.PipelineVertexInputStateCreateInfo {
-	return { sType = .PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO }
+pipeline_vertex_input :: proc(
+	bindings 	: []vk.VertexInputBindingDescription = nil,
+	attributes 	: []vk.VertexInputAttributeDescription = nil,
+) -> vk.PipelineVertexInputStateCreateInfo {
+	return { 
+		sType 							= .PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+		pNext 							= nil,
+		flags 							= {},
+		vertexBindingDescriptionCount 	= u32(len(bindings)),
+		pVertexBindingDescriptions 		= raw_data(bindings),
+		vertexAttributeDescriptionCount = u32(len(attributes)),
+		pVertexAttributeDescriptions 	= raw_data(attributes)
+	}
 }
 
 @private

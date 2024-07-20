@@ -87,8 +87,23 @@ graphics : struct {
 	depth_image 		: vk.Image,
 	depth_image_view 	: vk.ImageView,
 	depth_memory 		: vk.DeviceMemory,
+
+	// Staging
+	SWAG_staging_capacity 	: vk.DeviceSize,
+	staging_buffer 		: vk.Buffer,
+	staging_memory 		: vk.DeviceMemory,
+	staging_mapped 		: rawptr,
 }
 
+@private
+get_staging_memory :: proc($Type : typeid, count : int) -> []Type {
+	g := &graphics
+
+	size := vk.DeviceSize(size_of(Type) * count)
+	assert(size <= g.SWAG_staging_capacity)
+
+	return (cast([^]Type)g.staging_mapped)[:count]
+}
 
 @private
 handle_result :: proc(result : vk.Result, loc := #caller_location) {
@@ -443,8 +458,6 @@ initialize :: proc() {
 			}
 		}
 
-
-
 		color_attachment_ref := vk.AttachmentReference{0, .COLOR_ATTACHMENT_OPTIMAL}
 		depth_attachment_ref := vk.AttachmentReference{1, .DEPTH_STENCIL_ATTACHMENT_OPTIMAL}
 
@@ -495,6 +508,25 @@ initialize :: proc() {
 		}
 	)
 
+	// Staging
+	{
+		g := &graphics
+
+		g.SWAG_staging_capacity = 100 * 1024 * 102
+		g.staging_buffer, g.staging_memory = create_buffer_and_memory(
+			g.SWAG_staging_capacity,
+			{ .TRANSFER_SRC },
+			{ .HOST_VISIBLE, .HOST_COHERENT }
+		)
+		vk.MapMemory(
+			g.device, 
+			g.staging_memory,
+			0,
+			g.SWAG_staging_capacity,
+			{},
+			&g.staging_mapped,
+		) 
+	}
 
 	// -------- DONE ------------
 	fmt.println("[VULKAN]: Vulkan graphics initialized propely!")
@@ -508,10 +540,10 @@ terminate :: proc() {
 	destroy_pipelines()
 	destroy_depth()
 
+	vk.DestroyBuffer(g.device, g.staging_buffer, nil)
+	vk.FreeMemory(g.device, g.staging_memory, nil)
+
 	// "Standard" ??
-
-
-
 	vk.DestroyRenderPass(g.device, g.test_render_pass, nil)
 
 	vk.DestroyDescriptorPool(g.device, g.descriptor_pool, nil)
@@ -664,57 +696,57 @@ render :: proc() {
 
 }
 
-// allocate_and_begin_command_buffer :: proc() -> vk.CommandBuffer {
-// 	g := &graphics
+allocate_and_begin_command_buffer :: proc() -> vk.CommandBuffer {
+	g := &graphics
 
-// 	allocate_info := vk.CommandBufferAllocateInfo {
-// 		sType 				= .COMMAND_BUFFER_ALLOCATE_INFO,
-// 		commandPool 		= g.command_pools[.Graphics],
-// 		level 				= .PRIMARY,
-// 		commandBufferCount 	= 1,
-// 	}
+	allocate_info := vk.CommandBufferAllocateInfo {
+		sType 				= .COMMAND_BUFFER_ALLOCATE_INFO,
+		commandPool 		= g.command_pools[.Graphics],
+		level 				= .PRIMARY,
+		commandBufferCount 	= 1,
+	}
 
-// 	cmd : vk.CommandBuffer
-// 	allocate_result := vk.AllocateCommandBuffers(g.device, &allocate_info, &cmd)
-// 	handle_result(allocate_result)
+	cmd : vk.CommandBuffer
+	allocate_result := vk.AllocateCommandBuffers(g.device, &allocate_info, &cmd)
+	handle_result(allocate_result)
 
-// 	begin_info := vk.CommandBufferBeginInfo {
-// 		sType = .COMMAND_BUFFER_BEGIN_INFO,
-// 		flags = { .ONE_TIME_SUBMIT },
-// 	}
-// 	begin_result := vk.BeginCommandBuffer(cmd, &begin_info)
-// 	handle_result(begin_result)
+	begin_info := vk.CommandBufferBeginInfo {
+		sType = .COMMAND_BUFFER_BEGIN_INFO,
+		flags = { .ONE_TIME_SUBMIT },
+	}
+	begin_result := vk.BeginCommandBuffer(cmd, &begin_info)
+	handle_result(begin_result)
 
-// 	return cmd
-// }
+	return cmd
+}
 
-// end_submit_wait_and_free_command_buffer :: proc(cmd : vk.CommandBuffer) {
-// 	g := &graphics
+end_submit_wait_and_free_command_buffer :: proc(cmd : vk.CommandBuffer) {
+	g := &graphics
 
-// 	cmd := cmd
+	cmd := cmd
 
-// 	vk.EndCommandBuffer(cmd)
+	vk.EndCommandBuffer(cmd)
 
-// 	submit_info := vk.SubmitInfo {
-// 		sType 					= .SUBMIT_INFO,
-// 		waitSemaphoreCount 		= 0,
-// 		commandBufferCount 		= 1,
-// 		pCommandBuffers 		= &cmd,
-// 		signalSemaphoreCount 	= 0,
-// 	}
+	submit_info := vk.SubmitInfo {
+		sType 					= .SUBMIT_INFO,
+		waitSemaphoreCount 		= 0,
+		commandBufferCount 		= 1,
+		pCommandBuffers 		= &cmd,
+		signalSemaphoreCount 	= 0,
+	}
 
-// 	fence_create_info := vk.FenceCreateInfo { sType = .FENCE_CREATE_INFO }
-// 	fence : vk.Fence
-// 	fence_create_result := vk.CreateFence(g.device, &fence_create_info, nil, &fence)
-// 	handle_result(fence_create_result)
+	fence_create_info := vk.FenceCreateInfo { sType = .FENCE_CREATE_INFO }
+	fence : vk.Fence
+	fence_create_result := vk.CreateFence(g.device, &fence_create_info, nil, &fence)
+	handle_result(fence_create_result)
 
-// 	vk.QueueSubmit(g.graphics_queue, 1, &submit_info, fence)
+	vk.QueueSubmit(g.graphics_queue, 1, &submit_info, fence)
 
-// 	vk.WaitForFences(g.device, 1, &fence, true, max(u64))
-// 	vk.DestroyFence(g.device, fence, nil)
+	vk.WaitForFences(g.device, 1, &fence, true, max(u64))
+	vk.DestroyFence(g.device, fence, nil)
 
-// 	vk.FreeCommandBuffers(g.device, g.command_pools[.Graphics], 1, &cmd)
-// }
+	vk.FreeCommandBuffers(g.device, g.command_pools[.Graphics], 1, &cmd)
+}
 
 // rndom
 bind_screen_framebuffer :: proc() {}
@@ -723,6 +755,7 @@ read_screen_framebuffer :: proc() -> (width, height : int, pixels_u8_rgba : []u8
 	return width, height, pixels_u8_rgba
 }
 
+@private
 find_memory_type :: proc(
 	requirements : vk.MemoryRequirements,
 	properties : vk.MemoryPropertyFlags,
@@ -748,6 +781,7 @@ find_memory_type :: proc(
 	return memory_type_index
 }
 
+@private
 create_swapchain :: proc() {	
 	g := &graphics
 
@@ -870,6 +904,7 @@ create_swapchain :: proc() {
 	}
 }
 
+@private
 create_swapchain_framebuffers :: proc() {
 	g := &graphics
 
@@ -902,6 +937,7 @@ create_swapchain_framebuffers :: proc() {
 	}
 }
 
+@private
 destroy_swapchain :: proc() {
 	g := &graphics
 
@@ -920,6 +956,7 @@ destroy_swapchain :: proc() {
 	delete(g.swapchain_images)
 }
 
+@private
 create_depth :: proc() {
 	g := &graphics
 
@@ -982,10 +1019,53 @@ create_depth :: proc() {
 	handle_result(image_view_create_result)
 }
 
+@private
 destroy_depth :: proc() {
 	g := &graphics
 
 	vk.DestroyImageView(g.device, g.depth_image_view, nil)
 	vk.DestroyImage(g.device, g.depth_image, nil)
 	vk.FreeMemory(g.device, g.depth_memory, nil)
+}
+
+@private
+create_buffer_and_memory :: proc(
+	#any_int size 		: vk.DeviceSize,
+	usage 				: vk.BufferUsageFlags,
+	memory_properties 	: vk.MemoryPropertyFlags,
+	loc := #caller_location,
+) -> (vk.Buffer, vk.DeviceMemory) {
+	g := &graphics
+
+	buffer : vk.Buffer
+	memory : vk.DeviceMemory
+
+	create_info := vk.BufferCreateInfo {
+		sType 		= .BUFFER_CREATE_INFO,
+		pNext 		= nil,
+		flags 		= {},
+		size 		= size,
+		usage 		= usage,
+		sharingMode = .EXCLUSIVE,
+	}
+	create_result := vk.CreateBuffer(g.device, &create_info, nil, &buffer)
+	handle_result(create_result)
+
+	memory_requirements : vk.MemoryRequirements
+	vk.GetBufferMemoryRequirements(g.device, buffer, &memory_requirements)
+
+	memory_type := find_memory_type(memory_requirements, memory_properties)
+
+	allocate_info := vk.MemoryAllocateInfo {
+		sType 			= .MEMORY_ALLOCATE_INFO,
+		pNext 			= nil,
+		allocationSize 	= memory_requirements.size,
+		memoryTypeIndex = memory_type,
+	}
+	allocate_result := vk.AllocateMemory(g.device, &allocate_info, nil, &memory)
+	handle_result(allocate_result)
+
+	vk.BindBufferMemory(g.device, buffer, memory, 0)
+
+	return buffer, memory
 }

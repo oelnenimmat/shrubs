@@ -31,8 +31,16 @@ create_basic_pipeline :: proc() {
 		dynamic_states 	:= []vk.DynamicState{ .VIEWPORT, .SCISSOR }
 		dynamic_state 	:= pipeline_dynamic(dynamic_states)
 
-		vertex_input 	:= pipeline_vertex_input()
-		input_assembly 	:= pipeline_input_assembly(.TRIANGLE_STRIP)
+		bindings := []vk.VertexInputBindingDescription {
+			{ 0, size_of(vec3), .VERTEX },
+		}
+
+		attributes := []vk.VertexInputAttributeDescription {
+			{ 0, 0, .R32G32B32_SFLOAT, 0 },
+		}
+
+		vertex_input 	:= pipeline_vertex_input(bindings, attributes)
+		input_assembly 	:= pipeline_input_assembly(.TRIANGLE_LIST)
 		viewport 		:= pipeline_viewport()
 		rasterization 	:= pipeline_rasterization({.BACK})
 		depth_stencil 	:= pipeline_depth_stencil()
@@ -87,7 +95,7 @@ destroy_basic_pipeline :: proc() {
 	vk.DestroyPipelineLayout(g.device, g.basic_pipeline.layout, nil)
 }
 
-draw_basic_mesh :: proc(model : mat4) {
+draw_basic_mesh :: proc(mesh : ^Mesh, model : mat4) {
 	g 		:= &graphics
 	basic 	:= &graphics.basic_pipeline
 	shared 	:= graphics.pipeline_shared
@@ -112,6 +120,22 @@ draw_basic_mesh :: proc(model : mat4) {
 		nil
 	)
 
+	offset := vk.DeviceSize(0)
+	vk.CmdBindVertexBuffers(
+		main_cmd,
+		0,
+		1, //len(mesh.vertex_buffers),
+		&mesh.vertex_buffer,
+		&offset,
+	)
+
+	vk.CmdBindIndexBuffer(
+		main_cmd,
+		mesh.index_buffer,
+		0,
+		.UINT16,
+	)
+
 	model := model
 	vk.CmdPushConstants(
 		main_cmd,
@@ -122,5 +146,5 @@ draw_basic_mesh :: proc(model : mat4) {
 		&model,
 	)
 
-	vk.CmdDraw(main_cmd, 14, 1, 0, 0)
+	vk.CmdDrawIndexed(main_cmd, mesh.index_count, 1, 0, 0, 0)
 }

@@ -9,7 +9,7 @@ layout(push_constant) uniform MeshPerDraw {
 	mat4 model;
 };
 
-// layout(location = 0) in vec3 vertex_position;
+layout(location = 0) in vec3 vertex_position;
 // layout(location = 1) in vec3 vertex_normal;
 // layout(location = 2) in vec2 vertex_texcoord;
 
@@ -18,28 +18,27 @@ layout(location = 0) out VS_OUT {
 	vec2 texcoord;
 };
 
-const vec3 v [14] = vec3[](
-	vec3(-1, 1, -1),
-	vec3(1, 1, -1),
-	vec3(-1, -1, -1),
-	vec3(1, -1, -1),
-	vec3(1, -1, 1),
-	vec3(1, 1, -1),
-	vec3(1, 1, 1),
-	vec3(-1, 1, -1),
-	vec3(-1, 1, 1),
-	vec3(-1, -1, -1),
-	vec3(1, -1, 1),
-	vec3(-1, 1, 1),
-	vec3(1, 1, 1),
-	vec3(-1, 1, 1)
-);
+// const vec3 v [14] = vec3[](
+// 	vec3(-1, 1, -1),
+// 	vec3(1, 1, -1),
+// 	vec3(-1, -1, -1),
+// 	vec3(1, -1, -1),
+// 	vec3(1, -1, 1),
+// 	vec3(1, 1, -1),
+// 	vec3(1, 1, 1),
+// 	vec3(-1, 1, -1),
+// 	vec3(-1, 1, 1),
+// 	vec3(-1, -1, -1),
+// 	vec3(1, -1, 1),
+// 	vec3(-1, 1, 1),
+// 	vec3(1, 1, 1),
+// 	vec3(-1, 1, 1)
+// );
 
 void main() {
 	// HACKSTART
-	// mat4 model = mat4(1);
 
-	vec3 vertex_position = v[gl_VertexIndex];
+	// vec3 vertex_position = v[gl_VertexIndex];
 
 	vec3 vertex_normal = normalize(vertex_position);
 	vec2 vertex_texcoord = vertex_position.xy / 2 + 0.5;
