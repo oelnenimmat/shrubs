@@ -312,127 +312,7 @@ initialize :: proc() {
 	}
 
 	// ----- SWAPCHAIN ---
-	{	
-		g := &graphics
-
-		available_format_count := u32(100)
-		available_formats : [100]vk.SurfaceFormatKHR
-		// Todo(Leo): this COULD be incmplete, SHOULD not. check result
-		vk.GetPhysicalDeviceSurfaceFormatsKHR (
-			g.physical_device,
-			g.surface,
-			&available_format_count,
-			raw_data(&available_formats)
-		)
-
-		available_present_mode_count := u32(10)
-		available_present_modes : [10]vk.PresentModeKHR
-		// Todo(Leo): this COULD be incmplete, SHOULD not. check result
-		vk.GetPhysicalDeviceSurfacePresentModesKHR(
-			g.physical_device,
-			g.surface,
-			&available_present_mode_count,
-			raw_data(&available_present_modes),
-		)
-
-		assert(available_format_count > 0)
-		assert(available_present_mode_count > 0)
-
-		preferred_format 		:= vk.Format.B8G8R8A8_UNORM
-		preferred_color_space 	:= vk.ColorSpaceKHR.SRGB_NONLINEAR
-		preferred_present_mode 	:= vk.PresentModeKHR.MAILBOX
-	
-		selection := 0
-		for sf, i in available_formats[:available_format_count] {
-			if sf.format == preferred_format && sf.colorSpace == preferred_color_space {
-				selection = i
-			}
-		}
-		selected_format 		:= available_formats[selection].format
-		selected_color_space 	:= available_formats[selection].colorSpace
-
-		fmt.println(selected_format)
-
-		selected_present_mode := vk.PresentModeKHR.FIFO
-		for pm in available_present_modes[:available_present_mode_count] {
-			if pm == preferred_present_mode {
-				selected_present_mode = preferred_present_mode
-				break
-			}
-		}
-
-		capabilities : vk.SurfaceCapabilitiesKHR
-		vk.GetPhysicalDeviceSurfaceCapabilitiesKHR(g.physical_device, g.surface, &capabilities)
-
-		selected_extent : vk.Extent2D
-		if capabilities.currentExtent.width == max(u32) {
-			w, h := window.get_window_size()
-			selected_extent = { u32(w), u32(h) }
-		} else {
-			selected_extent = capabilities.currentExtent
-		}
-
-		// todo(Leo): think more, what would be ideal number of images. though maybe its not necessary.
-		image_count := capabilities.minImageCount + 1
-		if capabilities.maxImageCount > 0 {
-			image_count = min(image_count, capabilities.maxImageCount)
-		}
-
-		// Todo(Leo): this depends on number of queue families so change when we fix those
-		image_sharing_mode := vk.SharingMode.CONCURRENT
-		queue_families := []u32 {g.graphics_queue_family, g.present_queue_family}
-
-		swapchain_create_info := vk.SwapchainCreateInfoKHR {
-			sType = .SWAPCHAIN_CREATE_INFO_KHR,
-			surface = g.surface,
-			minImageCount = image_count,
-			imageFormat = selected_format,
-			imageColorSpace = selected_color_space,
-			imageExtent = selected_extent,
-			imageArrayLayers = 1,
-			imageUsage = { .TRANSFER_DST, .COLOR_ATTACHMENT },
-			imageSharingMode = image_sharing_mode,
-			queueFamilyIndexCount = 2,
-			pQueueFamilyIndices = raw_data(queue_families),
-
-			// todo(Leo): study this, may be relevant e.g. on phones
-			preTransform 	= { .IDENTITY }, //surface_capabilities.currentTransform,
-			compositeAlpha 	= { .OPAQUE },
-
-			presentMode = selected_present_mode,
-			clipped = true,
-			oldSwapchain = VK_NULL_HANDLE,
-		}
-		swapchain_create_result := vk.CreateSwapchainKHR(g.device, &swapchain_create_info, nil, &g.swapchain)
-		handle_result(swapchain_create_result)
-
-		// Todo(Leo): think allocation
-		swapchain_image_count : u32
-		vk.GetSwapchainImagesKHR(g.device, g.swapchain, &swapchain_image_count, nil)
-		g.swapchain_images = make([]vk.Image, swapchain_image_count, g.allocator)
-		vk.GetSwapchainImagesKHR(
-			g.device, 
-			g.swapchain, 
-			&swapchain_image_count, 
-			raw_data(g.swapchain_images),
-		)
-		g.swapchain_image_format = selected_format
-		g.swapchain_image_extent = selected_extent
-
-		image_view_create_info := vk.ImageViewCreateInfo {
-			sType 				= .IMAGE_VIEW_CREATE_INFO,
-			viewType 			= .D2,
-			format 				= g.swapchain_image_format,
-			subresourceRange 	= {{ .COLOR }, 0, 1, 0, 1 }
-		}
-
-		g.swapchain_image_views = make([]vk.ImageView, swapchain_image_count, g.allocator)
-		for iv, i in &g.swapchain_image_views {
-			image_view_create_info.image = g.swapchain_images[i]
-			image_view_create_result := vk.CreateImageView(g.device, &image_view_create_info, nil, &iv)
-			handle_result(image_view_create_result)
-		}
-	}
+	create_swapchain()
 
 	// ------- COMMAND POOLS -------
 	{
@@ -511,67 +391,7 @@ initialize :: proc() {
 	}
 
 	// DEPTH
-	{
-		g := &graphics
-
-    	g.depth_format = vk.Format.D32_SFLOAT
-
-		image_create_info := vk.ImageCreateInfo {
-			sType 					= .IMAGE_CREATE_INFO,
-			imageType 				= .D2,
-			format 					= g.depth_format,
-			extent 					= {g.swapchain_image_extent.width, g.swapchain_image_extent.height, 1},
-			mipLevels 				= 1,
-			arrayLayers 			= 1,
-			samples 				= { ._1 },
-			tiling 					= .OPTIMAL,
-			usage 					= { .DEPTH_STENCIL_ATTACHMENT },
-			sharingMode 			= .EXCLUSIVE,
-			queueFamilyIndexCount 	= 1,
-			pQueueFamilyIndices 	= &g.graphics_queue_family,
-			initialLayout 			= .UNDEFINED,
-		}
-		image_create_result := vk.CreateImage(
-			g.device,
-			&image_create_info,
-			nil,
-			&g.depth_image,
-		)
-		handle_result(image_create_result)
-
-		memory_requirements : vk.MemoryRequirements
-		vk.GetImageMemoryRequirements(g.device, g.depth_image, &memory_requirements)
-
-		memory_type_index := find_memory_type(
-			memory_requirements,
-			{ .DEVICE_LOCAL },
-		)
-
-		allocate_info := vk.MemoryAllocateInfo {
-			sType 			= .MEMORY_ALLOCATE_INFO,
-			allocationSize 	= memory_requirements.size,
-			memoryTypeIndex = memory_type_index, 
-		}
-		allocate_result := vk.AllocateMemory(g.device, &allocate_info, nil, &g.depth_memory)
-		handle_result(allocate_result)
-
-		vk.BindImageMemory(g.device, g.depth_image, g.depth_memory, 0)
-	
-		image_view_create_info := vk.ImageViewCreateInfo {
-			sType 				= .IMAGE_VIEW_CREATE_INFO,
-			image 				= g.depth_image,
-			viewType 			= .D2,
-			format 				= g.depth_format,
-			subresourceRange 	= {{ .DEPTH }, 0, 1, 0, 1 }
-		}
-		image_view_create_result := vk.CreateImageView(
-			g.device,
-			&image_view_create_info,
-			nil,
-			&g.depth_image_view
-		)
-		handle_result(image_view_create_result)
-	}
+	create_depth()
 
 	// DESCRIPTOR POOLS
 	{
@@ -652,40 +472,29 @@ initialize :: proc() {
 	}
 
 	// ------ MOCKUP SWAPCHAIN FRAMEBUFFERS -------
-	{
-		g := &graphics
-
-		swapchain_image_count := len(g.swapchain_images)
-		g.swapchain_framebuffers = make([]vk.Framebuffer, swapchain_image_count, g.allocator)
-
-		for i in 0..<swapchain_image_count {
-			attachments := []vk.ImageView {
-				g.swapchain_image_views[i],
-				g.depth_image_view,
-			}
-
-			framebuffer_create_info := vk.FramebufferCreateInfo {
-				sType 			= .FRAMEBUFFER_CREATE_INFO,
-				renderPass 		= g.test_render_pass,
-				attachmentCount = u32(len(attachments)),
-				pAttachments 	= raw_data(attachments),
-				width 			= g.swapchain_image_extent.width,
-				height 			= g.swapchain_image_extent.height,
-				layers 			= 1,
-			}
-
-			framebuffer_create_result := vk.CreateFramebuffer(
-				g.device, 
-				&framebuffer_create_info, 
-				nil,
-				&g.swapchain_framebuffers[i],
-			)
-			handle_result(framebuffer_create_result)
-		}
-	}
+	create_swapchain_framebuffers()
 
 	// -------- PIPELINES ------------
 	create_pipelines()
+
+	// Screen resizing
+	glfw.SetFramebufferSizeCallback(
+		window.get_glfw_window_handle(),
+		// glfw_resize_framebuffer_proc
+		proc "c" (window : glfw.WindowHandle, width, height : i32) {
+			context = runtime.default_context()
+
+			vk.DeviceWaitIdle(graphics.device)
+
+			destroy_swapchain()
+			destroy_depth()
+
+			create_swapchain()
+			create_depth()
+			create_swapchain_framebuffers()
+		}
+	)
+
 
 	// -------- DONE ------------
 	fmt.println("[VULKAN]: Vulkan graphics initialized propely!")
@@ -697,15 +506,11 @@ terminate :: proc() {
 
 	// "Custom" ??
 	destroy_pipelines()
+	destroy_depth()
 
 	// "Standard" ??
-	vk.DestroyImageView(g.device, g.depth_image_view, nil)
-	vk.DestroyImage(g.device, g.depth_image, nil)
-	vk.FreeMemory(g.device, g.depth_memory, nil)
 
-	for i in 0..<len(g.swapchain_framebuffers) {
-		vk.DestroyFramebuffer(g.device, g.swapchain_framebuffers[i], nil)
-	}
+
 
 	vk.DestroyRenderPass(g.device, g.test_render_pass, nil)
 
@@ -721,12 +526,7 @@ terminate :: proc() {
 		vk.DestroyCommandPool(g.device, cp, nil)
 	}
 
-	{
-		for iv in g.swapchain_image_views {
-			vk.DestroyImageView(g.device, iv, nil)
-		}
-		vk.DestroySwapchainKHR(g.device, g.swapchain, nil)
-	}
+	destroy_swapchain()
 
 	vk.DestroyDevice(g.device, nil)
 
@@ -946,4 +746,246 @@ find_memory_type :: proc(
 	}
 
 	return memory_type_index
+}
+
+create_swapchain :: proc() {	
+	g := &graphics
+
+	available_format_count := u32(100)
+	available_formats : [100]vk.SurfaceFormatKHR
+	// Todo(Leo): this COULD be incmplete, SHOULD not. check result
+	vk.GetPhysicalDeviceSurfaceFormatsKHR (
+		g.physical_device,
+		g.surface,
+		&available_format_count,
+		raw_data(&available_formats)
+	)
+
+	available_present_mode_count := u32(10)
+	available_present_modes : [10]vk.PresentModeKHR
+	// Todo(Leo): this COULD be incmplete, SHOULD not. check result
+	vk.GetPhysicalDeviceSurfacePresentModesKHR(
+		g.physical_device,
+		g.surface,
+		&available_present_mode_count,
+		raw_data(&available_present_modes),
+	)
+
+	assert(available_format_count > 0)
+	assert(available_present_mode_count > 0)
+
+	preferred_format 		:= vk.Format.B8G8R8A8_UNORM
+	preferred_color_space 	:= vk.ColorSpaceKHR.SRGB_NONLINEAR
+	preferred_present_mode 	:= vk.PresentModeKHR.MAILBOX
+
+	selection := 0
+	for sf, i in available_formats[:available_format_count] {
+		if sf.format == preferred_format && sf.colorSpace == preferred_color_space {
+			selection = i
+		}
+	}
+	selected_format 		:= available_formats[selection].format
+	selected_color_space 	:= available_formats[selection].colorSpace
+
+	fmt.println(selected_format)
+
+	selected_present_mode := vk.PresentModeKHR.FIFO
+	for pm in available_present_modes[:available_present_mode_count] {
+		if pm == preferred_present_mode {
+			selected_present_mode = preferred_present_mode
+			break
+		}
+	}
+
+	capabilities : vk.SurfaceCapabilitiesKHR
+	vk.GetPhysicalDeviceSurfaceCapabilitiesKHR(g.physical_device, g.surface, &capabilities)
+
+	selected_extent : vk.Extent2D
+	if capabilities.currentExtent.width == max(u32) {
+		w, h := window.get_window_size()
+		selected_extent = { u32(w), u32(h) }
+	} else {
+		selected_extent = capabilities.currentExtent
+	}
+
+	// todo(Leo): think more, what would be ideal number of images. though maybe its not necessary.
+	image_count := capabilities.minImageCount + 1
+	if capabilities.maxImageCount > 0 {
+		image_count = min(image_count, capabilities.maxImageCount)
+	}
+
+	// Todo(Leo): this depends on number of queue families so change when we fix those
+	image_sharing_mode := vk.SharingMode.CONCURRENT
+	queue_families := []u32 {g.graphics_queue_family, g.present_queue_family}
+
+	swapchain_create_info := vk.SwapchainCreateInfoKHR {
+		sType = .SWAPCHAIN_CREATE_INFO_KHR,
+		surface = g.surface,
+		minImageCount = image_count,
+		imageFormat = selected_format,
+		imageColorSpace = selected_color_space,
+		imageExtent = selected_extent,
+		imageArrayLayers = 1,
+		imageUsage = { .TRANSFER_DST, .COLOR_ATTACHMENT },
+		imageSharingMode = image_sharing_mode,
+		queueFamilyIndexCount = 2,
+		pQueueFamilyIndices = raw_data(queue_families),
+
+		// todo(Leo): study this, may be relevant e.g. on phones
+		preTransform 	= { .IDENTITY }, //surface_capabilities.currentTransform,
+		compositeAlpha 	= { .OPAQUE },
+
+		presentMode = selected_present_mode,
+		clipped = true,
+		oldSwapchain = VK_NULL_HANDLE,
+	}
+	swapchain_create_result := vk.CreateSwapchainKHR(g.device, &swapchain_create_info, nil, &g.swapchain)
+	handle_result(swapchain_create_result)
+
+	// Todo(Leo): think allocation
+	swapchain_image_count : u32
+	vk.GetSwapchainImagesKHR(g.device, g.swapchain, &swapchain_image_count, nil)
+	g.swapchain_images = make([]vk.Image, swapchain_image_count, g.allocator)
+	vk.GetSwapchainImagesKHR(
+		g.device, 
+		g.swapchain, 
+		&swapchain_image_count, 
+		raw_data(g.swapchain_images),
+	)
+	g.swapchain_image_format = selected_format
+	g.swapchain_image_extent = selected_extent
+
+	image_view_create_info := vk.ImageViewCreateInfo {
+		sType 				= .IMAGE_VIEW_CREATE_INFO,
+		viewType 			= .D2,
+		format 				= g.swapchain_image_format,
+		subresourceRange 	= {{ .COLOR }, 0, 1, 0, 1 }
+	}
+
+	g.swapchain_image_views = make([]vk.ImageView, swapchain_image_count, g.allocator)
+	for iv, i in &g.swapchain_image_views {
+		image_view_create_info.image = g.swapchain_images[i]
+		image_view_create_result := vk.CreateImageView(g.device, &image_view_create_info, nil, &iv)
+		handle_result(image_view_create_result)
+	}
+}
+
+create_swapchain_framebuffers :: proc() {
+	g := &graphics
+
+	swapchain_image_count := len(g.swapchain_images)
+	g.swapchain_framebuffers = make([]vk.Framebuffer, swapchain_image_count, g.allocator)
+
+	for i in 0..<swapchain_image_count {
+		attachments := []vk.ImageView {
+			g.swapchain_image_views[i],
+			g.depth_image_view,
+		}
+
+		framebuffer_create_info := vk.FramebufferCreateInfo {
+			sType 			= .FRAMEBUFFER_CREATE_INFO,
+			renderPass 		= g.test_render_pass,
+			attachmentCount = u32(len(attachments)),
+			pAttachments 	= raw_data(attachments),
+			width 			= g.swapchain_image_extent.width,
+			height 			= g.swapchain_image_extent.height,
+			layers 			= 1,
+		}
+
+		framebuffer_create_result := vk.CreateFramebuffer(
+			g.device, 
+			&framebuffer_create_info, 
+			nil,
+			&g.swapchain_framebuffers[i],
+		)
+		handle_result(framebuffer_create_result)
+	}
+}
+
+destroy_swapchain :: proc() {
+	g := &graphics
+
+	for i in 0..<len(g.swapchain_framebuffers) {
+		vk.DestroyFramebuffer(g.device, g.swapchain_framebuffers[i], nil)
+	}
+
+
+	for iv in g.swapchain_image_views {
+		vk.DestroyImageView(g.device, iv, nil)
+	}
+	vk.DestroySwapchainKHR(g.device, g.swapchain, nil)
+
+	delete(g.swapchain_framebuffers)
+	delete(g.swapchain_image_views)
+	delete(g.swapchain_images)
+}
+
+create_depth :: proc() {
+	g := &graphics
+
+	g.depth_format = vk.Format.D32_SFLOAT
+
+	image_create_info := vk.ImageCreateInfo {
+		sType 					= .IMAGE_CREATE_INFO,
+		imageType 				= .D2,
+		format 					= g.depth_format,
+		extent 					= {g.swapchain_image_extent.width, g.swapchain_image_extent.height, 1},
+		mipLevels 				= 1,
+		arrayLayers 			= 1,
+		samples 				= { ._1 },
+		tiling 					= .OPTIMAL,
+		usage 					= { .DEPTH_STENCIL_ATTACHMENT },
+		sharingMode 			= .EXCLUSIVE,
+		queueFamilyIndexCount 	= 1,
+		pQueueFamilyIndices 	= &g.graphics_queue_family,
+		initialLayout 			= .UNDEFINED,
+	}
+	image_create_result := vk.CreateImage(
+		g.device,
+		&image_create_info,
+		nil,
+		&g.depth_image,
+	)
+	handle_result(image_create_result)
+
+	memory_requirements : vk.MemoryRequirements
+	vk.GetImageMemoryRequirements(g.device, g.depth_image, &memory_requirements)
+
+	memory_type_index := find_memory_type(
+		memory_requirements,
+		{ .DEVICE_LOCAL },
+	)
+
+	allocate_info := vk.MemoryAllocateInfo {
+		sType 			= .MEMORY_ALLOCATE_INFO,
+		allocationSize 	= memory_requirements.size,
+		memoryTypeIndex = memory_type_index, 
+	}
+	allocate_result := vk.AllocateMemory(g.device, &allocate_info, nil, &g.depth_memory)
+	handle_result(allocate_result)
+
+	vk.BindImageMemory(g.device, g.depth_image, g.depth_memory, 0)
+
+	image_view_create_info := vk.ImageViewCreateInfo {
+		sType 				= .IMAGE_VIEW_CREATE_INFO,
+		image 				= g.depth_image,
+		viewType 			= .D2,
+		format 				= g.depth_format,
+		subresourceRange 	= {{ .DEPTH }, 0, 1, 0, 1 }
+	}
+	image_view_create_result := vk.CreateImageView(
+		g.device,
+		&image_view_create_info,
+		nil,
+		&g.depth_image_view
+	)
+	handle_result(image_view_create_result)
+}
+
+destroy_depth :: proc() {
+	g := &graphics
+
+	vk.DestroyImageView(g.device, g.depth_image_view, nil)
+	vk.DestroyImage(g.device, g.depth_image, nil)
+	vk.FreeMemory(g.device, g.depth_memory, nil)
 }
