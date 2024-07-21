@@ -117,5 +117,36 @@ destroy_mesh :: proc(mesh : ^Mesh) {
 }
 
 draw_mesh :: proc(mesh : ^Mesh, model : mat4) {
-	draw_basic_mesh(mesh, model)
+	g := &graphics
+
+	main_cmd := g.main_command_buffers[g.virtual_frame_index]
+
+	vk.CmdBindVertexBuffers(
+		main_cmd,
+		0,
+		u32(len(mesh.vertex_buffers)),
+		raw_data(mesh.vertex_buffers),
+		raw_data(mesh.offsets),
+	)
+
+	vk.CmdBindIndexBuffer(
+		main_cmd,
+		mesh.index_buffer,
+		0,
+		.UINT16,
+	)
+
+	model := model
+	vk.CmdPushConstants(
+		main_cmd,
+
+		// Todo(Leo): oof bad, we are barely hoping that this is compatible D:
+		graphics.basic_pipeline.layout,
+		{ .VERTEX },
+		0,
+		64,
+		&model,
+	)
+
+	vk.CmdDrawIndexed(main_cmd, mesh.index_count, 1, 0, 0, 0)
 }

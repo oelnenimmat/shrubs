@@ -33,9 +33,17 @@ LightingUniformBuffer :: struct #align(16) {
 #assert(size_of(LightingUniformBuffer) == 64)
 
 @private
+WorldUniformBuffer :: struct #align(16) {
+	placement_scale : vec2,
+	placement_offset : vec2,
+}
+#assert(size_of(WorldUniformBuffer) == 16)
+
+@private
 PipelineShared :: struct {
-	per_frame : UniformStuff(PerFrameUniformBuffer),
-	lighting : UniformStuff(LightingUniformBuffer),
+	per_frame 	: UniformStuff(PerFrameUniformBuffer),
+	lighting 	: UniformStuff(LightingUniformBuffer),
+	world 		: UniformStuff(WorldUniformBuffer),
 
 	// texture_descriptor_set_layout : vk.DescriptorSetLayout,
 }
@@ -45,11 +53,13 @@ create_pipelines :: proc() {
 	g := &graphics
 	shared := &graphics.pipeline_shared
 
-	shared.per_frame = create_uniform_stuff(PerFrameUniformBuffer, { .VERTEX })
-	shared.lighting = create_uniform_stuff(LightingUniformBuffer, { .FRAGMENT })
+	shared.per_frame 	= create_uniform_stuff(PerFrameUniformBuffer, { .VERTEX })
+	shared.lighting 	= create_uniform_stuff(LightingUniformBuffer, { .FRAGMENT })
+	shared.world 		= create_uniform_stuff(WorldUniformBuffer, { .VERTEX, .COMPUTE })
 
 	create_sky_pipeline()
 	create_basic_pipeline()
+	create_terrain_pipeline()
 }
 
 @private
@@ -59,9 +69,11 @@ destroy_pipelines :: proc() {
 
 	destroy_uniform_stuff(&shared.per_frame)
 	destroy_uniform_stuff(&shared.lighting)
+	destroy_uniform_stuff(&shared.world)
 
 	destroy_sky_pipeline()
 	destroy_basic_pipeline()
+	destroy_terrain_pipeline()
 }
 
 // Shared
@@ -82,7 +94,12 @@ set_lighting_data :: proc(camera_position, directional_direction, directional_co
 }
 
 set_wind_data :: proc(texture_offset : vec2, texture_scale : f32, texture : ^Texture) {}
-set_world_data :: proc(scale, offset : vec2) {}
+set_world_data :: proc(scale, offset : vec2) {
+	graphics.pipeline_shared.world.mapped^ = {
+		placement_scale = scale,
+		placement_offset = offset,
+	}
+}
 set_debug_data :: proc(draw_normals, draw_backfacing, draw_lod : bool) {}
 
 // Others
@@ -111,13 +128,6 @@ dispatch_grass_placement_pipeline :: proc (
 ) {}
 
 dispatch_post_process_pipeline :: proc(render_target : ^RenderTarget, exposure : f32) {}
-
-setup_terrain_pipeline :: proc () {}
-set_terrain_material :: proc(
-	splatter_texture : ^Texture,
-	grass_texture : ^Texture,
-	road_texture : ^Texture,
-) {}
 
 // HElpers?
 @private

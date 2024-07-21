@@ -1,16 +1,18 @@
 #version 450
 
-layout(std140, binding = 0) uniform PerFrame {
+layout(set = 0, binding = 0) uniform PerFrame {
 	mat4 projection;
 	mat4 view;
 };
 
-layout(std140, binding = 3) uniform World {
+layout(set = 1, binding = 0) uniform World {
 	vec2 placement_texcoord_scale;
 	vec2 placement_texcoord_offset;
 };
 
-layout(location = 0) uniform mat4 model;
+layout(push_constant) uniform MeshPerDraw {
+	mat4 model;
+};
 
 layout(location = 0) in vec3 vertex_position;
 layout(location = 1) in vec3 vertex_normal;
@@ -18,7 +20,7 @@ layout(location = 1) in vec3 vertex_normal;
 // this is not need rn, but it is still in the mesh data probably
 // layout(location = 2) in vec2 vertex_texcoord;
 
-out VS_OUT {
+layout(location = 0) out VS_OUT {
 	vec3 surface_normal;
 	vec2 texcoord;
 };

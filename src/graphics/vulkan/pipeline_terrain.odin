@@ -4,67 +4,53 @@ import "core:fmt"
 
 import vk "vendor:vulkan"
 
-BasicMaterial :: struct {
+TerrainMaterial :: struct {
 	descriptor_set 	: vk.DescriptorSet,
-	buffer 			: vk.Buffer,
-	memory 			: vk.DeviceMemory,
-	using mapped 	: ^BasicMaterialBuffer,
 }
 
 @private
-BasicPipeline :: struct {
+TerrainPipeline :: struct {
 	layout 			: vk.PipelineLayout,
 	pipeline 		: vk.Pipeline,
 	material_layout : vk.DescriptorSetLayout,
 }
 
-@private
-BasicMaterialBuffer :: struct #align(16) {
-	surface_color : vec4,
-}
-#assert(size_of(BasicMaterialBuffer) == 16)
-
-create_basic_material :: proc(texture : ^Texture) -> BasicMaterial {
+create_terrain_material :: proc(
+	splatter_texture 	: ^Texture,
+	grass_texture 		: ^Texture,
+	road_texture 		: ^Texture,
+) -> TerrainMaterial {
 	g 		:= &graphics
-	basic 	:= &graphics.basic_pipeline
+	terrain := &graphics.terrain_pipeline
 
-	m : BasicMaterial
+	m : TerrainMaterial
 
-	// Debug buffer
-	size := vk.DeviceSize(size_of(BasicMaterialBuffer))
-	m.buffer, m.memory = create_buffer_and_memory(
-		size,
-		{ .UNIFORM_BUFFER },
-		{ .HOST_VISIBLE, .HOST_COHERENT },
-	)
-	vk.MapMemory(g.device, m.memory, 0, size, {}, cast(^rawptr)&m.mapped)
-
-	m.descriptor_set = allocate_descriptor_set(basic.material_layout)
-	descriptor_set_write_buffer(m.descriptor_set, 0, m.buffer, 0, size)
-	descriptor_set_write_texture(m.descriptor_set, 1, texture)
+	m.descriptor_set = allocate_descriptor_set(terrain.material_layout)
+	descriptor_set_write_texture(m.descriptor_set, 0, splatter_texture)
+	descriptor_set_write_texture(m.descriptor_set, 1, grass_texture)
+	descriptor_set_write_texture(m.descriptor_set, 2, road_texture)
 
 	return m
 }
 
-destroy_basic_material :: proc(m : ^BasicMaterial) {
+destroy_terrain_material :: proc(m : ^TerrainMaterial) {
 	g := &graphics
 
-	vk.DestroyBuffer(g.device, m.buffer, nil)
-	vk.FreeMemory(g.device, m.memory, nil)
 	vk.FreeDescriptorSets(g.device, g.descriptor_pool, 1, &m.descriptor_set)
 }
 
 @private
-create_basic_pipeline :: proc() {
+create_terrain_pipeline :: proc() {
 	g 		:= &graphics
-	basic 	:= &graphics.basic_pipeline
+	terrain := &graphics.terrain_pipeline
 	shared 	:= &graphics.pipeline_shared
 
 	// Material descriptor layout
 	{
 		bindings := []vk.DescriptorSetLayoutBinding {
-			{ 0, .UNIFORM_BUFFER, 1, { .FRAGMENT }, nil },
+			{ 0, .COMBINED_IMAGE_SAMPLER, 1, { .FRAGMENT }, nil },
 			{ 1, .COMBINED_IMAGE_SAMPLER, 1, { .FRAGMENT }, nil },
+			{ 2, .COMBINED_IMAGE_SAMPLER, 1, { .FRAGMENT }, nil },
 		}
 		layout_create_info := vk.DescriptorSetLayoutCreateInfo {
 			sType 			= .DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
@@ -75,18 +61,16 @@ create_basic_pipeline :: proc() {
 			g.device,
 			&layout_create_info,
 			nil,
-			&basic.material_layout,
+			&terrain.material_layout,
 		)
 		handle_result(layout_create_result)
-
-		// Debug buffer
-		// basic.DEBUG_material = create_basic_material()
 	}
 
-	basic.layout = create_pipeline_layout({
+	terrain.layout = create_pipeline_layout({
 		shared.per_frame.descriptor_set_layout,
+		shared.world.descriptor_set_layout,
 		shared.lighting.descriptor_set_layout,
-		basic.material_layout,
+		terrain.material_layout,
 	}, {
 		{ {.VERTEX}, 0, 64,},
 	})
@@ -94,8 +78,8 @@ create_basic_pipeline :: proc() {
 	// PIPELINE
 	{
 		shader_stages := []vk.PipelineShaderStageCreateInfo {
-			pipeline_shader_stage(g.device, "spirv_shaders/basic_vert.spv", {.VERTEX}),
-			pipeline_shader_stage(g.device, "spirv_shaders/basic_frag.spv", {.FRAGMENT}),
+			pipeline_shader_stage(g.device, "spirv_shaders/terrain_vert.spv", {.VERTEX}),
+			pipeline_shader_stage(g.device, "spirv_shaders/terrain_frag.spv", {.FRAGMENT}),
 		}
 
 		dynamic_states 	:= []vk.DynamicState{ .VIEWPORT, .SCISSOR }
@@ -140,7 +124,7 @@ create_basic_pipeline :: proc() {
 			pColorBlendState 	= &color_blend,
 			pDynamicState 		= &dynamic_state,
 
-			layout = basic.layout,
+			layout = terrain.layout,
 
 			renderPass 	= g.test_render_pass,
 			subpass 	= 0,
@@ -152,7 +136,7 @@ create_basic_pipeline :: proc() {
 			1,
 			&create_info,
 			nil,
-			&basic.pipeline,
+			&terrain.pipeline,
 		)
 		handle_result(create_result)
 
@@ -162,33 +146,34 @@ create_basic_pipeline :: proc() {
 	}
 }
 
-destroy_basic_pipeline :: proc() {
+destroy_terrain_pipeline :: proc() {
 	g := &graphics
 
-	vk.DestroyDescriptorSetLayout(g.device, g.basic_pipeline.material_layout, nil)
+	vk.DestroyDescriptorSetLayout(g.device, g.terrain_pipeline.material_layout, nil)
 
-	vk.DestroyPipeline(g.device, g.basic_pipeline.pipeline, nil)
-	vk.DestroyPipelineLayout(g.device, g.basic_pipeline.layout, nil)
+	vk.DestroyPipeline(g.device, g.terrain_pipeline.pipeline, nil)
+	vk.DestroyPipelineLayout(g.device, g.terrain_pipeline.layout, nil)
 }
 
-setup_basic_pipeline :: proc () {
+setup_terrain_pipeline :: proc () {
 	g 		:= &graphics
-	basic 	:= &graphics.basic_pipeline
+	terrain := &graphics.terrain_pipeline
 	shared 	:= graphics.pipeline_shared
 
 	main_cmd := g.main_command_buffers[g.virtual_frame_index]
 
-	vk.CmdBindPipeline(main_cmd, .GRAPHICS, basic.pipeline)
+	vk.CmdBindPipeline(main_cmd, .GRAPHICS, terrain.pipeline)
 
 	descriptor_sets := []vk.DescriptorSet {
 		shared.per_frame.descriptor_set,
+		shared.world.descriptor_set,
 		shared.lighting.descriptor_set,
 	}
 
 	vk.CmdBindDescriptorSets(
 		main_cmd,
 		.GRAPHICS, 
-		basic.layout, 
+		terrain.layout, 
 		0,
 		u32(len(descriptor_sets)),
 		raw_data(descriptor_sets),
@@ -197,9 +182,9 @@ setup_basic_pipeline :: proc () {
 	)
 }
 
-set_basic_material :: proc(material : ^BasicMaterial) {
+set_terrain_material :: proc(material : ^TerrainMaterial) {
 	g 		:= &graphics
-	basic 	:= &graphics.basic_pipeline
+	terrain := &graphics.terrain_pipeline
 	shared 	:= &graphics.pipeline_shared
 
 	main_cmd := g.main_command_buffers[g.virtual_frame_index]
@@ -208,13 +193,13 @@ set_basic_material :: proc(material : ^BasicMaterial) {
 		material.descriptor_set
 	}
 
-	BASIC_MATERIAL_SET :: 2
+	TERRAIN_MATERIAL_SET :: 3
 
 	vk.CmdBindDescriptorSets(
 		main_cmd,
 		.GRAPHICS, 
-		basic.layout, 
-		BASIC_MATERIAL_SET,
+		terrain.layout, 
+		TERRAIN_MATERIAL_SET,
 		u32(len(descriptor_sets)),
 		raw_data(descriptor_sets),
 		0,
@@ -223,9 +208,9 @@ set_basic_material :: proc(material : ^BasicMaterial) {
 }
 
 
-// draw_basic_mesh :: proc(mesh : ^Mesh, model : mat4) {
+// draw_terrain_mesh :: proc(mesh : ^Mesh, model : mat4) {
 // 	g 		:= &graphics
-// 	basic 	:= &graphics.basic_pipeline
+// 	terrain := &graphics.terrain_pipeline
 // 	shared 	:= graphics.pipeline_shared
 
 // 	main_cmd := g.main_command_buffers[g.virtual_frame_index]
@@ -248,7 +233,7 @@ set_basic_material :: proc(material : ^BasicMaterial) {
 // 	model := model
 // 	vk.CmdPushConstants(
 // 		main_cmd,
-// 		basic.layout,
+// 		terrain.layout,
 // 		{ .VERTEX },
 // 		0,
 // 		64,

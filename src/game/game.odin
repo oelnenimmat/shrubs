@@ -56,6 +56,7 @@ main_camera 		: Camera
 tank 				: Tank
 
 player_material : graphics.BasicMaterial
+terrain_material : graphics.TerrainMaterial
 
 scene : ^Scene
 grass_types : GrassTypes
@@ -226,6 +227,12 @@ initialize :: proc() {
 
 	player_material = graphics.create_basic_material(&asset_provider.textures[.White])
 	player_material.mapped.surface_color = {0.6, 0.2, 0.4, 1}
+
+	terrain_material = graphics.create_terrain_material(
+		&asset_provider.textures[.Grass_Placement],
+		&asset_provider.textures[.Green_Grass_Field],
+		&asset_provider.textures[.Road],
+	)
 }
 
 terminate :: proc() {
@@ -534,11 +541,7 @@ render_camera :: proc(camera : ^Camera, render_target : ^graphics.RenderTarget) 
 
 	// NEXT PIPELINE
 	graphics.setup_terrain_pipeline()
-	graphics.set_terrain_material(
-		scene.terrain.grass_placement_map,
-		scene.terrain.grass_field_texture,
-		scene.terrain.road_texture,
-	)
+	graphics.set_terrain_material(&terrain_material)
 	for p, i in scene.terrain.positions {
 		model_matrix := linalg.matrix4_translate_f32(p)
 		graphics.draw_mesh(&scene.terrain.meshes[i], model_matrix)

@@ -1,28 +1,24 @@
 #version 450
 
-layout(std140, binding = 1) uniform Lighting {
-	vec4 camera_position;
-	vec4 light_direction;
-	vec4 light_color;
-	vec4 ambient_color;
-};
+#define LIGHTING_SET 2
+#include "lighting.glsl"
 
-layout(std140, binding = 20) uniform Debug {
-	float draw_normals;
-	float draw_backfacing;
-	float draw_lod;
-} debug;
+// layout(std140, binding = 20) uniform Debug {
+// 	float draw_normals;
+// 	float draw_backfacing;
+// 	float draw_lod;
+// } debug;
 
-layout (location = 7) uniform sampler2D splatter_texture;
-layout (location = 8) uniform sampler2D grass_texture;
-layout (location = 9) uniform sampler2D road_texture;
+layout (set = 3, binding = 0) uniform sampler2D splatter_texture;
+layout (set = 3, binding = 1) uniform sampler2D grass_texture;
+layout (set = 3, binding = 2) uniform sampler2D road_texture;
 
-in VS_OUT {
+layout(location = 0) in VS_OUT {
 	vec3 surface_normal;
 	vec2 texcoord;
 };
 
-out vec4 out_color;
+layout(location = 0) out vec4 out_color;
 
 void main() {
 
@@ -41,7 +37,7 @@ void main() {
 
 	out_color = vec4(color, 1);
 
-	if (debug.draw_normals > 0.5) {
-		out_color = vec4(normal, 1);
-	}
+	// if (debug.draw_normals > 0.5) {
+	// 	out_color = vec4(normal, 1);
+	// }
 }

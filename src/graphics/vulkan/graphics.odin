@@ -78,9 +78,10 @@ graphics : struct {
 	test_render_pass 		: vk.RenderPass,
 
 	// Pipelines
-	pipeline_shared : PipelineShared,
-	sky_pipeline 	: SkyPipeline,
-	basic_pipeline 	: BasicPipeline,
+	pipeline_shared 	: PipelineShared,
+	sky_pipeline 		: SkyPipeline,
+	basic_pipeline 		: BasicPipeline,
+	terrain_pipeline 	: TerrainPipeline,
 
 	// Deepth
 	depth_format 		: vk.Format,
