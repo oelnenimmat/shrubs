@@ -45,9 +45,9 @@ graphics : struct {
 	swapchain 				: vk.SwapchainKHR,
 	swapchain_image_index 	: u32,
 	swapchain_images 		: []vk.Image,
-	swapchain_image_views 	: []vk.ImageView,
-	swapchain_framebuffers 	: []vk.Framebuffer,
-	swapchain_image_format 	: vk.Format,
+	// swapchain_image_views 	: []vk.ImageView,
+	// swapchain_framebuffers 	: []vk.Framebuffer,
+	// swapchain_image_format 	: vk.Format,
 	swapchain_image_extent 	: vk.Extent2D,
 
 	graphics_queue_family : u32,
@@ -75,7 +75,7 @@ graphics : struct {
 
 	descriptor_pool : vk.DescriptorPool,
 
-	test_render_pass 		: vk.RenderPass,
+	test_render_pass 	: vk.RenderPass,
 
 	// Pipelines
 	pipeline_shared 	: PipelineShared,
@@ -83,11 +83,21 @@ graphics : struct {
 	basic_pipeline 		: BasicPipeline,
 	terrain_pipeline 	: TerrainPipeline,
 
+	// Render target
+	render_target_framebuffer 	: vk.Framebuffer,
+	render_target_color_format 	: vk.Format,
+	render_target_depth_format 	: vk.Format,
+	render_target_extent 		: vk.Extent2D,
+
 	// Deepth
-	depth_format 		: vk.Format,
 	depth_image 		: vk.Image,
 	depth_image_view 	: vk.ImageView,
 	depth_memory 		: vk.DeviceMemory,
+
+	// Coolor
+	color_image 		: vk.Image,
+	color_image_view 	: vk.ImageView,
+	color_memory 		: vk.DeviceMemory,
 
 	// Staging
 	SWAG_staging_capacity 	: vk.DeviceSize,
@@ -418,7 +428,12 @@ initialize :: proc() {
 		}
 	}
 
-	// DEPTH
+	// RENDER TARGET
+	graphics.render_target_color_format = vk.Format.R8G8B8A8_SRGB
+	graphics.render_target_depth_format = vk.Format.D32_SFLOAT
+	graphics.render_target_extent = {1280, 720}
+
+	create_color()
 	create_depth()
 
 	// DESCRIPTOR POOLS
@@ -453,15 +468,15 @@ initialize :: proc() {
 
 		attachments := []vk.AttachmentDescription {
 			{
-				format 			= g.swapchain_image_format,
+				format 			= g.render_target_color_format,
 				samples 		= { ._1 },
 				loadOp 			= .CLEAR,
 				storeOp 		= .STORE,
 				initialLayout 	= .UNDEFINED,
-				finalLayout 	= .PRESENT_SRC_KHR,
+				finalLayout 	= .TRANSFER_SRC_OPTIMAL,
 			},
 			{
-				format 			= g.depth_format,
+				format 			= g.render_target_depth_format,
 				samples 		= { ._1 },
 				loadOp 			= .CLEAR,
 				storeOp 		= .DONT_CARE,
@@ -498,8 +513,36 @@ initialize :: proc() {
 		handle_result(render_pass_create_result)
 	}
 
+	// Render target framebuffer
+	{
+		g := &graphics
+
+		attachments := []vk.ImageView {
+			g.color_image_view,
+			g.depth_image_view,
+		}
+
+		framebuffer_create_info := vk.FramebufferCreateInfo {
+			sType 			= .FRAMEBUFFER_CREATE_INFO,
+			renderPass 		= g.test_render_pass,
+			attachmentCount = u32(len(attachments)),
+			pAttachments 	= raw_data(attachments),
+			width 			= g.render_target_extent.width,
+			height 			= g.render_target_extent.height,
+			layers 			= 1,
+		}
+
+		framebuffer_create_result := vk.CreateFramebuffer(
+			g.device, 
+			&framebuffer_create_info, 
+			nil,
+			&g.render_target_framebuffer,
+		)
+		handle_result(framebuffer_create_result)
+	}
+
 	// ------ MOCKUP SWAPCHAIN FRAMEBUFFERS -------
-	create_swapchain_framebuffers()
+	// create_swapchain_framebuffers()
 
 	// -------- PIPELINES ------------
 	create_pipelines()
@@ -514,11 +557,13 @@ initialize :: proc() {
 			vk.DeviceWaitIdle(graphics.device)
 
 			destroy_swapchain()
-			destroy_depth()
+			// destroy_color()
+			// destroy_depth()
 
 			create_swapchain()
-			create_depth()
-			create_swapchain_framebuffers()
+			// create_color()
+			// create_depth()
+			// create_swapchain_framebuffers()
 		}
 	)
 
@@ -588,7 +633,12 @@ terminate :: proc() {
 
 	// "Custom" ??
 	destroy_pipelines()
+
+	// Render targeet
+	destroy_color()
 	destroy_depth()
+	vk.DestroyFramebuffer(g.device, g.render_target_framebuffer, nil)
+
 
 	vk.DestroyBuffer(g.device, g.staging_buffer, nil)
 	vk.FreeMemory(g.device, g.staging_memory, nil)
@@ -672,8 +722,8 @@ begin_frame :: proc() {
 	render_pass_begin_info := vk.RenderPassBeginInfo {
 		sType 				= .RENDER_PASS_BEGIN_INFO,
 		renderPass 			= g.test_render_pass,
-		framebuffer 		= g.swapchain_framebuffers[g.swapchain_image_index],		
-		renderArea 			= {{0, 0}, g.swapchain_image_extent},
+		framebuffer 		= g.render_target_framebuffer, //swapchain_framebuffers[g.swapchain_image_index],		
+		renderArea 			= {{0, 0}, g.render_target_extent},
 		clearValueCount 	= u32(len(clear_values)),
 		pClearValues 		= raw_data(clear_values),
 	}
@@ -682,8 +732,8 @@ begin_frame :: proc() {
 	viewport := vk.Viewport {
 		x 		= 0,
 		y 		= 0,
-		width 	= f32(g.swapchain_image_extent.width),
-		height 	= f32(g.swapchain_image_extent.height),
+		width 	= f32(g.render_target_extent.width),
+		height 	= f32(g.render_target_extent.height),
 		minDepth = 0.0,
 		maxDepth = 1.0,
 	}
@@ -691,7 +741,7 @@ begin_frame :: proc() {
 
 	scissor := vk.Rect2D {
 		offset = {0, 0},
-		extent = g.swapchain_image_extent,
+		extent = g.render_target_extent,
 	}
 	vk.CmdSetScissor(main_cmd, 0, 1, &scissor)
 }
@@ -707,6 +757,41 @@ render :: proc() {
 	main_cmd := g.main_command_buffers[g.virtual_frame_index]
 
 	vk.CmdEndRenderPass(main_cmd)
+
+	// Pretend post process
+	cmd_transition_image_layout(
+		main_cmd,
+		g.swapchain_images[g.swapchain_image_index],
+		{{.COLOR}, 0, 1, 0, 1},
+		{ /* no wait bc we acquired this alredy??? */ }, { .TRANSFER_WRITE },
+		.UNDEFINED, .TRANSFER_DST_OPTIMAL,
+		{ .TRANSFER }, { .TRANSFER },
+	)
+
+	blit := vk.ImageBlit {
+		srcSubresource = { {.COLOR}, 0, 0, 1},
+		srcOffsets = { {0, 0, 0}, {i32(g.render_target_extent.width), i32(g.render_target_extent.height), 1} },
+
+		dstSubresource = { {.COLOR}, 0, 0, 1},
+		dstOffsets = { {0, 0, 0}, {i32(g.swapchain_image_extent.width), i32(g.swapchain_image_extent.height), 1} },
+	}
+
+	vk.CmdBlitImage(
+		main_cmd,
+		g.color_image, .TRANSFER_SRC_OPTIMAL,
+		g.swapchain_images[g.swapchain_image_index], .TRANSFER_DST_OPTIMAL,
+		1, &blit,
+		.LINEAR,
+	)
+
+	cmd_transition_image_layout(
+		main_cmd,
+		g.swapchain_images[g.swapchain_image_index],
+		{{.COLOR}, 0, 1, 0, 1},
+		{ .TRANSFER_WRITE }, { },
+		.TRANSFER_DST_OPTIMAL, .PRESENT_SRC_KHR,
+		{ .TRANSFER }, { .TRANSFER },
+	)
 
 	// --- MAIN COMMAND BUFFER ------
 	vk.EndCommandBuffer(main_cmd)
@@ -938,34 +1023,35 @@ create_swapchain :: proc() {
 		&swapchain_image_count, 
 		raw_data(g.swapchain_images),
 	)
-	g.swapchain_image_format = selected_format
+	// g.swapchain_image_format = selected_format
 	g.swapchain_image_extent = selected_extent
 
-	image_view_create_info := vk.ImageViewCreateInfo {
-		sType 				= .IMAGE_VIEW_CREATE_INFO,
-		viewType 			= .D2,
-		format 				= g.swapchain_image_format,
-		subresourceRange 	= {{ .COLOR }, 0, 1, 0, 1 }
-	}
+	// image_view_create_info := vk.ImageViewCreateInfo {
+	// 	sType 				= .IMAGE_VIEW_CREATE_INFO,
+	// 	viewType 			= .D2,
+	// 	format 				= g.swapchain_image_format,
+	// 	subresourceRange 	= {{ .COLOR }, 0, 1, 0, 1 }
+	// }
 
-	g.swapchain_image_views = make([]vk.ImageView, swapchain_image_count, g.allocator)
-	for iv, i in &g.swapchain_image_views {
-		image_view_create_info.image = g.swapchain_images[i]
-		image_view_create_result := vk.CreateImageView(g.device, &image_view_create_info, nil, &iv)
-		handle_result(image_view_create_result)
-	}
+	// g.swapchain_image_views = make([]vk.ImageView, swapchain_image_count, g.allocator)
+	// for iv, i in &g.swapchain_image_views {
+	// 	image_view_create_info.image = g.swapchain_images[i]
+	// 	image_view_create_result := vk.CreateImageView(g.device, &image_view_create_info, nil, &iv)
+	// 	handle_result(image_view_create_result)
+	// }
 }
 
 @private
 create_swapchain_framebuffers :: proc() {
 	g := &graphics
 
+	/*
 	swapchain_image_count := len(g.swapchain_images)
 	g.swapchain_framebuffers = make([]vk.Framebuffer, swapchain_image_count, g.allocator)
 
 	for i in 0..<swapchain_image_count {
 		attachments := []vk.ImageView {
-			g.swapchain_image_views[i],
+			g.color_image_view,
 			g.depth_image_view,
 		}
 
@@ -987,24 +1073,24 @@ create_swapchain_framebuffers :: proc() {
 		)
 		handle_result(framebuffer_create_result)
 	}
+	*/
 }
 
 @private
 destroy_swapchain :: proc() {
 	g := &graphics
 
-	for i in 0..<len(g.swapchain_framebuffers) {
-		vk.DestroyFramebuffer(g.device, g.swapchain_framebuffers[i], nil)
-	}
+	// for i in 0..<len(g.swapchain_framebuffers) {
+	// 	vk.DestroyFramebuffer(g.device, g.swapchain_framebuffers[i], nil)
+	// }
 
-
-	for iv in g.swapchain_image_views {
-		vk.DestroyImageView(g.device, iv, nil)
-	}
+	// for iv in g.swapchain_image_views {
+	// 	vk.DestroyImageView(g.device, iv, nil)
+	// }
 	vk.DestroySwapchainKHR(g.device, g.swapchain, nil)
 
-	delete(g.swapchain_framebuffers)
-	delete(g.swapchain_image_views)
+	// delete(g.swapchain_framebuffers)
+	// delete(g.swapchain_image_views)
 	delete(g.swapchain_images)
 }
 
@@ -1012,13 +1098,11 @@ destroy_swapchain :: proc() {
 create_depth :: proc() {
 	g := &graphics
 
-	g.depth_format = vk.Format.D32_SFLOAT
-
 	image_create_info := vk.ImageCreateInfo {
 		sType 					= .IMAGE_CREATE_INFO,
 		imageType 				= .D2,
-		format 					= g.depth_format,
-		extent 					= {g.swapchain_image_extent.width, g.swapchain_image_extent.height, 1},
+		format 					= g.render_target_depth_format,
+		extent 					= {g.render_target_extent.width, g.render_target_extent.height, 1},
 		mipLevels 				= 1,
 		arrayLayers 			= 1,
 		samples 				= { ._1 },
@@ -1054,7 +1138,7 @@ create_depth :: proc() {
 		sType 				= .IMAGE_VIEW_CREATE_INFO,
 		image 				= g.depth_image,
 		viewType 			= .D2,
-		format 				= g.depth_format,
+		format 				= g.render_target_depth_format,
 		subresourceRange 	= {{ .DEPTH }, 0, 1, 0, 1 }
 	}
 	image_view_create_result := vk.CreateImageView(
@@ -1073,6 +1157,71 @@ destroy_depth :: proc() {
 	vk.DestroyImageView(g.device, g.depth_image_view, nil)
 	vk.DestroyImage(g.device, g.depth_image, nil)
 	vk.FreeMemory(g.device, g.depth_memory, nil)
+}
+
+@private
+create_color :: proc() {
+	g := &graphics
+
+	image_create_info := vk.ImageCreateInfo {
+		sType 					= .IMAGE_CREATE_INFO,
+		imageType 				= .D2,
+		format 					= g.render_target_color_format,
+		extent 					= {g.render_target_extent.width, g.render_target_extent.height, 1},
+		mipLevels 				= 1,
+		arrayLayers 			= 1,
+		samples 				= { ._1 },
+		tiling 					= .OPTIMAL,
+		usage 					= { .COLOR_ATTACHMENT, .TRANSFER_SRC },
+		sharingMode 			= .EXCLUSIVE,
+		queueFamilyIndexCount 	= 1,
+		pQueueFamilyIndices 	= &g.graphics_queue_family,
+		initialLayout 			= .UNDEFINED,
+	}
+	image_create_result := vk.CreateImage(
+		g.device,
+		&image_create_info,
+		nil,
+		&g.color_image,
+	)
+	handle_result(image_create_result)
+
+	memory_requirements := get_image_memory_requirements(g.color_image)
+	memory_type_index := find_memory_type(memory_requirements, { .DEVICE_LOCAL } )
+
+	allocate_info := vk.MemoryAllocateInfo {
+		sType 			= .MEMORY_ALLOCATE_INFO,
+		allocationSize 	= memory_requirements.size,
+		memoryTypeIndex = memory_type_index, 
+	}
+	allocate_result := vk.AllocateMemory(g.device, &allocate_info, nil, &g.color_memory)
+	handle_result(allocate_result)
+
+	vk.BindImageMemory(g.device, g.color_image, g.color_memory, 0)
+
+	image_view_create_info := vk.ImageViewCreateInfo {
+		sType 				= .IMAGE_VIEW_CREATE_INFO,
+		image 				= g.color_image,
+		viewType 			= .D2,
+		format 				= g.render_target_color_format,
+		subresourceRange 	= {{ .COLOR }, 0, 1, 0, 1 }
+	}
+	image_view_create_result := vk.CreateImageView(
+		g.device,
+		&image_view_create_info,
+		nil,
+		&g.color_image_view
+	)
+	handle_result(image_view_create_result)
+}
+
+@private
+destroy_color :: proc() {
+	g := &graphics
+
+	vk.DestroyImageView(g.device, g.color_image_view, nil)
+	vk.DestroyImage(g.device, g.color_image, nil)
+	vk.FreeMemory(g.device, g.color_memory, nil)
 }
 
 @private
@@ -1116,12 +1265,48 @@ create_buffer_and_memory :: proc(
 	return buffer, memory
 }
 
+@private
 get_buffer_memory_requirements :: proc(buffer : vk.Buffer) -> (res : vk.MemoryRequirements) {
 	vk.GetBufferMemoryRequirements(graphics.device, buffer, &res)
 	return
 }
 
+@private
 get_image_memory_requirements :: proc(image : vk.Image) -> (res : vk.MemoryRequirements) {
 	vk.GetImageMemoryRequirements(graphics.device, image, &res)
 	return
+}
+
+@private
+cmd_transition_image_layout :: proc(
+	cmd 				: vk.CommandBuffer,
+	image 				: vk.Image,
+	subresource_range 	: vk.ImageSubresourceRange,
+	src_access_mask 	: vk.AccessFlags,
+	dst_access_mask 	: vk.AccessFlags,
+	old_layout 			: vk.ImageLayout,
+	new_layout 			: vk.ImageLayout,
+	src_stage_mask 		: vk.PipelineStageFlags,
+	dst_stage_mask 		: vk.PipelineStageFlags,
+) {
+	barrier := vk.ImageMemoryBarrier{
+		sType 				= .IMAGE_MEMORY_BARRIER,
+		srcAccessMask		= src_access_mask,
+		dstAccessMask 		= dst_access_mask,
+		oldLayout 			= old_layout,
+		newLayout 			= new_layout,
+		srcQueueFamilyIndex = vk.QUEUE_FAMILY_IGNORED,
+		dstQueueFamilyIndex = vk.QUEUE_FAMILY_IGNORED,
+		image 				= image,
+		subresourceRange 	= subresource_range
+	}
+
+	vk.CmdPipelineBarrier(
+		cmd,
+		src_stage_mask, dst_stage_mask,
+		{ /* no flags */ },
+		0, nil,
+		0, nil,
+		1, &barrier,
+	)
 }

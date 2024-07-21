@@ -201,37 +201,3 @@ destroy_texture :: proc(texture : ^Texture) {
 	vk.FreeMemory(g.device, texture.memory, nil)
 	vk.DestroyImageView(g.device, texture.image_view, nil)
 }
-
-@private
-cmd_transition_image_layout :: proc(
-	cmd 				: vk.CommandBuffer,
-	image 				: vk.Image,
-	subresource_range 	: vk.ImageSubresourceRange,
-	src_access_mask 	: vk.AccessFlags,
-	dst_access_mask 	: vk.AccessFlags,
-	old_layout 			: vk.ImageLayout,
-	new_layout 			: vk.ImageLayout,
-	src_stage_mask 		: vk.PipelineStageFlags,
-	dst_stage_mask 		: vk.PipelineStageFlags,
-) {
-	barrier := vk.ImageMemoryBarrier{
-		sType 				= .IMAGE_MEMORY_BARRIER,
-		srcAccessMask		= src_access_mask,
-		dstAccessMask 		= dst_access_mask,
-		oldLayout 			= old_layout,
-		newLayout 			= new_layout,
-		srcQueueFamilyIndex = vk.QUEUE_FAMILY_IGNORED,
-		dstQueueFamilyIndex = vk.QUEUE_FAMILY_IGNORED,
-		image 				= image,
-		subresourceRange 	= subresource_range
-	}
-
-	vk.CmdPipelineBarrier(
-		cmd,
-		src_stage_mask, dst_stage_mask,
-		{ /* no flags */ },
-		0, nil,
-		0, nil,
-		1, &barrier,
-	)
-}
