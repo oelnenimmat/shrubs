@@ -13,9 +13,8 @@ BasicMaterial :: struct {
 
 @private
 BasicPipeline :: struct {
-	layout : vk.PipelineLayout,
-	pipeline : vk.Pipeline,
-
+	layout 			: vk.PipelineLayout,
+	pipeline 		: vk.Pipeline,
 	material_layout : vk.DescriptorSetLayout,
 }
 
@@ -25,7 +24,7 @@ BasicMaterialBuffer :: struct #align(16) {
 }
 #assert(size_of(BasicMaterialBuffer) == 16)
 
-create_basic_material :: proc() -> BasicMaterial {
+create_basic_material :: proc(texture : ^Texture) -> BasicMaterial {
 	g 		:= &graphics
 	basic 	:= &graphics.basic_pipeline
 
@@ -41,7 +40,8 @@ create_basic_material :: proc() -> BasicMaterial {
 	vk.MapMemory(g.device, m.memory, 0, size, {}, cast(^rawptr)&m.mapped)
 
 	m.descriptor_set = allocate_descriptor_set(basic.material_layout)
-	descriptor_set_write_buffer(m.descriptor_set, m.buffer, 0, size)
+	descriptor_set_write_buffer(m.descriptor_set, 0, m.buffer, 0, size)
+	descriptor_set_write_texture(m.descriptor_set, 1, texture)
 
 	return m
 }
@@ -64,6 +64,7 @@ create_basic_pipeline :: proc() {
 	{
 		bindings := []vk.DescriptorSetLayoutBinding {
 			{ 0, .UNIFORM_BUFFER, 1, { .FRAGMENT }, nil },
+			{ 1, .COMBINED_IMAGE_SAMPLER, 1, { .FRAGMENT }, nil },
 		}
 		layout_create_info := vk.DescriptorSetLayoutCreateInfo {
 			sType 			= .DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
@@ -209,13 +210,13 @@ set_basic_material :: proc(material : ^BasicMaterial) {
 		material.descriptor_set
 	}
 
-	BASIC_MATERIAL_FIRST_SET :: 2
+	BASIC_MATERIAL_SET :: 2
 
 	vk.CmdBindDescriptorSets(
 		main_cmd,
 		.GRAPHICS, 
 		basic.layout, 
-		BASIC_MATERIAL_FIRST_SET,
+		BASIC_MATERIAL_SET,
 		u32(len(descriptor_sets)),
 		raw_data(descriptor_sets),
 		0,

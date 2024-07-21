@@ -36,6 +36,8 @@ LightingUniformBuffer :: struct #align(16) {
 PipelineShared :: struct {
 	per_frame : UniformStuff(PerFrameUniformBuffer),
 	lighting : UniformStuff(LightingUniformBuffer),
+
+	// texture_descriptor_set_layout : vk.DescriptorSetLayout,
 }
 
 @private
@@ -193,7 +195,7 @@ create_uniform_stuff :: proc($Data : typeid, stages : vk.ShaderStageFlags) -> Un
 
 	// Descriptor Set
 	us.descriptor_set = allocate_descriptor_set(us.descriptor_set_layout)
-	descriptor_set_write_buffer(us.descriptor_set, us.buffer, 0, buffer_size)
+	descriptor_set_write_buffer(us.descriptor_set, 0, us.buffer, 0, buffer_size)
 
 	return us
 }
@@ -223,10 +225,11 @@ allocate_descriptor_set :: proc(
 
 @private
 descriptor_set_write_buffer :: proc(
-	set : vk.DescriptorSet, 
-	buffer : vk.Buffer,
+	set 			: vk.DescriptorSet, 
+	binding 		: u32,
+	buffer 			: vk.Buffer,
 	#any_int offset : vk.DeviceSize,
-	#any_int size : vk.DeviceSize,
+	#any_int size 	: vk.DeviceSize,
 ) {
 	g := &graphics
 
@@ -239,7 +242,7 @@ descriptor_set_write_buffer :: proc(
 	write := vk.WriteDescriptorSet {
 		sType 			= .WRITE_DESCRIPTOR_SET,
 		dstSet 			= set,
-		dstBinding 		= 0,
+		dstBinding 		= binding,
 		dstArrayElement = 0,
 		descriptorType 	= .UNIFORM_BUFFER,
 		descriptorCount = 1,
@@ -247,6 +250,33 @@ descriptor_set_write_buffer :: proc(
 	}
 	vk.UpdateDescriptorSets(g.device, 1, &write, 0, nil)
 }
+
+@private
+descriptor_set_write_texture :: proc(
+	set 	: vk.DescriptorSet, 
+	binding : u32,
+	texture : ^Texture,
+) {
+	g := &graphics
+
+	image_info := vk.DescriptorImageInfo {
+		sampler 	= g.linear_sampler,
+		imageView 	= texture.image_view,
+		imageLayout = .SHADER_READ_ONLY_OPTIMAL,
+	}			
+
+	write := vk.WriteDescriptorSet {
+		sType 			= .WRITE_DESCRIPTOR_SET,
+		dstSet 			= set,
+		dstBinding 		= binding,
+		dstArrayElement = 0,
+		descriptorType 	= .COMBINED_IMAGE_SAMPLER,
+		descriptorCount = 1,
+		pImageInfo 		= &image_info,
+	}
+	vk.UpdateDescriptorSets(g.device, 1, &write, 0, nil)
+}
+
 
 @private
 destroy_uniform_stuff :: proc(us : ^UniformStuff($Data)) {

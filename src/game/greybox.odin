@@ -28,7 +28,7 @@ Greyboxing :: struct {
 create_greyboxing :: proc() -> Greyboxing {
 	g : Greyboxing
 
-	g.material = graphics.create_basic_material()
+	g.material = graphics.create_basic_material(&asset_provider.textures[.Rock])
 	g.material.mapped.surface_color = {1, 1, 1, 1}
 
 	// Todo(Leo): no need to do this explicitly now, as we dont have a

@@ -224,7 +224,7 @@ initialize :: proc() {
 
 	wind.enabled = true
 
-	player_material = graphics.create_basic_material()
+	player_material = graphics.create_basic_material(&asset_provider.textures[.White])
 	player_material.mapped.surface_color = {0.6, 0.2, 0.4, 1}
 }
 

@@ -425,7 +425,8 @@ initialize :: proc() {
 		g := &graphics
 
 		descriptor_pool_sizes := [] vk.DescriptorPoolSize {
-			{ .UNIFORM_BUFFER, 100 }
+			{ .UNIFORM_BUFFER, 100 },
+			{ .COMBINED_IMAGE_SAMPLER, 100 },
 		}
 
 		descriptor_pool_create_info := vk.DescriptorPoolCreateInfo {
@@ -524,7 +525,7 @@ initialize :: proc() {
 	{
 		g := &graphics
 
-		g.SWAG_staging_capacity = 100 * 1024 * 102
+		g.SWAG_staging_capacity = 100 * 1024 * 1024
 		g.staging_buffer, g.staging_memory = create_buffer_and_memory(
 			g.SWAG_staging_capacity,
 			{ .TRANSFER_SRC },
@@ -568,7 +569,7 @@ initialize :: proc() {
 			compareOp = .ALWAYS,
 
 			minLod = 0,
-			maxLod = 0,
+			maxLod = vk.LOD_CLAMP_NONE,
 
 			borderColor = .INT_OPAQUE_BLACK,
 			unnormalizedCoordinates = false,
@@ -1035,13 +1036,8 @@ create_depth :: proc() {
 	)
 	handle_result(image_create_result)
 
-	memory_requirements : vk.MemoryRequirements
-	vk.GetImageMemoryRequirements(g.device, g.depth_image, &memory_requirements)
-
-	memory_type_index := find_memory_type(
-		memory_requirements,
-		{ .DEVICE_LOCAL },
-	)
+	memory_requirements := get_image_memory_requirements(g.depth_image)
+	memory_type_index := find_memory_type(memory_requirements, { .DEVICE_LOCAL } )
 
 	allocate_info := vk.MemoryAllocateInfo {
 		sType 			= .MEMORY_ALLOCATE_INFO,
@@ -1101,8 +1097,7 @@ create_buffer_and_memory :: proc(
 	create_result := vk.CreateBuffer(g.device, &create_info, nil, &buffer)
 	handle_result(create_result)
 
-	memory_requirements : vk.MemoryRequirements
-	vk.GetBufferMemoryRequirements(g.device, buffer, &memory_requirements)
+	memory_requirements := get_buffer_memory_requirements(buffer)
 
 	memory_type := find_memory_type(memory_requirements, memory_properties)
 
@@ -1118,4 +1113,14 @@ create_buffer_and_memory :: proc(
 	vk.BindBufferMemory(g.device, buffer, memory, 0)
 
 	return buffer, memory
+}
+
+get_buffer_memory_requirements :: proc(buffer : vk.Buffer) -> (res : vk.MemoryRequirements) {
+	vk.GetBufferMemoryRequirements(graphics.device, buffer, &res)
+	return
+}
+
+get_image_memory_requirements :: proc(image : vk.Image) -> (res : vk.MemoryRequirements) {
+	vk.GetImageMemoryRequirements(graphics.device, image, &res)
+	return
 }

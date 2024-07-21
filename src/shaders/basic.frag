@@ -26,7 +26,7 @@ void main() {
 	vec3 normal 	= normalize(surface_normal);
 	float ndotl 	= max(0, dot(-light_direction.xyz, normal));
 	vec3 lighting 	= light_color.rgb * ndotl + ambient_color.rgb;
-	vec3 surface 	= surface_color.rgb;// * texture(surface_texture, texcoord).rgb;
+	vec3 surface 	= surface_color.rgb * texture(surface_texture, texcoord).rgb;
 
 	vec3 color 		= lighting * surface;
 
