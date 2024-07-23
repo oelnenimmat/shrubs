@@ -84,7 +84,7 @@ create_basic_pipeline :: proc() {
 	}
 
 	basic.layout = create_pipeline_layout({
-		shared.per_frame.descriptor_set_layout,
+		shared.per_frame.descriptor_set_layout,	
 		shared.lighting.descriptor_set_layout,
 		basic.material_layout,
 	}, {

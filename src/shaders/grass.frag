@@ -1,34 +1,27 @@
 #version 450
 
-in VS_OUT {
-	vec3 surface_normal;
-	vec2 blade_texcoord;
-	vec2 field_texcoord;
-	vec3 frag_view_position;
-	vec3 frag_position;
-	vec3 voronoi_color;
-	flat uint type_index;
-};
 
-layout(std140, binding = 1) uniform Lighting {
-	vec4 camera_position;
-	vec4 light_direction;
-	vec4 light_color;
-	vec4 ambient_color;
-};
+#define LIGHTING_SET 1
+#include "lighting.glsl"
 
-layout(std140, binding = 20) uniform Debug {
-	float draw_normals;
-	float draw_backfacing;
-	float draw_lod;
-} debug;
+// layout(std140, binding = 1) uniform Lighting {
+// 	vec4 camera_position;
+// 	vec4 light_direction;
+// 	vec4 light_color;
+// 	vec4 ambient_color;
+// };
+
+// layout(std140, binding = 20) uniform Debug {
+// 	float draw_normals;
+// 	float draw_backfacing;
+// 	float draw_lod;
+// } debug;
 
 // x: segment count
 // y: lod
-layout (location = 9) uniform vec4 segment_count;
+// layout (location = 9) uniform vec4 segment_count;
 
-out vec4 out_color;
-
+/*
 struct GrassTypeData {
 	float base_height;
 	float height_variation;
@@ -52,8 +45,23 @@ struct GrassTypeData {
 layout (std140, binding = 10) uniform grass_types {
 	GrassTypeData types[];
 };
+*/
+
+layout(location = 0) in VS_OUT {
+	vec3 surface_normal;
+	vec2 blade_texcoord;
+	vec2 field_texcoord;
+	vec3 frag_view_position;
+	vec3 frag_position;
+	vec3 voronoi_color;
+	flat uint type_index;
+};
+
+layout (location = 0) out vec4 out_color;
 
 void main() {
+	out_color = vec4(0, 0.6, 0, 1);
+	/*
 	vec3 normal = normalize(surface_normal);
 	if (!gl_FrontFacing) {
 		normal = -normal;
@@ -103,4 +111,5 @@ void main() {
 			out_color = vec4(0, 0, 0.8, 1);
 		}
 	}
+	*/
 }

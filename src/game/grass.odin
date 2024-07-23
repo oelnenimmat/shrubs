@@ -21,7 +21,7 @@ GPU_GrassInstanceData :: struct #align(16) {
 	position 	: vec4,
 	field_uv 	: vec2,
 	height 		: f32,
-	rotation 	: f32,
+	width 		: f32,
 	more_data 	: vec4,
 	even_more_data 	: vec4,
 }
@@ -61,6 +61,26 @@ create_grass :: proc() -> Grass {
 		g.positions[i] 			= {x * chunk_size - 25, y * chunk_size - 25}
 		g.instance_buffers[i] 	= graphics.create_buffer(buffer_data_size)
 		g.renderers[i] 			= graphics.create_grass_renderer(&g.instance_buffers[i])
+
+		instances := (cast([^]GPU_GrassInstanceData)g.renderers[i].instance_mapped)[0:64]
+
+		for y in 0..<8 {
+			for x in 0..<8 {
+				position := g.positions[i] + {f32(x) * chunk_size / 8, f32(y) * chunk_size / 8}
+			
+				j := x + y * 8
+				instances[j].position = {position.x, position.y, 0, 0}
+			
+				instances[j].field_uv = {position.x, position.y}
+				instances[j].height = 1
+				instances[j].width = 0.5
+				
+				instances[j].more_data.w = 0
+				
+				instances[j].even_more_data.xy = {0, 1}
+				instances[j].even_more_data.z = 0
+			}
+		}
 	}
 
 	return g

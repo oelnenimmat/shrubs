@@ -3,21 +3,21 @@
 const float pi = 3.14159265359;
 const float rad_to_deg = 180 / pi;
 
-layout(std140, binding = 0) uniform PerFrame {
+layout(set = 0, binding = 0) uniform PerFrame {
 	mat4 projection;
 	mat4 view;
 };
 
-layout(std140, binding = 2) uniform Wind {
-	vec2 texture_offset;
-	float texture_scale;
-	float _;
-} wind;
-layout(location = 2) uniform sampler2D wind_texture;
+// layout(std140, binding = 2) uniform Wind {
+// 	vec2 texture_offset;
+// 	float texture_scale;
+// 	float _;
+// } wind;
+// layout(location = 2) uniform sampler2D wind_texture;
 
 // x: segment count
 // y: lod
-layout (location = 9) uniform vec4 segment_count;
+// layout (location = 9) uniform vec4 segment_count;
 
 layout(location = 0, component = 0) in vec3 instance_position;
 layout(location = 0, component = 3) in float instance_angle;
@@ -30,9 +30,9 @@ layout(location = 2, component = 0) in vec3 instance_test_color;
 layout(location = 2, component = 3) in float instance_bend;
 
 layout(location = 3, component = 0) in vec2 instance_facing;
-layout(location = 3, component = 2) in uint instance_type_index;
+layout(location = 3, component = 2) in vec2 instance_type_index;
 
-out VS_OUT {
+layout(location = 0) out VS_OUT {
 	vec3 surface_normal;
 	vec2 blade_texcoord;
 	vec2 field_texcoord;
@@ -44,8 +44,10 @@ out VS_OUT {
 
 void main() {
 
-	int x_id = gl_VertexID % 2;
-	int y_id = gl_VertexID / 2;
+	int segment_count = 5;
+
+	int x_id = gl_VertexIndex % 2;
+	int y_id = gl_VertexIndex / 2;
 
 	// LS: local space
 	vec3 vertex_position;
@@ -59,8 +61,9 @@ void main() {
 
 	// Wind
 	// Todo(Leo): wind here is actually just the turbulence
-	vec2 wind_uv 		= instance_position.xy * wind.texture_scale + wind.texture_offset;
-	vec2 wind_amounts 	= textureLod(wind_texture, wind_uv, 0).xy;
+	// vec2 wind_uv 		= instance_position.xy * wind.texture_scale + wind.texture_offset;
+	// vec2 wind_amounts 	= textureLod(wind_texture, wind_uv, 0).xy;
+	vec2 wind_amounts 	= vec2(0.5);
 	wind_amounts 		= wind_amounts * 2 - vec2(1, 1);
 	float wind_amount 	= length(wind_amounts) * 2;
 	vec2 wind_direction = normalize(wind_amounts);
@@ -140,5 +143,5 @@ void main() {
 
 	voronoi_color = instance_test_color;
 
-	type_index = instance_type_index;
+	type_index = uint(instance_type_index.x);
 }

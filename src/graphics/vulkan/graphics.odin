@@ -82,6 +82,7 @@ graphics : struct {
 	sky_pipeline 		: SkyPipeline,
 	basic_pipeline 		: BasicPipeline,
 	terrain_pipeline 	: TerrainPipeline,
+	grass_pipeline 		: GrassPipeline,
 
 	// Render target
 	render_target_framebuffer 	: vk.Framebuffer,

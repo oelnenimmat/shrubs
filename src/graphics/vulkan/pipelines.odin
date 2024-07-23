@@ -60,6 +60,7 @@ create_pipelines :: proc() {
 	create_sky_pipeline()
 	create_basic_pipeline()
 	create_terrain_pipeline()
+	create_grass_pipeline()
 }
 
 @private
@@ -74,6 +75,7 @@ destroy_pipelines :: proc() {
 	destroy_sky_pipeline()
 	destroy_basic_pipeline()
 	destroy_terrain_pipeline()
+	destroy_grass_pipeline()
 }
 
 // Shared
@@ -108,14 +110,6 @@ draw_debug_mesh :: proc(mesh : ^Mesh, model : mat4, color : vec3) {}
 
 setup_emissive_pipeline :: proc() {}
 set_emissive_material :: proc(texture : ^Texture) {}
-
-setup_grass_pipeline :: proc(cull_back : bool) {}
-GrassRenderer :: struct {}
-create_grass_renderer :: proc(instance_buffer : ^Buffer) -> GrassRenderer {
-	return {}
-}
-destroy_grass_renderer :: proc(gr : ^GrassRenderer) {}
-draw_grass :: proc(gr : GrassRenderer, instance_count : int, segment_count : int, lod : int) {}
 
 dispatch_grass_placement_pipeline :: proc (
 	instances 				: ^Buffer,
