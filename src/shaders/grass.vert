@@ -20,7 +20,7 @@ layout(set = 0, binding = 0) uniform PerFrame {
 // layout (location = 9) uniform vec4 segment_count;
 
 layout(location = 0, component = 0) in vec3 instance_position;
-layout(location = 0, component = 3) in float instance_angle;
+layout(location = 0, component = 3) in float XXX_instance_angle;
 
 layout(location = 1, component = 0) in vec2 instance_texcoord;
 layout(location = 1, component = 2) in float instance_height;

@@ -40,22 +40,46 @@ WorldUniformBuffer :: struct #align(16) {
 #assert(size_of(WorldUniformBuffer) == 16)
 
 @private
+GrassTypeUniformBuffer :: struct #align(16) {
+	height 					: f32,
+	height_variation 		: f32,
+	width 					: f32,
+	bend 					: f32,
+
+	clump_size 				: f32,
+	clump_height_variation 	: f32,
+	clump_squeeze_in		: f32,
+	more_data 				: f32,
+
+	top_color 				: vec4,
+
+	bottom_color 			: vec4,
+
+	roughness 				: f32,
+	more_data_2 			: f32,
+	more_data_3 			: vec2,
+}
+#assert(size_of(GrassTypeUniformBuffer) == 80)
+
+@private
 PipelineShared :: struct {
 	per_frame 	: UniformStuff(PerFrameUniformBuffer),
 	lighting 	: UniformStuff(LightingUniformBuffer),
 	world 		: UniformStuff(WorldUniformBuffer),
+	grass_types : UniformStuff([3]GrassTypeUniformBuffer),
 
 	// texture_descriptor_set_layout : vk.DescriptorSetLayout,
 }
 
 @private
 create_pipelines :: proc() {
-	g := &graphics
-	shared := &graphics.pipeline_shared
+	g 		:= &graphics
+	shared 	:= &graphics.pipeline_shared
 
 	shared.per_frame 	= create_uniform_stuff(PerFrameUniformBuffer, { .VERTEX })
 	shared.lighting 	= create_uniform_stuff(LightingUniformBuffer, { .FRAGMENT })
 	shared.world 		= create_uniform_stuff(WorldUniformBuffer, { .VERTEX, .COMPUTE })
+	shared.grass_types 	= create_uniform_stuff([3]GrassTypeUniformBuffer, { .FRAGMENT, .COMPUTE })
 
 	create_sky_pipeline()
 	create_basic_pipeline()
@@ -71,6 +95,7 @@ destroy_pipelines :: proc() {
 	destroy_uniform_stuff(&shared.per_frame)
 	destroy_uniform_stuff(&shared.lighting)
 	destroy_uniform_stuff(&shared.world)
+	destroy_uniform_stuff(&shared.grass_types)
 
 	destroy_sky_pipeline()
 	destroy_basic_pipeline()
@@ -93,6 +118,10 @@ set_lighting_data :: proc(camera_position, directional_direction, directional_co
 		light_color 		= expand_to_vec4(directional_color, 1),
 		ambient_color 		= expand_to_vec4(ambient_color, 1),
 	}
+}
+
+get_grass_types_mapped :: proc() -> []GrassTypeUniformBuffer {
+	return graphics.pipeline_shared.grass_types.mapped[:]
 }
 
 set_wind_data :: proc(texture_offset : vec2, texture_scale : f32, texture : ^Texture) {}

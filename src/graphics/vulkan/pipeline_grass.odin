@@ -5,13 +5,11 @@ import vk "vendor:vulkan"
 setup_grass_pipeline :: proc(cull_back : bool) {}
 
 GrassRenderer :: struct {
-	instance_count : u32,
+	instance_count 	: u32,
 	instance_buffer : vk.Buffer,
 	instance_memory : vk.DeviceMemory,
 	instance_mapped : rawptr,
-
 }
-
 
 create_grass_renderer :: proc(instance_buffer : ^Buffer) -> GrassRenderer {
 	g := &graphics
@@ -50,6 +48,7 @@ draw_grass :: proc(r : GrassRenderer, instance_count : int, segment_count : int,
 	shared_descriptor_sets := []vk.DescriptorSet {
 		shared.per_frame.descriptor_set,
 		shared.lighting.descriptor_set,
+		shared.grass_types.descriptor_set,
 	}
 
 	vk.CmdBindDescriptorSets(
@@ -95,6 +94,7 @@ create_grass_pipeline :: proc() {
 	grass.layout = create_pipeline_layout({
 		shared.per_frame.descriptor_set_layout,	
 		shared.lighting.descriptor_set_layout,
+		shared.grass_types.descriptor_set_layout,
 	}, nil)
 
 	// PIPELINE

@@ -35,10 +35,10 @@ GPU_GrassTypeData :: struct #align(16) {
 	clump_size 				: f32,
 	clump_height_variation 	: f32,
 	clump_squeeze_in		: f32,
-
 	more_data : f32,
 
 	top_color : vec4,
+
 	bottom_color : vec4,
 
 	roughness : f32,
@@ -68,7 +68,8 @@ destroy_grass_types :: proc(gt : ^GrassTypes) {
 }
 
 update_grass_type_buffer :: proc(types : ^GrassTypes) {
-	gpu_data : [len(GrassType)]GPU_GrassTypeData
+	// gpu_data : [len(GrassType)]GPU_GrassTypeData
+	gpu_data := graphics.get_grass_types_mapped()
 	for type, i in GrassType {
 		gpu_data[i] = {
 			types.settings[type].height,
@@ -87,7 +88,7 @@ update_grass_type_buffer :: proc(types : ^GrassTypes) {
 			{},
 		}
 	}
-	graphics.buffer_write_data(&types.types_buffer, gpu_data[:])	
+	// graphics.buffer_write_data(&types.types_buffer, gpu_data[:])	
 }
 
 load_grass_types :: proc(types : ^GrassTypes) {
