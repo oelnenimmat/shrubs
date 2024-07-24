@@ -229,9 +229,14 @@ initialize :: proc() {
 	player_material.mapped.surface_color = {0.6, 0.2, 0.4, 1}
 
 	terrain_material = graphics.create_terrain_material(
-		&asset_provider.textures[.Grass_Placement],
-		&asset_provider.textures[.Green_Grass_Field],
 		&asset_provider.textures[.Road],
+		&asset_provider.textures[.Green_Grass_Field],
+	)
+
+	graphics.set_world_data(
+		scene.world.placement_scale,
+		scene.world.placement_offset,
+		&asset_provider.textures[.Grass_Placement],
 	)
 }
 
@@ -500,7 +505,11 @@ render_camera :: proc(camera : ^Camera, render_target : ^graphics.RenderTarget) 
 	graphics.set_per_frame_data(view_matrix, projection_matrix)
 	graphics.set_lighting_data(camera.position, light_direction, light_color, ambient_color)
 	graphics.set_wind_data(wind.offset, 0.005, scene.textures[.Wind])
-	graphics.set_world_data(scene.world.placement_scale, scene.world.placement_offset)
+	graphics.set_world_data(
+		scene.world.placement_scale,
+		scene.world.placement_offset,
+		nil, //&asset_provider.textures[.White],
+	)
 	
 	graphics.set_debug_data(draw_normals, draw_backfacing, draw_lod)
 
@@ -594,18 +603,6 @@ render_camera :: proc(camera : ^Camera, render_target : ^graphics.RenderTarget) 
 		input[2] = {grass_system.positions[i].x, grass_system.positions[i].y, 5, 8}
 
 		graphics.dispatch_grass_placement_chunk(&grass_system.renderers[i])
-
-		/*
-		graphics.dispatch_grass_placement_pipeline(
-			&grass_system.instance_buffers[i], 
-			grass_system.placement_map,
-			lod_instance_counts[i],
-			grass_system.positions[i],
-			grass_chunk_size,
-			int(scene.grass_type),
-			noise_params,
-		)
-		*/
 	}
 
 	graphics.end_grass_placement()

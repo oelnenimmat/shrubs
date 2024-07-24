@@ -9,9 +9,11 @@
 // 	float draw_lod;
 // } debug;
 
-layout (set = 3, binding = 0) uniform sampler2D splatter_texture;
-layout (set = 3, binding = 1) uniform sampler2D grass_texture;
-layout (set = 3, binding = 2) uniform sampler2D road_texture;
+// From shared world set
+layout (set = 1, binding = 1) uniform sampler2D splatter_texture;
+
+// Material
+layout (set = 3, binding = 0) uniform sampler2D textures[2];
 
 layout(location = 0) in VS_OUT {
 	vec3 surface_normal;
@@ -28,8 +30,8 @@ void main() {
 	
 	float splatter = texture(splatter_texture, texcoord).r;
 	vec3 surface = mix(
-		texture(road_texture, texcoord).rgb,
-		texture(grass_texture, texcoord).rgb,
+		texture(textures[0], texcoord).rgb,
+		texture(textures[1], texcoord).rgb,
 		splatter
 	);
 

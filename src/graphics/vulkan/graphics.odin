@@ -79,13 +79,7 @@ graphics : struct {
 	test_render_pass 	: vk.RenderPass,
 
 	// Pipelines
-	// pipelines : Pipelines,
-	pipeline_shared 			: PipelineShared,
-	sky_pipeline 				: SkyPipeline,
-	basic_pipeline 				: BasicPipeline,
-	terrain_pipeline 			: TerrainPipeline,
-	grass_pipeline 				: GrassPipeline,
-	grass_placement_pipeline 	: GrassPlacementPipeline,
+	pipelines : Pipelines,
 
 	// Render target
 	render_target_framebuffer 	: vk.Framebuffer,
@@ -436,7 +430,7 @@ initialize :: proc() {
 	// RENDER TARGET
 	graphics.render_target_color_format = vk.Format.R8G8B8A8_SRGB
 	graphics.render_target_depth_format = vk.Format.D32_SFLOAT
-	graphics.render_target_extent = {1280, 720}
+	graphics.render_target_extent = {1920, 1080} //{1280, 720}
 
 	create_color()
 	create_depth()

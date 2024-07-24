@@ -33,11 +33,64 @@ LightingUniformBuffer :: struct #align(16) {
 #assert(size_of(LightingUniformBuffer) == 64)
 
 @private
-WorldUniformBuffer :: struct #align(16) {
+WorldUniformData :: struct #align(16) {
 	placement_scale : vec2,
 	placement_offset : vec2,
 }
-#assert(size_of(WorldUniformBuffer) == 16)
+#assert(size_of(WorldUniformData) == 16)
+
+@private
+WorldUniformSet :: struct {
+	descriptor_set_layout 	: vk.DescriptorSetLayout,
+	descriptor_set 			: vk.DescriptorSet,
+
+	buffer : vk.Buffer,
+	memory : vk.DeviceMemory,
+	mapped : ^WorldUniformData,
+}
+
+@private
+create_world_uniform_set :: proc() -> WorldUniformSet {
+	g := &graphics
+
+	set : WorldUniformSet
+
+	buffer_size := vk.DeviceSize(size_of(WorldUniformData))
+	set.buffer, set.memory = create_buffer_and_memory(
+		buffer_size,
+		{ .UNIFORM_BUFFER },
+		{ .HOST_VISIBLE, .HOST_COHERENT },
+	)
+	set.mapped = cast(^WorldUniformData) map_memory(set.memory, 0, buffer_size)
+
+	set.descriptor_set_layout = create_descriptor_set_layout({
+		{ 0, .UNIFORM_BUFFER, 1, { .VERTEX, .COMPUTE }, nil},
+		{ 1, .COMBINED_IMAGE_SAMPLER, 1, { .FRAGMENT, .COMPUTE }, nil },
+	})
+	set.descriptor_set = allocate_descriptor_set(set.descriptor_set_layout)
+	descriptor_set_write_buffer(set.descriptor_set, 0, set.buffer, .UNIFORM_BUFFER, 0, buffer_size)
+
+	return set
+}
+
+@private
+destroy_world_uniform_set :: proc(world : ^WorldUniformSet) {
+	g := &graphics
+
+	vk.DestroyDescriptorSetLayout(g.device, world.descriptor_set_layout, nil)
+
+	vk.DestroyBuffer(g.device, world.buffer, nil)
+	vk.FreeMemory(g.device, world.memory, nil)
+}
+
+@private
+map_memory :: proc(memory : vk.DeviceMemory, offset, range : vk.DeviceSize) -> rawptr {
+	g := &graphics
+
+	out : rawptr
+	vk.MapMemory(g.device, memory, offset, range, {}, &out)
+	return out
+}
 
 @private
 GrassTypeUniformBuffer :: struct #align(16) {
@@ -65,30 +118,30 @@ GrassTypeUniformBuffer :: struct #align(16) {
 PipelineShared :: struct {
 	per_frame 	: UniformStuff(PerFrameUniformBuffer),
 	lighting 	: UniformStuff(LightingUniformBuffer),
-	world 		: UniformStuff(WorldUniformBuffer),
+	world 		: WorldUniformSet, // UniformStuff(WorldUniformData),
 	grass_types : UniformStuff([3]GrassTypeUniformBuffer),
 
 	// texture_descriptor_set_layout : vk.DescriptorSetLayout,
 }
 
-// @private
-// Pipelines :: struct {
-// 	shared 			: PipelineShared,
-// 	sky 			: SkyPipeline,
-// 	basic 			: BasicPipeline,
-// 	terrain 		: TerrainPipeline,
-// 	grass 			: GrassPipeline,
-// 	grass_placment 	: GrassPlacementPipeline,
-// }
+@private
+Pipelines :: struct {
+	shared 			: PipelineShared,
+	sky 			: SkyPipeline,
+	basic 			: BasicPipeline,
+	terrain 		: TerrainPipeline,
+	grass 			: GrassPipeline,
+	grass_placement : GrassPlacementPipeline,
+}
 
 @private
 create_pipelines :: proc() {
 	g 		:= &graphics
-	shared 	:= &graphics.pipeline_shared
+	shared 	:= &graphics.pipelines.shared
 
 	shared.per_frame 	= create_uniform_stuff(PerFrameUniformBuffer, { .VERTEX })
 	shared.lighting 	= create_uniform_stuff(LightingUniformBuffer, { .FRAGMENT })
-	shared.world 		= create_uniform_stuff(WorldUniformBuffer, { .VERTEX, .COMPUTE })
+	shared.world 		= create_world_uniform_set() // create_uniform_stuff(WorldUniformData, { .VERTEX, .COMPUTE })
 	shared.grass_types 	= create_uniform_stuff([3]GrassTypeUniformBuffer, { .FRAGMENT, .COMPUTE })
 
 	create_sky_pipeline()
@@ -101,11 +154,11 @@ create_pipelines :: proc() {
 @private
 destroy_pipelines :: proc() {
 	g := &graphics
-	shared := &graphics.pipeline_shared
+	shared := &graphics.pipelines.shared
 
 	destroy_uniform_stuff(&shared.per_frame)
 	destroy_uniform_stuff(&shared.lighting)
-	destroy_uniform_stuff(&shared.world)
+	destroy_world_uniform_set(&shared.world) //destroy_uniform_stuff(&shared.world)
 	destroy_uniform_stuff(&shared.grass_types)
 
 	destroy_sky_pipeline()
@@ -117,14 +170,14 @@ destroy_pipelines :: proc() {
 
 // Shared
 set_per_frame_data :: proc(view, projection : mat4) {
-	graphics.pipeline_shared.per_frame.mapped^ = {
+	graphics.pipelines.shared.per_frame.mapped^ = {
 		projection 	= projection,
 		view 		= view,
 	}
 }
 
 set_lighting_data :: proc(camera_position, directional_direction, directional_color, ambient_color : vec3) {
-	graphics.pipeline_shared.lighting.mapped^ = {
+	graphics.pipelines.shared.lighting.mapped^ = {
 		camera_position 	= expand_to_vec4(camera_position, 1),
 		light_direction 	= expand_to_vec4(directional_direction, 0),
 		light_color 		= expand_to_vec4(directional_color, 1),
@@ -133,14 +186,20 @@ set_lighting_data :: proc(camera_position, directional_direction, directional_co
 }
 
 get_grass_types_mapped :: proc() -> []GrassTypeUniformBuffer {
-	return graphics.pipeline_shared.grass_types.mapped[:]
+	return graphics.pipelines.shared.grass_types.mapped[:]
 }
 
 set_wind_data :: proc(texture_offset : vec2, texture_scale : f32, texture : ^Texture) {}
-set_world_data :: proc(scale, offset : vec2) {
-	graphics.pipeline_shared.world.mapped^ = {
+set_world_data :: proc(scale, offset : vec2, placement_texture : ^Texture) {
+	world := &graphics.pipelines.shared.world
+
+	world.mapped^ = {
 		placement_scale = scale,
 		placement_offset = offset,
+	}
+
+	if placement_texture != nil {
+		descriptor_set_write_textures(world.descriptor_set, 1, {placement_texture})
 	}
 }
 set_debug_data :: proc(draw_normals, draw_backfacing, draw_lod : bool) {}
@@ -192,34 +251,26 @@ UniformStuff :: struct($Data : typeid) {
 create_uniform_stuff :: proc($Data : typeid, stages : vk.ShaderStageFlags) -> UniformStuff(Data) {
 	g := &graphics
 
-	us := UniformStuff(Data) {}
+	u := UniformStuff(Data) {}
 
 	// BUFFER
 	buffer_size := vk.DeviceSize(size_of(Data))
-	us.buffer, us.memory = create_buffer_and_memory(
+	u.buffer, u.memory = create_buffer_and_memory(
 		buffer_size,
 		{ .UNIFORM_BUFFER },
 		{ .HOST_VISIBLE, .HOST_COHERENT }
 	)
-
-	vk.MapMemory(
-		g.device, 
-		us.memory, 
-		0, 
-		buffer_size, 
-		{}, 
-		cast(^rawptr)&us.mapped,
-	)
+	u.mapped = cast(^Data) map_memory(u.memory, 0, buffer_size)
 
 	// DESCRIPTOR SET
-	us.descriptor_set_layout = create_descriptor_set_layout({
+	u.descriptor_set_layout = create_descriptor_set_layout({
 		{ 0, .UNIFORM_BUFFER, 1, stages, nil },
 	})
 
-	us.descriptor_set = allocate_descriptor_set(us.descriptor_set_layout)
-	descriptor_set_write_buffer(us.descriptor_set, 0, us.buffer, .UNIFORM_BUFFER, 0, buffer_size)
+	u.descriptor_set = allocate_descriptor_set(u.descriptor_set_layout)
+	descriptor_set_write_buffer(u.descriptor_set, 0, u.buffer, .UNIFORM_BUFFER, 0, buffer_size)
 
-	return us
+	return u
 }
 
 @private
@@ -294,18 +345,25 @@ descriptor_set_write_buffer :: proc(
 }
 
 @private
-descriptor_set_write_texture :: proc(
-	set 	: vk.DescriptorSet, 
-	binding : u32,
-	texture : ^Texture,
+descriptor_set_write_textures :: proc(
+	set 		: vk.DescriptorSet, 
+	binding 	: u32,
+	textures 	: []^Texture,
 ) {
 	g := &graphics
 
-	image_info := vk.DescriptorImageInfo {
-		sampler 	= g.linear_sampler,
-		imageView 	= texture.image_view,
-		imageLayout = .SHADER_READ_ONLY_OPTIMAL,
-	}			
+	// Todo(Leo): just to not need to hasszle with memory now,
+	// Todo(Leo): use scracth allocator
+	assert(len(textures) < 10)
+	image_infos : [10]vk.DescriptorImageInfo
+
+	for t, i in textures {
+		image_infos[i] = {
+			sampler 	= g.linear_sampler,
+			imageView 	= t.image_view,
+			imageLayout = .SHADER_READ_ONLY_OPTIMAL,
+		}
+	}
 
 	write := vk.WriteDescriptorSet {
 		sType 			= .WRITE_DESCRIPTOR_SET,
@@ -313,12 +371,11 @@ descriptor_set_write_texture :: proc(
 		dstBinding 		= binding,
 		dstArrayElement = 0,
 		descriptorType 	= .COMBINED_IMAGE_SAMPLER,
-		descriptorCount = 1,
-		pImageInfo 		= &image_info,
+		descriptorCount = u32(len(textures)),
+		pImageInfo 		= raw_data(&image_infos),
 	}
 	vk.UpdateDescriptorSets(g.device, 1, &write, 0, nil)
 }
-
 
 @private
 destroy_uniform_stuff :: proc(us : ^UniformStuff($Data)) {

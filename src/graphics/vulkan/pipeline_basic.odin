@@ -26,7 +26,7 @@ BasicMaterialBuffer :: struct #align(16) {
 
 create_basic_material :: proc(texture : ^Texture) -> BasicMaterial {
 	g 		:= &graphics
-	basic 	:= &graphics.basic_pipeline
+	basic 	:= &graphics.pipelines.basic
 
 	m : BasicMaterial
 
@@ -41,7 +41,7 @@ create_basic_material :: proc(texture : ^Texture) -> BasicMaterial {
 
 	m.descriptor_set = allocate_descriptor_set(basic.material_layout)
 	descriptor_set_write_buffer(m.descriptor_set, 0, m.buffer, .UNIFORM_BUFFER, 0, size)
-	descriptor_set_write_texture(m.descriptor_set, 1, texture)
+	descriptor_set_write_textures(m.descriptor_set, 1, {texture})
 
 	return m
 }
@@ -57,8 +57,8 @@ destroy_basic_material :: proc(m : ^BasicMaterial) {
 @private
 create_basic_pipeline :: proc() {
 	g 		:= &graphics
-	basic 	:= &graphics.basic_pipeline
-	shared 	:= &graphics.pipeline_shared
+	basic 	:= &graphics.pipelines.basic
+	shared 	:= &graphics.pipelines.shared
 
 	basic.material_layout = create_descriptor_set_layout({
 		{ 0, .UNIFORM_BUFFER, 1, { .FRAGMENT }, nil },
@@ -147,16 +147,16 @@ create_basic_pipeline :: proc() {
 destroy_basic_pipeline :: proc() {
 	g := &graphics
 
-	vk.DestroyDescriptorSetLayout(g.device, g.basic_pipeline.material_layout, nil)
+	vk.DestroyDescriptorSetLayout(g.device, g.pipelines.basic.material_layout, nil)
 
-	vk.DestroyPipeline(g.device, g.basic_pipeline.pipeline, nil)
-	vk.DestroyPipelineLayout(g.device, g.basic_pipeline.layout, nil)
+	vk.DestroyPipeline(g.device, g.pipelines.basic.pipeline, nil)
+	vk.DestroyPipelineLayout(g.device, g.pipelines.basic.layout, nil)
 }
 
 setup_basic_pipeline :: proc () {
 	g 		:= &graphics
-	basic 	:= &graphics.basic_pipeline
-	shared 	:= graphics.pipeline_shared
+	basic 	:= &graphics.pipelines.basic
+	shared 	:= graphics.pipelines.shared
 
 	main_cmd := g.main_command_buffers[g.virtual_frame_index]
 
@@ -181,8 +181,8 @@ setup_basic_pipeline :: proc () {
 
 set_basic_material :: proc(material : ^BasicMaterial) {
 	g 		:= &graphics
-	basic 	:= &graphics.basic_pipeline
-	shared 	:= &graphics.pipeline_shared
+	basic 	:= &graphics.pipelines.basic
+	shared 	:= &graphics.pipelines.shared
 
 	main_cmd := g.main_command_buffers[g.virtual_frame_index]
 
@@ -207,8 +207,8 @@ set_basic_material :: proc(material : ^BasicMaterial) {
 
 // draw_basic_mesh :: proc(mesh : ^Mesh, model : mat4) {
 // 	g 		:= &graphics
-// 	basic 	:= &graphics.basic_pipeline
-// 	shared 	:= graphics.pipeline_shared
+// 	basic 	:= &graphics.pipelines.basic
+// 	shared 	:= graphics.pipelines.shared
 
 // 	main_cmd := g.main_command_buffers[g.virtual_frame_index]
 

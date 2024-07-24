@@ -44,6 +44,7 @@ layout(location = 0) out VS_OUT {
 
 void main() {
 
+	// Todo(Leo): put to uniform/input
 	int segment_count = 5;
 
 	int x_id = gl_VertexIndex % 2;

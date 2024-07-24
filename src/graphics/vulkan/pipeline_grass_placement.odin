@@ -4,8 +4,8 @@ import vk "vendor:vulkan"
 
 begin_grass_placement :: proc() {
 	g 				:= graphics
-	shared 			:= &graphics.pipeline_shared
-	grass_placement := &graphics.grass_placement_pipeline
+	shared 			:= &graphics.pipelines.shared
+	grass_placement := &graphics.pipelines.grass_placement
 
 	cmd := grass_placement.command_buffers[g.virtual_frame_index]
 	// Implicit reset with begin
@@ -20,7 +20,7 @@ begin_grass_placement :: proc() {
 	vk.CmdBindPipeline(cmd, .COMPUTE, grass_placement.pipeline)
 
 	WORLD_SET :: 0
-	GRASS_TYPES_SET :: 2
+	GRASS_TYPES_SET :: 1
 
 	vk.CmdBindDescriptorSets(
 		cmd,
@@ -47,26 +47,13 @@ begin_grass_placement :: proc() {
 
 dispatch_grass_placement_chunk :: proc(r : ^GrassRenderer) {
 	g 				:= graphics
-	shared 			:= &graphics.pipeline_shared
-	grass_placement := &graphics.grass_placement_pipeline
+	shared 			:= &graphics.pipelines.shared
+	grass_placement := &graphics.pipelines.grass_placement
 
 	cmd := grass_placement.command_buffers[g.virtual_frame_index]
 
-	PLACEMENT_TEXTURE_SET :: 1
-
-	vk.CmdBindDescriptorSets(
-		cmd,
-		.COMPUTE,
-		grass_placement.layout,
-		PLACEMENT_TEXTURE_SET,
-		1,
-		&r.placement_texture_descriptor,
-		0,
-		nil,
-	)
-
-	INPUT_SET :: 3
-	// OUTPUT_SET :: 4
+	INPUT_SET :: 2
+	// OUTPUT_SET :: 3
 
 	descriptors := []vk.DescriptorSet {
 		r.placement_input_descriptor,
@@ -89,8 +76,8 @@ dispatch_grass_placement_chunk :: proc(r : ^GrassRenderer) {
 
 end_grass_placement :: proc() {
 	g 				:= graphics
-	shared 			:= &graphics.pipeline_shared
-	grass_placement := &graphics.grass_placement_pipeline
+	shared 			:= &graphics.pipelines.shared
+	grass_placement := &graphics.pipelines.grass_placement
 
 	cmd := grass_placement.command_buffers[g.virtual_frame_index]
 
@@ -131,18 +118,7 @@ end_grass_placement :: proc() {
 	vk.WaitForFences(g.device, 1, &fence, true, max(u64))
 	vk.DestroyFence(g.device, fence, nil)
 
-
 }
-
-dispatch_grass_placement_pipeline :: proc (
-	instances 				: ^Buffer,
-	placement_texture 		: ^Texture,
-	blade_count 			: int,
-	chunk_position 			: vec2,
-	chunk_size 				: f32,
-	type_index				: int,
-	noise_params 			: vec4,
-) {}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Private
@@ -152,7 +128,6 @@ GrassPlacementPipeline :: struct {
 	layout 		: vk.PipelineLayout,
 	pipeline 	: vk.Pipeline,
 
-	placement_texture_layout 	: vk.DescriptorSetLayout,
 	input_layout 				: vk.DescriptorSetLayout,
 	output_layout 				: vk.DescriptorSetLayout,
 
@@ -162,13 +137,9 @@ GrassPlacementPipeline :: struct {
 @private
 create_grass_placement_pipeline :: proc() {
 	g 				:= &graphics
-	shared 			:= &graphics.pipeline_shared
-	grass_placement := &graphics.grass_placement_pipeline
+	shared 			:= &graphics.pipelines.shared
+	grass_placement := &graphics.pipelines.grass_placement
 	
-	grass_placement.placement_texture_layout = create_descriptor_set_layout({
-		{ 0, .COMBINED_IMAGE_SAMPLER, 1, { .COMPUTE }, nil },
-	})
-
 	grass_placement.input_layout = create_descriptor_set_layout({
 		{ 0, .UNIFORM_BUFFER, 1, { .COMPUTE }, nil },
 	})
@@ -179,7 +150,6 @@ create_grass_placement_pipeline :: proc() {
 
 	grass_placement.layout = create_pipeline_layout({
 		shared.world.descriptor_set_layout,
-		grass_placement.placement_texture_layout,
 		shared.grass_types.descriptor_set_layout,
 		grass_placement.input_layout,
 		grass_placement.output_layout,
@@ -229,18 +199,11 @@ create_grass_placement_pipeline :: proc() {
 @private
 destroy_grass_placement_pipeline :: proc() {
 	g 				:= &graphics
-	grass_placement := &graphics.grass_placement_pipeline
+	grass_placement := &graphics.pipelines.grass_placement
 
-	vk.DestroyDescriptorSetLayout(g.device, grass_placement.placement_texture_layout, nil)
 	vk.DestroyDescriptorSetLayout(g.device, grass_placement.input_layout, nil)
 	vk.DestroyDescriptorSetLayout(g.device, grass_placement.output_layout, nil)
 
 	vk.DestroyPipelineLayout(g.device, grass_placement.layout, nil)
 	vk.DestroyPipeline(g.device, grass_placement.pipeline, nil)
 }
-
-
-// @private
-// @private
-// @private
-// @private

@@ -58,7 +58,7 @@ graphics_context : struct {
 
 	debug_pipeline 				: DebugPipeline,
 
-	pipeline_shared 			: PipelineShared,
+	pipelines.shared 			: PipelineShared,
 
 	// Per draw uniform locations. These are set whenever a new pipeline
 	// is bound/setupped, and used in draw_XXX functions
@@ -117,7 +117,7 @@ initialize :: proc() {
 
 	gc.debug_pipeline 			= create_debug_pipeline()
 
-	gc.pipeline_shared 			= create_pipeline_shared()
+	gc.pipelines.shared 			= create_pipelines.shared()
 
 	// Todo(Leo): there might be issue here that this could be called before
 	// setting up the opengl stuff and then something going haywire, seems to work now

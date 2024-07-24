@@ -11,8 +11,8 @@ SkyPipeline :: struct {
 @private
 create_sky_pipeline :: proc() {
 	g 		:= &graphics
-	sky 	:= &graphics.sky_pipeline
-	shared 	:= &graphics.pipeline_shared
+	sky 	:= &graphics.pipelines.sky
+	shared 	:= &graphics.pipelines.shared
 
 	// Layout
 	sky.layout = create_pipeline_layout({shared.lighting.descriptor_set_layout}, nil)
@@ -79,7 +79,7 @@ create_sky_pipeline :: proc() {
 @private
 destroy_sky_pipeline :: proc() {
 	g := &graphics
-	sky := &graphics.sky_pipeline
+	sky := &graphics.pipelines.sky
 
 	vk.DestroyPipeline(g.device, sky.pipeline, nil)
 	vk.DestroyPipelineLayout(g.device, sky.layout, nil)
@@ -87,8 +87,8 @@ destroy_sky_pipeline :: proc() {
 
 draw_sky :: proc() {
 	g 		:= &graphics
-	sky 	:= &graphics.sky_pipeline
-	shared 	:= &graphics.pipeline_shared
+	sky 	:= &graphics.pipelines.sky
+	shared 	:= &graphics.pipelines.shared
 
 	main_cmd := g.main_command_buffers[g.virtual_frame_index]
 	

@@ -16,19 +16,16 @@ TerrainPipeline :: struct {
 }
 
 create_terrain_material :: proc(
-	splatter_texture 	: ^Texture,
-	grass_texture 		: ^Texture,
 	road_texture 		: ^Texture,
+	grass_texture 		: ^Texture,
 ) -> TerrainMaterial {
 	g 		:= &graphics
-	terrain := &graphics.terrain_pipeline
+	terrain := &graphics.pipelines.terrain
 
 	m : TerrainMaterial
 
 	m.descriptor_set = allocate_descriptor_set(terrain.material_layout)
-	descriptor_set_write_texture(m.descriptor_set, 0, splatter_texture)
-	descriptor_set_write_texture(m.descriptor_set, 1, grass_texture)
-	descriptor_set_write_texture(m.descriptor_set, 2, road_texture)
+	descriptor_set_write_textures(m.descriptor_set, 0, {road_texture, grass_texture})
 
 	return m
 }
@@ -42,15 +39,13 @@ destroy_terrain_material :: proc(m : ^TerrainMaterial) {
 @private
 create_terrain_pipeline :: proc() {
 	g 		:= &graphics
-	terrain := &graphics.terrain_pipeline
-	shared 	:= &graphics.pipeline_shared
+	terrain := &graphics.pipelines.terrain
+	shared 	:= &graphics.pipelines.shared
 
 	// Material descriptor layout
 	{
 		bindings := []vk.DescriptorSetLayoutBinding {
-			{ 0, .COMBINED_IMAGE_SAMPLER, 1, { .FRAGMENT }, nil },
-			{ 1, .COMBINED_IMAGE_SAMPLER, 1, { .FRAGMENT }, nil },
-			{ 2, .COMBINED_IMAGE_SAMPLER, 1, { .FRAGMENT }, nil },
+			{ 0, .COMBINED_IMAGE_SAMPLER, 2, { .FRAGMENT }, nil },
 		}
 		layout_create_info := vk.DescriptorSetLayoutCreateInfo {
 			sType 			= .DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
@@ -149,16 +144,16 @@ create_terrain_pipeline :: proc() {
 destroy_terrain_pipeline :: proc() {
 	g := &graphics
 
-	vk.DestroyDescriptorSetLayout(g.device, g.terrain_pipeline.material_layout, nil)
+	vk.DestroyDescriptorSetLayout(g.device, g.pipelines.terrain.material_layout, nil)
 
-	vk.DestroyPipeline(g.device, g.terrain_pipeline.pipeline, nil)
-	vk.DestroyPipelineLayout(g.device, g.terrain_pipeline.layout, nil)
+	vk.DestroyPipeline(g.device, g.pipelines.terrain.pipeline, nil)
+	vk.DestroyPipelineLayout(g.device, g.pipelines.terrain.layout, nil)
 }
 
 setup_terrain_pipeline :: proc () {
 	g 		:= &graphics
-	terrain := &graphics.terrain_pipeline
-	shared 	:= graphics.pipeline_shared
+	terrain := &graphics.pipelines.terrain
+	shared 	:= graphics.pipelines.shared
 
 	main_cmd := g.main_command_buffers[g.virtual_frame_index]
 
@@ -184,8 +179,8 @@ setup_terrain_pipeline :: proc () {
 
 set_terrain_material :: proc(material : ^TerrainMaterial) {
 	g 		:= &graphics
-	terrain := &graphics.terrain_pipeline
-	shared 	:= &graphics.pipeline_shared
+	terrain := &graphics.pipelines.terrain
+	shared 	:= &graphics.pipelines.shared
 
 	main_cmd := g.main_command_buffers[g.virtual_frame_index]
 
@@ -210,8 +205,8 @@ set_terrain_material :: proc(material : ^TerrainMaterial) {
 
 // draw_terrain_mesh :: proc(mesh : ^Mesh, model : mat4) {
 // 	g 		:= &graphics
-// 	terrain := &graphics.terrain_pipeline
-// 	shared 	:= graphics.pipeline_shared
+// 	terrain := &graphics.pipelines.terrain
+// 	shared 	:= graphics.pipelines.shared
 
 // 	main_cmd := g.main_command_buffers[g.virtual_frame_index]
 

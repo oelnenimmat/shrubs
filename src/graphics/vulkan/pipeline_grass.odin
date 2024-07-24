@@ -16,8 +16,6 @@ GrassRenderer :: struct {
 	placement_input_memory : vk.DeviceMemory,
 	placement_input_mapped : [^]vec4,
 	placement_input_descriptor : vk.DescriptorSet,
-
-	placement_texture_descriptor : vk.DescriptorSet,
 }
 
 create_grass_renderer :: proc(instance_buffer : ^Buffer, placement_texture : ^Texture) -> GrassRenderer {
@@ -37,7 +35,7 @@ create_grass_renderer :: proc(instance_buffer : ^Buffer, placement_texture : ^Te
 		vk.MapMemory(g.device, r.instance_memory, 0, buffer_size, {}, cast(^rawptr)&r.instance_mapped)
 		
 		r.placement_output_descriptor = allocate_descriptor_set(
-			g.grass_placement_pipeline.output_layout
+			g.pipelines.grass_placement.output_layout
 		)
 		descriptor_set_write_buffer(
 			r.placement_output_descriptor, 
@@ -60,7 +58,7 @@ create_grass_renderer :: proc(instance_buffer : ^Buffer, placement_texture : ^Te
 		vk.MapMemory(g.device, r.placement_input_memory, 0, input_buffer_size, {}, cast(^rawptr)&r.placement_input_mapped)
 
 		r.placement_input_descriptor = allocate_descriptor_set(
-			g.grass_placement_pipeline.input_layout
+			g.pipelines.grass_placement.input_layout
 		)
 		descriptor_set_write_buffer(
 			r.placement_input_descriptor, 
@@ -69,14 +67,6 @@ create_grass_renderer :: proc(instance_buffer : ^Buffer, placement_texture : ^Te
 			.UNIFORM_BUFFER,
 			0, input_buffer_size,
 		)
-	}
-
-	// placement texture
-	{
-		r.placement_texture_descriptor = allocate_descriptor_set(
-			g.grass_placement_pipeline.placement_texture_layout,
-		)
-		descriptor_set_write_texture(r.placement_texture_descriptor, 0, placement_texture)
 	}
 
 	return r
@@ -94,8 +84,8 @@ destroy_grass_renderer :: proc(r : ^GrassRenderer) {
 
 draw_grass :: proc(r : GrassRenderer, instance_count : int, segment_count : int, lod : int) {
 	g 		:= &graphics
-	shared 	:= &graphics.pipeline_shared
-	grass 	:= &graphics.grass_pipeline
+	shared 	:= &graphics.pipelines.shared
+	grass 	:= &graphics.pipelines.grass
 
 	main_cmd := g.main_command_buffers[g.virtual_frame_index]
 
@@ -145,8 +135,8 @@ GrassPipeline :: struct {
 
 create_grass_pipeline :: proc() {
 	g 		:= &graphics
-	shared 	:= &graphics.pipeline_shared
-	grass 	:= &graphics.grass_pipeline
+	shared 	:= &graphics.pipelines.shared
+	grass 	:= &graphics.pipelines.grass
 
 	grass.layout = create_pipeline_layout({
 		shared.per_frame.descriptor_set_layout,	
@@ -226,7 +216,7 @@ create_grass_pipeline :: proc() {
 
 destroy_grass_pipeline :: proc() {
 	g 		:= &graphics
-	grass 	:= &graphics.grass_pipeline
+	grass 	:= &graphics.pipelines.grass
 
 	vk.DestroyPipeline(g.device, grass.pipeline, nil)
 	vk.DestroyPipelineLayout(g.device, grass.layout, nil)

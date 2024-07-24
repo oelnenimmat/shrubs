@@ -23,13 +23,13 @@ layout(set = 0, binding = 0) uniform World {
 	vec2 placement_texcoord_scale;
 	vec2 placement_texcoord_offset;
 };
-layout(set = 1, binding = 0) uniform sampler2D placement_texture;
+layout(set = 0, binding = 1) uniform sampler2D placement_texture;
 
-const int GRASS_TYPES_SET = 2;
+const int GRASS_TYPES_SET = 1;
 #include "grass_types.glsl"
 
 // "material"
-layout(set = 3, binding = 0) uniform INPUT {
+layout(set = 2, binding = 0) uniform INPUT {
 	// Todo(Leo): get this from placement map
 	// x: type index
 	vec4 type_index;
@@ -47,7 +47,7 @@ layout(set = 3, binding = 0) uniform INPUT {
 };
 
 // output
-layout (set = 4, binding = 0) buffer OUTPUT {
+layout (set = 3, binding = 0) buffer OUTPUT {
 	GrassInstanceData instances [];
 };
 

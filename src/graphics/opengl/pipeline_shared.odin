@@ -15,7 +15,7 @@ PipelineShared :: struct {
 }
 
 @private
-create_pipeline_shared :: proc() -> PipelineShared {
+create_pipelines.shared :: proc() -> PipelineShared {
 	ps := PipelineShared {}
 
 	create_buffer :: proc(size : int) -> u32 {
@@ -45,7 +45,7 @@ PerFrameUniformBuffer :: struct #align(16) {
 #assert(size_of(PerFrameUniformBuffer) == 128)
 
 set_per_frame_data :: proc(view, projection : mat4) {
-	ps := &graphics_context.pipeline_shared
+	ps := &graphics_context.pipelines.shared
 
 	p : PerFrameUniformBuffer
 	p.view 			= view
@@ -67,7 +67,7 @@ LightingUniformBuffer :: struct #align(16) {
 #assert(size_of(LightingUniformBuffer) == 64)
 
 set_lighting_data :: proc(camera_position, directional_direction, directional_color, ambient_color : vec3) {
-	ps := &graphics_context.pipeline_shared
+	ps := &graphics_context.pipelines.shared
 
 	l : LightingUniformBuffer
 	l.camera_position.xyz 		= camera_position
@@ -91,7 +91,7 @@ WindUniformBuffer :: struct #align(16) {
 #assert(size_of(WindUniformBuffer) == 16)
 
 set_wind_data :: proc(texture_offset : vec2, texture_scale : f32, texture : ^Texture) {
-	ps := &graphics_context.pipeline_shared
+	ps := &graphics_context.pipelines.shared
 
 	w : WindUniformBuffer
 	w.texture_offset 	= texture_offset
@@ -113,7 +113,7 @@ WorldUniformBuffer :: struct #align(16) {
 #assert(size_of(WorldUniformBuffer) == 16)
 
 set_world_data :: proc(scale, offset : vec2) {
-	ps := &graphics_context.pipeline_shared
+	ps := &graphics_context.pipelines.shared
 
 	w : WorldUniformBuffer
 	w.placement_texcoord_scale 	= scale
@@ -139,7 +139,7 @@ DebugUniformBuffer :: struct #align(16) {
 #assert(size_of(DebugUniformBuffer) == 16)
 
 set_debug_data :: proc(draw_normals, draw_backfacing, draw_lod : bool) {
-	ps := &graphics_context.pipeline_shared
+	ps := &graphics_context.pipelines.shared
 
 	d := DebugUniformBuffer{}
 	d.draw_normals 		= 1 if draw_normals else 0

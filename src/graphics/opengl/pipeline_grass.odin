@@ -38,7 +38,7 @@ create_grass_pipeline :: proc() -> GrassPipeline {
 
 setup_grass_pipeline :: proc(cull_back : bool) {
 	pl 		:= &graphics_context.grass_pipeline
-	shared 	:= &graphics_context.pipeline_shared
+	shared 	:= &graphics_context.pipelines.shared
 
 	gl.UseProgram(pl.shader_program)
 

@@ -141,7 +141,7 @@ draw_mesh :: proc(mesh : ^Mesh, model : mat4) {
 		main_cmd,
 
 		// Todo(Leo): oof bad, we are barely hoping that this is compatible D:
-		graphics.basic_pipeline.layout,
+		graphics.pipelines.basic.layout,
 		{ .VERTEX },
 		0,
 		64,
