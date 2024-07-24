@@ -68,21 +68,24 @@ graphics : struct {
 
 	main_command_buffers : [VIRTUAL_FRAME_COUNT]vk.CommandBuffer,
 
-	virtual_frame_in_use_fences : [VIRTUAL_FRAME_COUNT]vk.Fence,
+	virtual_frame_in_use_fences 	: [VIRTUAL_FRAME_COUNT]vk.Fence,
 	// Todo(Leo): one for grass compute etc :)
-	rendering_complete_semaphores : [VIRTUAL_FRAME_COUNT]vk.Semaphore,
-	present_complete_semaphores : [VIRTUAL_FRAME_COUNT]vk.Semaphore,
+	grass_placement_complete_semaphore : [VIRTUAL_FRAME_COUNT]vk.Semaphore,
+	rendering_complete_semaphores 	: [VIRTUAL_FRAME_COUNT]vk.Semaphore,
+	present_complete_semaphores 	: [VIRTUAL_FRAME_COUNT]vk.Semaphore,
 
 	descriptor_pool : vk.DescriptorPool,
 
 	test_render_pass 	: vk.RenderPass,
 
 	// Pipelines
-	pipeline_shared 	: PipelineShared,
-	sky_pipeline 		: SkyPipeline,
-	basic_pipeline 		: BasicPipeline,
-	terrain_pipeline 	: TerrainPipeline,
-	grass_pipeline 		: GrassPipeline,
+	// pipelines : Pipelines,
+	pipeline_shared 			: PipelineShared,
+	sky_pipeline 				: SkyPipeline,
+	basic_pipeline 				: BasicPipeline,
+	terrain_pipeline 			: TerrainPipeline,
+	grass_pipeline 				: GrassPipeline,
+	grass_placement_pipeline 	: GrassPlacementPipeline,
 
 	// Render target
 	render_target_framebuffer 	: vk.Framebuffer,

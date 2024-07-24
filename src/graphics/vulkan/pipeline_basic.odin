@@ -60,28 +60,10 @@ create_basic_pipeline :: proc() {
 	basic 	:= &graphics.basic_pipeline
 	shared 	:= &graphics.pipeline_shared
 
-	// Material descriptor layout
-	{
-		bindings := []vk.DescriptorSetLayoutBinding {
-			{ 0, .UNIFORM_BUFFER, 1, { .FRAGMENT }, nil },
-			{ 1, .COMBINED_IMAGE_SAMPLER, 1, { .FRAGMENT }, nil },
-		}
-		layout_create_info := vk.DescriptorSetLayoutCreateInfo {
-			sType 			= .DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-			bindingCount 	= u32(len(bindings)),
-			pBindings 		= raw_data(bindings),
-		}
-		layout_create_result := vk.CreateDescriptorSetLayout(
-			g.device,
-			&layout_create_info,
-			nil,
-			&basic.material_layout,
-		)
-		handle_result(layout_create_result)
-
-		// Debug buffer
-		// basic.DEBUG_material = create_basic_material()
-	}
+	basic.material_layout = create_descriptor_set_layout({
+		{ 0, .UNIFORM_BUFFER, 1, { .FRAGMENT }, nil },
+		{ 1, .COMBINED_IMAGE_SAMPLER, 1, { .FRAGMENT }, nil },
+	})
 
 	basic.layout = create_pipeline_layout({
 		shared.per_frame.descriptor_set_layout,	

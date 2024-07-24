@@ -71,6 +71,16 @@ PipelineShared :: struct {
 	// texture_descriptor_set_layout : vk.DescriptorSetLayout,
 }
 
+// @private
+// Pipelines :: struct {
+// 	shared 			: PipelineShared,
+// 	sky 			: SkyPipeline,
+// 	basic 			: BasicPipeline,
+// 	terrain 		: TerrainPipeline,
+// 	grass 			: GrassPipeline,
+// 	grass_placment 	: GrassPlacementPipeline,
+// }
+
 @private
 create_pipelines :: proc() {
 	g 		:= &graphics
@@ -85,6 +95,7 @@ create_pipelines :: proc() {
 	create_basic_pipeline()
 	create_terrain_pipeline()
 	create_grass_pipeline()
+	create_grass_placement_pipeline()
 }
 
 @private
@@ -101,6 +112,7 @@ destroy_pipelines :: proc() {
 	destroy_basic_pipeline()
 	destroy_terrain_pipeline()
 	destroy_grass_pipeline()
+	destroy_grass_placement_pipeline()
 }
 
 // Shared
@@ -139,16 +151,6 @@ draw_debug_mesh :: proc(mesh : ^Mesh, model : mat4, color : vec3) {}
 
 setup_emissive_pipeline :: proc() {}
 set_emissive_material :: proc(texture : ^Texture) {}
-
-dispatch_grass_placement_pipeline :: proc (
-	instances 				: ^Buffer,
-	placement_texture 		: ^Texture,
-	blade_count 			: int,
-	chunk_position 			: vec2,
-	chunk_size 				: f32,
-	type_index				: int,
-	noise_params 			: vec4,
-) {}
 
 dispatch_post_process_pipeline :: proc(render_target : ^RenderTarget, exposure : f32) {}
 
@@ -192,23 +194,6 @@ create_uniform_stuff :: proc($Data : typeid, stages : vk.ShaderStageFlags) -> Un
 
 	us := UniformStuff(Data) {}
 
-	// DESCRIPTOR SET LAYOUT
-	binding := vk.DescriptorSetLayoutBinding {
-		0, .UNIFORM_BUFFER, 1, stages, nil
-	}
-
-	layout_create_info := vk.DescriptorSetLayoutCreateInfo {
-		sType 			= .DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-		bindingCount 	= 1,
-		pBindings 		= &binding
-	}
-	layout_create_result := vk.CreateDescriptorSetLayout(
-		g.device,
-		&layout_create_info,
-		nil,
-		&us.descriptor_set_layout,
-	)
-
 	// BUFFER
 	buffer_size := vk.DeviceSize(size_of(Data))
 	us.buffer, us.memory = create_buffer_and_memory(
@@ -226,12 +211,34 @@ create_uniform_stuff :: proc($Data : typeid, stages : vk.ShaderStageFlags) -> Un
 		cast(^rawptr)&us.mapped,
 	)
 
-	// Descriptor Set
+	// DESCRIPTOR SET
+	us.descriptor_set_layout = create_descriptor_set_layout({
+		{ 0, .UNIFORM_BUFFER, 1, stages, nil },
+	})
+
 	us.descriptor_set = allocate_descriptor_set(us.descriptor_set_layout)
 	descriptor_set_write_buffer(us.descriptor_set, 0, us.buffer, 0, buffer_size)
 
 	return us
 }
+
+@private
+create_descriptor_set_layout :: proc(bindings : []vk.DescriptorSetLayoutBinding) -> vk.DescriptorSetLayout {
+	g := &graphics
+
+	info := vk.DescriptorSetLayoutCreateInfo {
+		sType 			= .DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+		bindingCount 	= u32(len(bindings)),
+		pBindings 		= raw_data(bindings),
+	}
+
+	layout : vk.DescriptorSetLayout
+	result := vk.CreateDescriptorSetLayout(g.device, &info, nil, &layout)
+	handle_result(result)
+
+	return layout
+}
+
 
 @private
 allocate_descriptor_set :: proc(
