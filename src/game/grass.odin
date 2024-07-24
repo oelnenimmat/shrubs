@@ -60,7 +60,10 @@ create_grass :: proc() -> Grass {
 
 		g.positions[i] 			= {x * chunk_size - 25, y * chunk_size - 25}
 		g.instance_buffers[i] 	= graphics.create_buffer(buffer_data_size)
-		g.renderers[i] 			= graphics.create_grass_renderer(&g.instance_buffers[i])
+		g.renderers[i] 			= graphics.create_grass_renderer(
+			&g.instance_buffers[i],
+			&asset_provider.textures[.Grass_Placement],
+		)
 
 		instances := (cast([^]GPU_GrassInstanceData)g.renderers[i].instance_mapped)[0:64]
 

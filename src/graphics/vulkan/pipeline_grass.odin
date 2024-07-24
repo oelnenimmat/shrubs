@@ -9,22 +9,76 @@ GrassRenderer :: struct {
 	instance_buffer : vk.Buffer,
 	instance_memory : vk.DeviceMemory,
 	instance_mapped : rawptr,
+
+	placement_output_descriptor : vk.DescriptorSet,
+
+	placement_input_buffer : vk.Buffer,
+	placement_input_memory : vk.DeviceMemory,
+	placement_input_mapped : [^]vec4,
+	placement_input_descriptor : vk.DescriptorSet,
+
+	placement_texture_descriptor : vk.DescriptorSet,
 }
 
-create_grass_renderer :: proc(instance_buffer : ^Buffer) -> GrassRenderer {
+create_grass_renderer :: proc(instance_buffer : ^Buffer, placement_texture : ^Texture) -> GrassRenderer {
 	g := &graphics
 
 	r := GrassRenderer{}
 
-	r.instance_count = 8 * 8
-	buffer_size := vk.DeviceSize(r.instance_count * 4 * size_of(vec4))
-	r.instance_buffer, r.instance_memory = create_buffer_and_memory(
-		buffer_size,
-		{ .VERTEX_BUFFER },
-		{ .HOST_COHERENT, .HOST_VISIBLE },
-	)
-	vk.MapMemory(g.device, r.instance_memory, 0, buffer_size, {}, cast(^rawptr)&r.instance_mapped)
-	
+	// Instances/placement output
+	{
+		r.instance_count = 8 * 8
+		buffer_size := vk.DeviceSize(r.instance_count * 4 * size_of(vec4))
+		r.instance_buffer, r.instance_memory = create_buffer_and_memory(
+			buffer_size,
+			{ .VERTEX_BUFFER, .STORAGE_BUFFER },
+			{ .HOST_COHERENT, .HOST_VISIBLE },
+		)
+		vk.MapMemory(g.device, r.instance_memory, 0, buffer_size, {}, cast(^rawptr)&r.instance_mapped)
+		
+		r.placement_output_descriptor = allocate_descriptor_set(
+			g.grass_placement_pipeline.output_layout
+		)
+		descriptor_set_write_buffer(
+			r.placement_output_descriptor, 
+			0, 
+			r.instance_buffer, 
+			.STORAGE_BUFFER,
+			0, 
+			buffer_size,
+		)
+	}
+
+	// placement input
+	{
+		input_buffer_size := vk.DeviceSize(3 * size_of(vec4))
+		r.placement_input_buffer, r.placement_input_memory = create_buffer_and_memory(
+			input_buffer_size,
+			{ .UNIFORM_BUFFER },
+			{ .HOST_COHERENT, .HOST_VISIBLE },
+		)
+		vk.MapMemory(g.device, r.placement_input_memory, 0, input_buffer_size, {}, cast(^rawptr)&r.placement_input_mapped)
+
+		r.placement_input_descriptor = allocate_descriptor_set(
+			g.grass_placement_pipeline.input_layout
+		)
+		descriptor_set_write_buffer(
+			r.placement_input_descriptor, 
+			0, 
+			r.placement_input_buffer,
+			.UNIFORM_BUFFER,
+			0, input_buffer_size,
+		)
+	}
+
+	// placement texture
+	{
+		r.placement_texture_descriptor = allocate_descriptor_set(
+			g.grass_placement_pipeline.placement_texture_layout,
+		)
+		descriptor_set_write_texture(r.placement_texture_descriptor, 0, placement_texture)
+	}
+
 	return r
 }
 
@@ -33,6 +87,9 @@ destroy_grass_renderer :: proc(r : ^GrassRenderer) {
 
 	vk.DestroyBuffer(g.device, r.instance_buffer, nil)
 	vk.FreeMemory(g.device, r.instance_memory, nil)
+
+	vk.DestroyBuffer(g.device, r.placement_input_buffer, nil)
+	vk.FreeMemory(g.device, r.placement_input_memory, nil)
 }
 
 draw_grass :: proc(r : GrassRenderer, instance_count : int, segment_count : int, lod : int) {

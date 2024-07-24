@@ -583,7 +583,19 @@ render_camera :: proc(camera : ^Camera, render_target : ^graphics.RenderTarget) 
 		scene.world.z_offset,
 	}
 
+	graphics.begin_grass_placement()
+
 	for i in 0..<len(grass_system.instance_buffers) {
+
+		input := grass_system.renderers[i].placement_input_mapped
+
+		input[0].x = f32(scene.grass_type)
+		input[1] = noise_params
+		input[2] = {grass_system.positions[i].x, grass_system.positions[i].y, 5, 8}
+
+		graphics.dispatch_grass_placement_chunk(&grass_system.renderers[i])
+
+		/*
 		graphics.dispatch_grass_placement_pipeline(
 			&grass_system.instance_buffers[i], 
 			grass_system.placement_map,
@@ -593,7 +605,10 @@ render_camera :: proc(camera : ^Camera, render_target : ^graphics.RenderTarget) 
 			int(scene.grass_type),
 			noise_params,
 		)
+		*/
 	}
+
+	graphics.end_grass_placement()
 
 	// NEXT PIPELINE
 	graphics.setup_grass_pipeline(grass_cull_back)

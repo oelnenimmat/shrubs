@@ -40,7 +40,7 @@ create_basic_material :: proc(texture : ^Texture) -> BasicMaterial {
 	vk.MapMemory(g.device, m.memory, 0, size, {}, cast(^rawptr)&m.mapped)
 
 	m.descriptor_set = allocate_descriptor_set(basic.material_layout)
-	descriptor_set_write_buffer(m.descriptor_set, 0, m.buffer, 0, size)
+	descriptor_set_write_buffer(m.descriptor_set, 0, m.buffer, .UNIFORM_BUFFER, 0, size)
 	descriptor_set_write_texture(m.descriptor_set, 1, texture)
 
 	return m

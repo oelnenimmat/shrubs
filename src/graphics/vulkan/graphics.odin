@@ -70,7 +70,7 @@ graphics : struct {
 
 	virtual_frame_in_use_fences 	: [VIRTUAL_FRAME_COUNT]vk.Fence,
 	// Todo(Leo): one for grass compute etc :)
-	grass_placement_complete_semaphore : [VIRTUAL_FRAME_COUNT]vk.Semaphore,
+	grass_placement_complete_semaphores : [VIRTUAL_FRAME_COUNT]vk.Semaphore,
 	rendering_complete_semaphores 	: [VIRTUAL_FRAME_COUNT]vk.Semaphore,
 	present_complete_semaphores 	: [VIRTUAL_FRAME_COUNT]vk.Semaphore,
 
@@ -349,7 +349,7 @@ initialize :: proc() {
 		handle_result(device_create_result)
 	
 		vk.GetDeviceQueue(graphics.device, graphics.graphics_queue_family, 0, &graphics.graphics_queue)
-		vk.GetDeviceQueue(graphics.device, graphics.compute_queue_family, 0, &graphics.compute_queue)
+		vk.GetDeviceQueue(graphics.device, graphics.compute_queue_family, 1, &graphics.compute_queue)
 		vk.GetDeviceQueue(graphics.device, graphics.present_queue_family, 1, &graphics.present_queue)
 	}
 
@@ -377,7 +377,7 @@ initialize :: proc() {
 		compute_command_pool_create_info := vk.CommandPoolCreateInfo {
 			sType = .COMMAND_POOL_CREATE_INFO,
 			flags = { .TRANSIENT, .RESET_COMMAND_BUFFER },
-			queueFamilyIndex = g.graphics_queue_family,
+			queueFamilyIndex = g.compute_queue_family,
 		}
 
 		compute_command_pool_create_result := vk.CreateCommandPool (
@@ -427,6 +427,7 @@ initialize :: proc() {
 
 		for i in 0..<VIRTUAL_FRAME_COUNT {
 			vk.CreateFence(g.device, &fence_create_info, nil, &g.virtual_frame_in_use_fences[i])
+			vk.CreateSemaphore(g.device, &semaphore_create_info, nil, &g.grass_placement_complete_semaphores[i])
 			vk.CreateSemaphore(g.device, &semaphore_create_info, nil, &g.rendering_complete_semaphores[i])
 			vk.CreateSemaphore(g.device, &semaphore_create_info, nil, &g.present_complete_semaphores[i])
 		}
@@ -656,6 +657,7 @@ terminate :: proc() {
 
 	for i in 0..<VIRTUAL_FRAME_COUNT {
 		vk.DestroyFence(g.device, g.virtual_frame_in_use_fences[i], nil)
+		vk.DestroySemaphore(g.device, g.grass_placement_complete_semaphores[i], nil)
 		vk.DestroySemaphore(g.device, g.rendering_complete_semaphores[i], nil)
 		vk.DestroySemaphore(g.device, g.present_complete_semaphores[i], nil)
 	}
@@ -684,7 +686,7 @@ wait_idle :: proc() {
 begin_frame :: proc() {
 	g := &graphics
 
-	// WAIT
+	// WAIT, so we can start to rewrite command buffer
 	vk.WaitForFences(g.device, 1, &g.virtual_frame_in_use_fences[g.virtual_frame_index], true, max(u64))
 
 	// RESET
@@ -702,9 +704,10 @@ begin_frame :: proc() {
 	handle_result(main_cmd_begin_result)
 
 	// Todo(Leo): think again if present_complete_semaphores make sense with virtual frame stuff
-	virtual_frame_in_use_fence 		:= g.virtual_frame_in_use_fences[g.virtual_frame_index]
-	present_complete_semaphore 		:= g.present_complete_semaphores[g.virtual_frame_index]
-	rendering_complete_semaphore 	:= g.rendering_complete_semaphores[g.virtual_frame_index]
+	virtual_frame_in_use_fence 			:= g.virtual_frame_in_use_fences[g.virtual_frame_index]
+	present_complete_semaphore 			:= g.present_complete_semaphores[g.virtual_frame_index]
+	// grass_placement_complete_semaphore 	:= g.grass_placement_complete_semaphores[g.virtual_frame_index]
+	rendering_complete_semaphore 		:= g.rendering_complete_semaphores[g.virtual_frame_index]
 
 	// ---- PROCESS THE SWAPCHAIN IMAGE -----
 	acquire_result := vk.AcquireNextImageKHR(
@@ -754,9 +757,10 @@ render :: proc() {
 	g := &graphics
 
 	// Todo(Leo): think again if present_complete_semaphores make sense with virtual frame stuff
-	virtual_frame_in_use_fence 		:= g.virtual_frame_in_use_fences[g.virtual_frame_index]
-	present_complete_semaphore 		:= g.present_complete_semaphores[g.virtual_frame_index]
-	rendering_complete_semaphore 	:= g.rendering_complete_semaphores[g.virtual_frame_index]
+	virtual_frame_in_use_fence 			:= g.virtual_frame_in_use_fences[g.virtual_frame_index]
+	present_complete_semaphore 			:= g.present_complete_semaphores[g.virtual_frame_index]
+	grass_placement_complete_semaphore 	:= g.grass_placement_complete_semaphores[g.virtual_frame_index]
+	rendering_complete_semaphore 		:= g.rendering_complete_semaphores[g.virtual_frame_index]
 
 	main_cmd := g.main_command_buffers[g.virtual_frame_index]
 
@@ -804,19 +808,31 @@ render :: proc() {
 	// Todo(Leo): but I cant remember why.
 	vk.ResetFences(g.device, 1, &virtual_frame_in_use_fence)
 
-	wait_mask := vk.PipelineStageFlags { .COLOR_ATTACHMENT_OUTPUT }
+	wait_semaphores := []vk.Semaphore {
+		// grass_placement_complete_semaphore,
+		present_complete_semaphore,
+	}
+	wait_masks := []vk.PipelineStageFlags {
+		// { .VERTEX_SHADER },
+		{ .COLOR_ATTACHMENT_OUTPUT },
+	}
+
+	signal_semaphores := []vk.Semaphore {
+		rendering_complete_semaphore,
+	}
 
 	main_cmd_submit_info := vk.SubmitInfo {
 		sType 					= .SUBMIT_INFO,
-		waitSemaphoreCount 		= 1,
-		pWaitSemaphores 		= &present_complete_semaphore,
-		pWaitDstStageMask 		= &wait_mask,
+		waitSemaphoreCount 		= u32(len(wait_semaphores)),
+		pWaitSemaphores 		= raw_data(wait_semaphores),
+		pWaitDstStageMask 		= raw_data(wait_masks),
 		commandBufferCount 		= 1,
 		pCommandBuffers 		= &main_cmd,
-		signalSemaphoreCount 	= 1, 
-		pSignalSemaphores 		= &rendering_complete_semaphore,
+		signalSemaphoreCount 	= u32(len(signal_semaphores)), 
+		pSignalSemaphores 		= raw_data(signal_semaphores),
 	}
 	main_cmd_submit_result := vk.QueueSubmit(g.graphics_queue, 1, &main_cmd_submit_info, virtual_frame_in_use_fence)
+	handle_result(main_cmd_submit_result)
 
 	// ------ PRESENT -------
 	present_info := vk.PresentInfoKHR {
@@ -829,6 +845,7 @@ render :: proc() {
 		pResults 			= nil,
 	}
 	present_result := vk.QueuePresentKHR(g.present_queue, &present_info)
+	handle_result(present_result)
 
 	// NEXT VIRTUAL FRAME
 	// We are done with this frame and next frame we use next frame, duh

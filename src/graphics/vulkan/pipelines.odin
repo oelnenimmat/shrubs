@@ -217,7 +217,7 @@ create_uniform_stuff :: proc($Data : typeid, stages : vk.ShaderStageFlags) -> Un
 	})
 
 	us.descriptor_set = allocate_descriptor_set(us.descriptor_set_layout)
-	descriptor_set_write_buffer(us.descriptor_set, 0, us.buffer, 0, buffer_size)
+	descriptor_set_write_buffer(us.descriptor_set, 0, us.buffer, .UNIFORM_BUFFER, 0, buffer_size)
 
 	return us
 }
@@ -250,10 +250,11 @@ allocate_descriptor_set :: proc(
 	layout := layout
 
 	info := vk.DescriptorSetAllocateInfo {
-		sType = .DESCRIPTOR_SET_ALLOCATE_INFO,
-		descriptorPool = g.descriptor_pool,
-		descriptorSetCount = 1,
-		pSetLayouts = &layout,
+		sType 				= .DESCRIPTOR_SET_ALLOCATE_INFO,
+		pNext 				= nil,
+		descriptorPool 		= g.descriptor_pool,
+		descriptorSetCount 	= 1,
+		pSetLayouts 		= &layout,
 	}
 
 	set : vk.DescriptorSet
@@ -268,6 +269,7 @@ descriptor_set_write_buffer :: proc(
 	set 			: vk.DescriptorSet, 
 	binding 		: u32,
 	buffer 			: vk.Buffer,
+	type 			: vk.DescriptorType,
 	#any_int offset : vk.DeviceSize,
 	#any_int size 	: vk.DeviceSize,
 ) {
@@ -284,7 +286,7 @@ descriptor_set_write_buffer :: proc(
 		dstSet 			= set,
 		dstBinding 		= binding,
 		dstArrayElement = 0,
-		descriptorType 	= .UNIFORM_BUFFER,
+		descriptorType 	= type,
 		descriptorCount = 1,
 		pBufferInfo 	= &buffer_info,
 	}

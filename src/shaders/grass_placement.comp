@@ -16,7 +16,7 @@ struct GrassInstanceData {
 	vec2 	type_index; // only x
 };
 
-layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+layout (local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 
 // per "frame"
 layout(set = 0, binding = 0) uniform World {
@@ -29,13 +29,15 @@ const int GRASS_TYPES_SET = 2;
 #include "grass_types.glsl"
 
 // "material"
-layout(set = 3, binding = 0) uniform STUFF {
+layout(set = 3, binding = 0) uniform INPUT {
 	// Todo(Leo): get this from placement map
+	// x: type index
 	vec4 type_index;
 
 	// x: world_seed;
 	// y: world_to_grid_scale;
 	// z: terrain_z_scale;
+	// w: terrain_z_offset;
 	vec4 noise_params;
 
 	// xy: chunk min corner position xy
@@ -45,7 +47,7 @@ layout(set = 3, binding = 0) uniform STUFF {
 };
 
 // output
-layout (set = 4, binding = 0) buffer grass_instances {
+layout (set = 4, binding = 0) buffer OUTPUT {
 	GrassInstanceData instances [];
 };
 
