@@ -194,7 +194,7 @@ create_grass_pipeline :: proc() {
 
 			layout = grass.layout,
 
-			renderPass 	= g.test_render_pass,
+			renderPass 	= g.main_render_pass,
 			subpass 	= 0,
 		}
 

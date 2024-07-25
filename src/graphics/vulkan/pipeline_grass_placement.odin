@@ -90,10 +90,13 @@ end_grass_placement :: proc() {
 
 	// Todo(Leo): fence not good, but semaphores didn't work yet
 	// at least move the fence waiting later
-	fence_create_info := vk.FenceCreateInfo { sType = .FENCE_CREATE_INFO }
-	fence : vk.Fence
-	fence_create_result := vk.CreateFence(g.device, &fence_create_info, nil, &fence)
-	handle_result(fence_create_result)
+	// fence_create_info := vk.FenceCreateInfo { sType = .FENCE_CREATE_INFO }
+	// fence : vk.Fence
+	// fence_create_result := vk.CreateFence(g.device, &fence_create_info, nil, &fence)
+	// handle_result(fence_create_result)
+
+	fence := g.grass_placement_complete_fences[g.virtual_frame_index]
+	vk.ResetFences(g.device, 1, &fence)
 
 	submit := vk.SubmitInfo {
 		sType 					= .SUBMIT_INFO,
@@ -108,9 +111,8 @@ end_grass_placement :: proc() {
 	result := vk.QueueSubmit(g.compute_queue, 1, &submit, fence)
 	handle_result(result)
 
-
 	vk.WaitForFences(g.device, 1, &fence, true, max(u64))
-	vk.DestroyFence(g.device, fence, nil)
+	// vk.DestroyFence(g.device, fence, nil)
 
 }
 

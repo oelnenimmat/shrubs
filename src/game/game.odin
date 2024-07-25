@@ -384,6 +384,9 @@ update :: proc(delta_time: f64) {
 		// typically we are not operating camera and gizmo in the same frame
 		projection, view := camera_get_projection_and_view_matrices(&main_camera)
 
+		// Cancel this
+		projection[1,1] *= -1
+
 		imgui.begin_frame(projection, view)
 		if show_imgui_demo {
 			imgui.ShowDemoWindow()
@@ -449,8 +452,9 @@ render :: proc() {
 	render_camera(&main_camera, &main_render_target)
 
 	// NEXT PIPELINE
-	graphics.bind_screen_framebuffer()
-	graphics.dispatch_post_process_pipeline(&main_render_target, scene.lighting.exposure)
+	// graphics.bind_screen_framebuffer()
+	// graphics.dispatch_post_process_pipeline(&main_render_target, scene.lighting.exposure)
+	graphics.draw_post_process(scene.lighting.exposure)
 
 	// Currently we provide a service to save screenshots from the final game view, before gui :thumbs_up:
 	if save_screenshot {
@@ -625,9 +629,8 @@ render_camera :: proc(camera : ^Camera, render_target : ^graphics.RenderTarget) 
 	// NEXT PIPELINE
 	graphics.draw_sky()
 
-
 	// FINISH
-	graphics.resolve_render_target(render_target)
+	// graphics.resolve_render_target(render_target)
 }
 
 // This is a mockup, really probably each component (e.g. playback) should have

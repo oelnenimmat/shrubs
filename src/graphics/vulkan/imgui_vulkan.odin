@@ -44,7 +44,7 @@ get_imgui_init_info :: proc() -> ImGui_ImplVulkan_InitInfo {
 		QueueFamily 	= g.graphics_queue_family,
 		Queue 			= g.graphics_queue,
 		DescriptorPool 	= g.descriptor_pool,
-		RenderPass 		= g.test_render_pass,
+		RenderPass 		= g.screen_render_pass,
 		MinImageCount 	= swapchain_image_count,
 		ImageCount 		= swapchain_image_count,
 		MSAASamples 	= {._1},
@@ -64,5 +64,5 @@ get_imgui_init_info :: proc() -> ImGui_ImplVulkan_InitInfo {
 
 get_imgui_command_buffer :: proc() -> vk.CommandBuffer {
 	g := &graphics
-	return g.main_command_buffers[g.virtual_frame_index]
+	return g.screen_command_buffers[g.virtual_frame_index]
 }

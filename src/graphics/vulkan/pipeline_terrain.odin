@@ -121,7 +121,7 @@ create_terrain_pipeline :: proc() {
 
 			layout = terrain.layout,
 
-			renderPass 	= g.test_render_pass,
+			renderPass 	= g.main_render_pass,
 			subpass 	= 0,
 		}
 

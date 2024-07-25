@@ -217,6 +217,7 @@ Pipelines :: struct {
 	terrain 		: TerrainPipeline,
 	grass 			: GrassPipeline,
 	grass_placement : GrassPlacementPipeline,
+	post_process 	: PostProcessPipeline,
 }
 
 @private
@@ -251,6 +252,7 @@ create_pipelines :: proc() {
 	create_terrain_pipeline()
 	create_grass_pipeline()
 	create_grass_placement_pipeline()
+	create_post_process_pipeline()
 }
 
 @private
@@ -269,6 +271,7 @@ destroy_pipelines :: proc() {
 	destroy_terrain_pipeline()
 	destroy_grass_pipeline()
 	destroy_grass_placement_pipeline()
+	destroy_post_process_pipeline()
 }
 
 ///////////////////////////////////////////////////////////////////////////////

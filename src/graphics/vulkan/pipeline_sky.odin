@@ -56,7 +56,7 @@ create_sky_pipeline :: proc() {
 
 			layout = sky.layout,
 
-			renderPass 	= g.test_render_pass,
+			renderPass 	= g.main_render_pass,
 			subpass 	= 0,
 		}
 

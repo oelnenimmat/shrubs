@@ -124,7 +124,7 @@ create_basic_pipeline :: proc() {
 
 			layout = basic.layout,
 
-			renderPass 	= g.test_render_pass,
+			renderPass 	= g.main_render_pass,
 			subpass 	= 0,
 		}
 
