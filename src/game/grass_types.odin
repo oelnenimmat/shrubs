@@ -35,15 +35,15 @@ GPU_GrassTypeData :: struct #align(16) {
 	clump_size 				: f32,
 	clump_height_variation 	: f32,
 	clump_squeeze_in		: f32,
-	more_data : f32,
+	_ : f32,
 
 	top_color : vec4,
 
 	bottom_color : vec4,
 
 	roughness : f32,
-	more_data_2 : f32,
-	more_data_3 : vec2,
+	_ : f32,
+	_ : vec2,
 }
 #assert(size_of(GPU_GrassTypeData) == 80)
 

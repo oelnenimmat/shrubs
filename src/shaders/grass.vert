@@ -20,7 +20,7 @@ layout(set = 1, binding = 1) uniform sampler2D wind_texture;
 // layout (location = 9) uniform vec4 segment_count;
 
 layout(location = 0, component = 0) in vec3 instance_position;
-layout(location = 0, component = 3) in float XXX_instance_angle;
+// layout(location = 0, component = 3) in float XXX_instance_angle;
 
 layout(location = 1, component = 0) in vec2 instance_texcoord;
 layout(location = 1, component = 2) in float instance_height;
@@ -62,11 +62,11 @@ void main() {
 
 	// Wind
 	// Todo(Leo): wind here is actually just the turbulence
+	// Todo(Leo): do this sampling in compute shader, instead of once per vertex, only
+	// once per instance, as it is uniform along the instance vertices
 	vec2 wind_uv 		= instance_position.xy * wind.texture_scale + wind.texture_offset;
-	vec2 wind_amounts 	= textureLod(wind_texture, wind_uv, 0).xy;
-	// vec2 wind_amounts 	= vec2(0.5);
-	wind_amounts 		= wind_amounts * 2 - vec2(1, 1);
-	float wind_amount 	= length(wind_amounts) * 2;
+	vec2 wind_amounts 	= textureLod(wind_texture, wind_uv, 0).xy * 2 - vec2(1, 1);
+	float wind_amount 	= length(wind_amounts);
 	vec2 wind_direction = normalize(wind_amounts);
 
 	float height_percent = float(y_id) / segment_count.x;
@@ -142,7 +142,9 @@ void main() {
 	field_texcoord = instance_texcoord.xy;
 	frag_position = instance_position.xyz + vertex_position;
 
-	voronoi_color = instance_test_color;
+	// voronoi_color = instance_test_color;
+	// voronoi_color.rb = (wind_amounts);
+	// voronoi_color.g = 0; 
 
 	type_index = uint(instance_type_index.x);
 }

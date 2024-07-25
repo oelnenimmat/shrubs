@@ -54,17 +54,17 @@ load_asset_provider :: proc() {
 	// later is better if these are read from a file or smth
 
 	asset_provider.textures = [TextureAssetName]graphics.Texture {
-		.White = graphics.create_color_texture(1, 1, []u8{255, 255, 255, 255}, .Nearest),
-		.Black = graphics.create_color_texture(1, 1, []u8{0, 0, 0, 255}, .Nearest),
+		.White = graphics.create_color_texture(1, 1, []u8{255, 255, 255, 255}, .Nearest, .SRGB),
+		.Black = graphics.create_color_texture(1, 1, []u8{0, 0, 0, 255}, .Nearest, .SRGB),
 
 		.Green_Grass_Field 	= load_color_texture("assets/callum_andrews_ghibli_grass.png"),
 		.Blue_Grass_Field 	= load_color_texture("assets/blue_grass.png"),
-		.Grass_Placement 	= load_color_texture("assets/grass_placement_test.png", .Nearest),
+		.Grass_Placement 	= load_color_texture("assets/grass_placement_test.png", .Nearest, .Linear),
 		.Rock 				= load_color_texture("assets/rock_01_diff_4k.jpg"),
 		.Road 				= load_color_texture("assets/rocky_trail_diff_4k.jpg"),
 
 		// http://kitfox.com/projects/perlinNoiseMaker/
-		.Wind 				= load_color_texture("assets/perlin_wind.png"),
+		.Wind 				= load_color_texture("assets/perlin_wind.png", color_mode = .Linear),
 	}
 
 	///////////////////////////////////////////////////////////////////////////
@@ -108,7 +108,11 @@ load_mesh_gltf :: proc(mesh_file_name, mesh_node_name : cstring) -> graphics.Mes
 
 // Todo(Leo): similar to load_mesh_gltf
 @(private = "file")
-load_color_texture :: proc(filename : cstring, filter_mode := graphics.TextureFilterMode.Linear) -> graphics.Texture {
+load_color_texture :: proc(
+	filename 	: cstring, 
+	filter_mode := graphics.TextureFilterMode.Linear,
+	color_mode 	:= graphics.TextureColorMode.SRGB,
+) -> graphics.Texture {
 	image := assets.load_color_image(filename)
 	defer assets.free_loaded_color_image(&image)
 	texture := graphics.create_color_texture(
@@ -116,6 +120,7 @@ load_color_texture :: proc(filename : cstring, filter_mode := graphics.TextureFi
 		image.height,
 		image.pixels_u8_rgba,
 		filter_mode,
+		color_mode,
 	)
 	return texture
 }

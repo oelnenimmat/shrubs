@@ -55,7 +55,11 @@ void main() {
 
 	out_color = vec4(diffuse + specular + ambient, 1);
 
-	// out_color = vec4(voronoi_color * ndotl, 1);
+	// out_color = vec4(voronoi_color, 1);
+
+	// if (voronoi_color.r < 0 || voronoi_color.b < 0) {
+	// 	out_color.g = 1;
+	// }
 
 	// if (debug.draw_normals > 0.5) {
 	// 	out_color = vec4(ndotl.xxx, 1);

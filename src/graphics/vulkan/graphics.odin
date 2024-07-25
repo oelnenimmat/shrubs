@@ -822,10 +822,6 @@ begin_frame :: proc() {
 		vk.CmdSetScissor(screen_cmd, 0, 1, &scissor)
 	}
 
-	// // Post process. This is added now, so imgui
-	// {
-	// 	draw_post_process()
-	// }
 
 	// Todo(Leo): think again if present_complete_semaphores make sense with virtual frame stuff
 	virtual_frame_in_use_fence 			:= g.virtual_frame_in_use_fences[g.virtual_frame_index]
@@ -959,10 +955,7 @@ render :: proc() {
 	// Todo(Leo): but I cant remember why.
 	vk.ResetFences(g.device, 1, &virtual_frame_in_use_fence)
 
-	// Also test waiting grass here, essentially just before submitting
-	{
-		// vk.WaitForFences(g.device, 1, &g.grass_placement_complete_fences[g.virtual_frame_index], true, max(u64))
-	}
+
 
 	wait_semaphores := []vk.Semaphore {
 		// grass_placement_complete_semaphore,

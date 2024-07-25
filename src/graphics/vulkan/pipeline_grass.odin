@@ -132,6 +132,7 @@ GrassPipeline :: struct {
 	pipeline 	: vk.Pipeline,
 }
 
+@private
 create_grass_pipeline :: proc() {
 	g 		:= &graphics
 	shared 	:= &graphics.pipelines.shared
@@ -214,6 +215,7 @@ create_grass_pipeline :: proc() {
 	}
 }
 
+@private
 destroy_grass_pipeline :: proc() {
 	g 		:= &graphics
 	grass 	:= &graphics.pipelines.grass

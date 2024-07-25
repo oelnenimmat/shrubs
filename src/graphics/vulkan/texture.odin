@@ -14,11 +14,13 @@ Texture :: struct {
 }
 
 TextureFilterMode :: enum { Nearest, Linear }
+TextureColorMode :: enum { SRGB, Linear }
 
 create_color_texture :: proc(
 	width, height : int,
 	pixels_u8_rgba : []u8,
 	filter_mode : TextureFilterMode,
+	color_mode : TextureColorMode,
 ) -> Texture {
 	assert(len(pixels_u8_rgba) == (4 * width * height))
 
@@ -27,12 +29,19 @@ create_color_texture :: proc(
 	t : Texture
 
 	// Create images
-	t.format = vk.Format.R8G8B8A8_SRGB
+	switch color_mode {
+		case .SRGB: 	t.format = vk.Format.R8G8B8A8_SRGB 
+		case .Linear: 	t.format = vk.Format.R8G8B8A8_UNORM 
+	}
 
 	// Calculate mip levels
 	{
 		using math
 		t.mip_levels = u32(floor(log2(f32(max(width, height))))) + 1
+	}
+
+	if color_mode == .Linear {
+		t.mip_levels = 1
 	}
 
 	image_create_info := vk.ImageCreateInfo {

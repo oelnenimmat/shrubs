@@ -448,7 +448,7 @@ render :: proc() {
 
 	graphics.begin_frame()
 
-	render_camera(&tank.front_camera, &tank_render_target)
+	// render_camera(&tank.front_camera, &tank_render_target)
 	render_camera(&main_camera, &main_render_target)
 
 	// NEXT PIPELINE
@@ -485,6 +485,7 @@ render :: proc() {
 	// NEXT PIPELINE
 	imgui.render()
 
+
 	// End of pipelines
 	graphics.render()
 
@@ -498,6 +499,47 @@ render :: proc() {
 }
 
 render_camera :: proc(camera : ^Camera, render_target : ^graphics.RenderTarget) {
+	// NEXT PIPELINE
+	// compute grass lods
+	grass_lods 			: [100]int
+	lod_segment_counts 	: [100]int
+	lod_instance_counts : [100]int
+	lod_check_position 	:= player_get_position(&player_character)
+	for lod, i in &grass_lods {
+		chunk_center := grass_system.positions[i] + vec2(2.5)
+
+		to_player := lod_check_position.xy - chunk_center
+		distance_to_player := linalg.length(to_player) 
+	
+		if lod_enabled == -1 {
+			switch {
+				case distance_to_player < 7.5: lod = 0
+				case distance_to_player < 15: lod = 1
+				case: lod = 2
+			}
+		} else {
+			lod = lod_enabled
+		}
+
+		lod_instance_counts[i] = grass_lod_settings[lod].instance_count
+		lod_segment_counts[i] = grass_lod_settings[lod].segment_count
+	}
+
+	graphics.begin_grass_placement()
+
+	for i in 0..<len(grass_system.instance_buffers) {
+
+		input := grass_system.renderers[i].placement_input_mapped
+
+		input[0].x = f32(scene.grass_type)
+		input[1] = {grass_system.positions[i].x, grass_system.positions[i].y, 5, 64}
+
+		graphics.dispatch_grass_placement_chunk(&grass_system.renderers[i])
+	}
+
+	graphics.end_grass_placement()
+
+
 	///////////////////////////////////////////////////////////////////////////
 	// Rendering
 
@@ -576,46 +618,6 @@ render_camera :: proc(camera : ^Camera, render_target : ^graphics.RenderTarget) 
 	}
 
 	// NEXT PIPELINE
-	// compute grass lods
-	grass_lods 			: [100]int
-	lod_segment_counts 	: [100]int
-	lod_instance_counts : [100]int
-	lod_check_position 	:= player_get_position(&player_character)
-	for lod, i in &grass_lods {
-		chunk_center := grass_system.positions[i] + vec2(2.5)
-
-		to_player := lod_check_position.xy - chunk_center
-		distance_to_player := linalg.length(to_player) 
-	
-		if lod_enabled == -1 {
-			switch {
-				case distance_to_player < 7.5: lod = 0
-				case distance_to_player < 15: lod = 1
-				case: lod = 2
-			}
-		} else {
-			lod = lod_enabled
-		}
-
-		lod_instance_counts[i] = grass_lod_settings[lod].instance_count
-		lod_segment_counts[i] = grass_lod_settings[lod].segment_count
-	}
-
-	graphics.begin_grass_placement()
-
-	for i in 0..<len(grass_system.instance_buffers) {
-
-		input := grass_system.renderers[i].placement_input_mapped
-
-		input[0].x = f32(scene.grass_type)
-		input[1] = {grass_system.positions[i].x, grass_system.positions[i].y, 5, 64}
-
-		graphics.dispatch_grass_placement_chunk(&grass_system.renderers[i])
-	}
-
-	graphics.end_grass_placement()
-
-	// NEXT PIPELINE
 	graphics.setup_grass_pipeline(grass_cull_back)
 	for i in 0..<len(grass_system.instance_buffers) {
 		graphics.draw_grass(
@@ -628,6 +630,7 @@ render_camera :: proc(camera : ^Camera, render_target : ^graphics.RenderTarget) 
 
 	// NEXT PIPELINE
 	graphics.draw_sky()
+	graphics.wait_for_grass()
 
 	// FINISH
 	// graphics.resolve_render_target(render_target)

@@ -111,9 +111,15 @@ end_grass_placement :: proc() {
 	result := vk.QueueSubmit(g.compute_queue, 1, &submit, fence)
 	handle_result(result)
 
-	vk.WaitForFences(g.device, 1, &fence, true, max(u64))
+	// vk.WaitForFences(g.device, 1, &fence, true, max(u64))
 	// vk.DestroyFence(g.device, fence, nil)
 
+}
+
+wait_for_grass :: proc() {
+	// Also test waiting grass here, essentially just before submitting
+	g := &graphics
+	vk.WaitForFences(g.device, 1, &g.grass_placement_complete_fences[g.virtual_frame_index], true, max(u64))
 }
 
 ///////////////////////////////////////////////////////////////////////////////

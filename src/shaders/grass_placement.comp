@@ -6,12 +6,15 @@ const float pi = 3.14159265359;
 
 struct GrassInstanceData {
 	vec3 	position;
-	float 	rotation;
+	float 	_unused_0;
+
 	vec2 	field_uv;
 	float 	height;
 	float 	width;
+	
 	vec3 	test_color;
 	float 	bend;
+	
 	vec2 	facing;
 	vec2 	type_index; // only x
 };
@@ -146,15 +149,15 @@ void main() {
 		return;
 	}
 
-
-
 	instances[index].position 	= position_WS;
-	instances[index].test_color = random_color(closest_cell.x + 2000 * closest_cell.y);
+	
 	instances[index].field_uv 	= uv;
 	instances[index].height 	= h + extra_height;
 	instances[index].width 		= types[int(type_index.x)].width;
-	instances[index].bend 		= types[int(type_index.x)].bend;
-	instances[index].facing 	= vec2(-sin(r), cos(r));
 
+	instances[index].test_color = random_color(closest_cell.x + 2000 * closest_cell.y);
+	instances[index].bend 		= types[int(type_index.x)].bend;
+
+	instances[index].facing 	= vec2(-sin(r), cos(r));
 	instances[index].type_index.x = type_index.x;
 }
