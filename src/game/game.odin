@@ -236,7 +236,14 @@ initialize :: proc() {
 	graphics.set_world_data(
 		scene.world.placement_scale,
 		scene.world.placement_offset,
+		{},
 		&asset_provider.textures[.Grass_Placement],
+	)
+
+	graphics.set_wind_data(
+		{},
+		0,
+		&asset_provider.textures[.Wind],
 	)
 }
 
@@ -504,10 +511,18 @@ render_camera :: proc(camera : ^Camera, render_target : ^graphics.RenderTarget) 
 
 	graphics.set_per_frame_data(view_matrix, projection_matrix)
 	graphics.set_lighting_data(camera.position, light_direction, light_color, ambient_color)
-	graphics.set_wind_data(wind.offset, 0.005, scene.textures[.Wind])
+	graphics.set_wind_data(wind.offset, 0.005, nil)
+	
+	noise_params := vec4 {
+		f32(scene.world.seed),
+		scene.world.noise_scale,
+		scene.world.z_scale,
+		scene.world.z_offset,
+	}
 	graphics.set_world_data(
 		scene.world.placement_scale,
 		scene.world.placement_offset,
+		noise_params,
 		nil, //&asset_provider.textures[.White],
 	)
 	
@@ -582,16 +597,6 @@ render_camera :: proc(camera : ^Camera, render_target : ^graphics.RenderTarget) 
 		lod_segment_counts[i] = grass_lod_settings[lod].segment_count
 	}
 
-	// This is bound both for the grass placement and grass rendering
-	// graphics.bind_uniform_buffer(&grass_types.types_buffer, graphics.GRASS_TYPES_BUFFER_BINDING)
-	
-	noise_params := vec4 {
-		f32(scene.world.seed),
-		scene.world.noise_scale,
-		scene.world.z_scale,
-		scene.world.z_offset,
-	}
-
 	graphics.begin_grass_placement()
 
 	for i in 0..<len(grass_system.instance_buffers) {
@@ -599,8 +604,7 @@ render_camera :: proc(camera : ^Camera, render_target : ^graphics.RenderTarget) 
 		input := grass_system.renderers[i].placement_input_mapped
 
 		input[0].x = f32(scene.grass_type)
-		input[1] = noise_params
-		input[2] = {grass_system.positions[i].x, grass_system.positions[i].y, 5, 8}
+		input[1] = {grass_system.positions[i].x, grass_system.positions[i].y, 5, 64}
 
 		graphics.dispatch_grass_placement_chunk(&grass_system.renderers[i])
 	}

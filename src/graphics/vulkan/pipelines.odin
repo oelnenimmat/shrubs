@@ -16,84 +16,109 @@ import vk "vendor:vulkan"
 // GRASS_TYPES_BUFFER_BINDING 		:: 10
 // GRASS_INSTANCE_BUFFER_BINDING 	:: 11
 
+// Shared
+set_per_frame_data :: proc(view, projection : mat4) {
+	graphics.pipelines.shared.per_frame.mapped^ = {
+		projection 	= projection,
+		view 		= view,
+	}
+}
+
+set_lighting_data :: proc(camera_position, directional_direction, directional_color, ambient_color : vec3) {
+	graphics.pipelines.shared.lighting.mapped^ = {
+		camera_position 	= expand_to_vec4(camera_position, 1),
+		light_direction 	= expand_to_vec4(directional_direction, 0),
+		light_color 		= expand_to_vec4(directional_color, 1),
+		ambient_color 		= expand_to_vec4(ambient_color, 1),
+	}
+}
+
+get_grass_types_mapped :: proc() -> []GrassTypeUniformData {
+	return graphics.pipelines.shared.grass_types.mapped[:]
+}
+
+set_wind_data :: proc(offset : vec2, scale : f32, texture : ^Texture) {
+	wind := &graphics.pipelines.shared.wind
+
+	wind.mapped^ = { offset, scale, 0 }
+
+	if texture != nil {
+		descriptor_set_write_textures(wind.set, 1, {texture})
+	} 
+}
+
+set_world_data :: proc(scale, offset : vec2, noise_params : vec4, placement_texture : ^Texture) {
+	world := &graphics.pipelines.shared.world
+
+	world.mapped^ = {
+		placement_scale = scale,
+		placement_offset = offset,
+
+		world_seed 			= noise_params.x,
+		world_to_grid_scale = noise_params.y,
+		terrain_z_scale 	= noise_params.z,
+		terrain_z_offset 	= noise_params.w,
+	}
+
+	if placement_texture != nil {
+		descriptor_set_write_textures(world.set, 1, {placement_texture})
+	}
+}
+set_debug_data :: proc(draw_normals, draw_backfacing, draw_lod : bool) {}
+
+// Others
+setup_debug_pipeline :: proc () {}
+draw_debug_mesh :: proc(mesh : ^Mesh, model : mat4, color : vec3) {}
+
+setup_emissive_pipeline :: proc() {}
+set_emissive_material :: proc(texture : ^Texture) {}
+
+dispatch_post_process_pipeline :: proc(render_target : ^RenderTarget, exposure : f32) {}
+
+///////////////////////////////////////////////////////////////////////////////
+// Private (as in "graphics only")
+
+///////////////////////////////////////////////////////////////////////////////
+// Shared
+
 @private
-PerFrameUniformBuffer :: struct #align(16) {
+PerFrameUniformData :: struct #align(16) {
 	projection 	: mat4,
 	view 		: mat4,
 }
-#assert(size_of(PerFrameUniformBuffer) == 128)
+#assert(size_of(PerFrameUniformData) == 128)
 
 @private
-LightingUniformBuffer :: struct #align(16) {
+LightingUniformData :: struct #align(16) {
 	camera_position : vec4,
 	light_direction : vec4,
 	light_color 	: vec4,
 	ambient_color 	: vec4,
 }
-#assert(size_of(LightingUniformBuffer) == 64)
+#assert(size_of(LightingUniformData) == 64)
 
 @private
 WorldUniformData :: struct #align(16) {
 	placement_scale : vec2,
 	placement_offset : vec2,
+
+	world_seed 			: f32,
+	world_to_grid_scale : f32,
+	terrain_z_scale 	: f32,
+	terrain_z_offset 	: f32,
 }
-#assert(size_of(WorldUniformData) == 16)
+#assert(size_of(WorldUniformData) == 32)
 
 @private
-WorldUniformSet :: struct {
-	descriptor_set_layout 	: vk.DescriptorSetLayout,
-	descriptor_set 			: vk.DescriptorSet,
-
-	buffer : vk.Buffer,
-	memory : vk.DeviceMemory,
-	mapped : ^WorldUniformData,
+WindUniformData :: struct #align(16) {
+	turbulence_offset 	: vec2,
+	turbulence_scale 	: f32,
+	_ : f32,
 }
+#assert(size_of(WindUniformData) == 16)
 
 @private
-create_world_uniform_set :: proc() -> WorldUniformSet {
-	g := &graphics
-
-	set : WorldUniformSet
-
-	buffer_size := vk.DeviceSize(size_of(WorldUniformData))
-	set.buffer, set.memory = create_buffer_and_memory(
-		buffer_size,
-		{ .UNIFORM_BUFFER },
-		{ .HOST_VISIBLE, .HOST_COHERENT },
-	)
-	set.mapped = cast(^WorldUniformData) map_memory(set.memory, 0, buffer_size)
-
-	set.descriptor_set_layout = create_descriptor_set_layout({
-		{ 0, .UNIFORM_BUFFER, 1, { .VERTEX, .COMPUTE }, nil},
-		{ 1, .COMBINED_IMAGE_SAMPLER, 1, { .FRAGMENT, .COMPUTE }, nil },
-	})
-	set.descriptor_set = allocate_descriptor_set(set.descriptor_set_layout)
-	descriptor_set_write_buffer(set.descriptor_set, 0, set.buffer, .UNIFORM_BUFFER, 0, buffer_size)
-
-	return set
-}
-
-@private
-destroy_world_uniform_set :: proc(world : ^WorldUniformSet) {
-	g := &graphics
-
-	vk.DestroyDescriptorSetLayout(g.device, world.descriptor_set_layout, nil)
-
-	vk.DestroyBuffer(g.device, world.buffer, nil)
-	vk.FreeMemory(g.device, world.memory, nil)
-}
-
-@private
-map_memory :: proc(memory : vk.DeviceMemory, offset, range : vk.DeviceSize) -> rawptr {
-	g := &graphics
-
-	out : rawptr
-	vk.MapMemory(g.device, memory, offset, range, {}, &out)
-	return out
-}
-
-@private
-GrassTypeUniformBuffer :: struct #align(16) {
+GrassTypeUniformData :: struct #align(16) {
 	height 					: f32,
 	height_variation 		: f32,
 	width 					: f32,
@@ -112,14 +137,74 @@ GrassTypeUniformBuffer :: struct #align(16) {
 	more_data_2 			: f32,
 	more_data_3 			: vec2,
 }
-#assert(size_of(GrassTypeUniformBuffer) == 80)
+#assert(size_of(GrassTypeUniformData) == 80)
 
 @private
+UniformSet :: struct($Data : typeid) {
+	layout 	: vk.DescriptorSetLayout,
+	set 	: vk.DescriptorSet,
+
+	buffer 	: vk.Buffer,
+	memory 	: vk.DeviceMemory,
+	mapped 	: ^Data,
+}
+
+/*
+Create a (shared) uniform buffer layoyt, set and the actual buffer (and memory etc.).
+
+If has a uniform buffer (as opposed to only textures) then this must currently be
+the first binding. No reason fundamentally why not, but this is set up this way for
+now.
+*/
+@private
+create_uniform_set :: proc($Data : typeid, bindings : []vk.DescriptorSetLayoutBinding) -> UniformSet(Data) {
+	g := &graphics
+
+	has_uniform_buffer := bindings[0].descriptorType == .UNIFORM_BUFFER
+	
+	// For now we only support first binding
+	for i in 1..<len(bindings) {
+		assert(bindings[i].descriptorType != .UNIFORM_BUFFER)
+	}
+
+	set : UniformSet(Data)
+
+	set.layout = create_descriptor_set_layout(bindings)
+	set.set = allocate_descriptor_set(set.layout)
+
+	if has_uniform_buffer {
+		buffer_size := vk.DeviceSize(size_of(Data))
+		set.buffer, set.memory = create_buffer_and_memory(
+			buffer_size,
+			{ .UNIFORM_BUFFER },
+			{ .HOST_VISIBLE, .HOST_COHERENT },
+		)
+		set.mapped = cast(^Data) map_memory(set.memory, 0, buffer_size)
+		descriptor_set_write_buffer(set.set, 0, set.buffer, .UNIFORM_BUFFER, 0, buffer_size)
+	}
+
+	return set
+}
+
+@private
+destroy_uniform_set :: proc(set : ^UniformSet($Data)) {
+	g := &graphics
+
+	vk.DestroyDescriptorSetLayout(g.device, set.layout, nil)
+
+	vk.DestroyBuffer(g.device, set.buffer, nil)
+	vk.FreeMemory(g.device, set.memory, nil)
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Managing
+@private
 PipelineShared :: struct {
-	per_frame 	: UniformStuff(PerFrameUniformBuffer),
-	lighting 	: UniformStuff(LightingUniformBuffer),
-	world 		: WorldUniformSet, // UniformStuff(WorldUniformData),
-	grass_types : UniformStuff([3]GrassTypeUniformBuffer),
+	per_frame 	: UniformSet(PerFrameUniformData),
+	lighting 	: UniformSet(LightingUniformData),
+	world 		: UniformSet(WorldUniformData),
+	wind 		: UniformSet(WindUniformData),
+	grass_types : UniformSet([3]GrassTypeUniformData),
 
 	// texture_descriptor_set_layout : vk.DescriptorSetLayout,
 }
@@ -139,10 +224,27 @@ create_pipelines :: proc() {
 	g 		:= &graphics
 	shared 	:= &graphics.pipelines.shared
 
-	shared.per_frame 	= create_uniform_stuff(PerFrameUniformBuffer, { .VERTEX })
-	shared.lighting 	= create_uniform_stuff(LightingUniformBuffer, { .FRAGMENT })
-	shared.world 		= create_world_uniform_set() // create_uniform_stuff(WorldUniformData, { .VERTEX, .COMPUTE })
-	shared.grass_types 	= create_uniform_stuff([3]GrassTypeUniformBuffer, { .FRAGMENT, .COMPUTE })
+	shared.per_frame = create_uniform_set(PerFrameUniformData, {
+		{ 0, .UNIFORM_BUFFER, 1, { .VERTEX }, nil }, 
+	})
+
+	shared.lighting = create_uniform_set(LightingUniformData, {
+		{ 0, .UNIFORM_BUFFER, 1, { .FRAGMENT }, nil },
+	})
+	
+	shared.world = create_uniform_set(WorldUniformData, {
+		{ 0, .UNIFORM_BUFFER, 1, { .VERTEX, .COMPUTE }, nil },
+		{ 1, .COMBINED_IMAGE_SAMPLER, 1, { .FRAGMENT, .COMPUTE }, nil },
+	})
+	
+	shared.wind = create_uniform_set(WindUniformData, {
+		{ 0, .UNIFORM_BUFFER, 1, { .VERTEX }, nil },
+		{ 1, .COMBINED_IMAGE_SAMPLER, 1, { .VERTEX }, nil },
+	})
+
+	shared.grass_types = create_uniform_set([3]GrassTypeUniformData, {
+		{ 0, .UNIFORM_BUFFER, 1, { .FRAGMENT, .COMPUTE }, nil },
+	})
 
 	create_sky_pipeline()
 	create_basic_pipeline()
@@ -156,10 +258,11 @@ destroy_pipelines :: proc() {
 	g := &graphics
 	shared := &graphics.pipelines.shared
 
-	destroy_uniform_stuff(&shared.per_frame)
-	destroy_uniform_stuff(&shared.lighting)
-	destroy_world_uniform_set(&shared.world) //destroy_uniform_stuff(&shared.world)
-	destroy_uniform_stuff(&shared.grass_types)
+	destroy_uniform_set(&shared.per_frame)
+	destroy_uniform_set(&shared.lighting)
+	destroy_uniform_set(&shared.world)
+	destroy_uniform_set(&shared.wind)
+	destroy_uniform_set(&shared.grass_types)
 
 	destroy_sky_pipeline()
 	destroy_basic_pipeline()
@@ -168,110 +271,7 @@ destroy_pipelines :: proc() {
 	destroy_grass_placement_pipeline()
 }
 
-// Shared
-set_per_frame_data :: proc(view, projection : mat4) {
-	graphics.pipelines.shared.per_frame.mapped^ = {
-		projection 	= projection,
-		view 		= view,
-	}
-}
-
-set_lighting_data :: proc(camera_position, directional_direction, directional_color, ambient_color : vec3) {
-	graphics.pipelines.shared.lighting.mapped^ = {
-		camera_position 	= expand_to_vec4(camera_position, 1),
-		light_direction 	= expand_to_vec4(directional_direction, 0),
-		light_color 		= expand_to_vec4(directional_color, 1),
-		ambient_color 		= expand_to_vec4(ambient_color, 1),
-	}
-}
-
-get_grass_types_mapped :: proc() -> []GrassTypeUniformBuffer {
-	return graphics.pipelines.shared.grass_types.mapped[:]
-}
-
-set_wind_data :: proc(texture_offset : vec2, texture_scale : f32, texture : ^Texture) {}
-set_world_data :: proc(scale, offset : vec2, placement_texture : ^Texture) {
-	world := &graphics.pipelines.shared.world
-
-	world.mapped^ = {
-		placement_scale = scale,
-		placement_offset = offset,
-	}
-
-	if placement_texture != nil {
-		descriptor_set_write_textures(world.descriptor_set, 1, {placement_texture})
-	}
-}
-set_debug_data :: proc(draw_normals, draw_backfacing, draw_lod : bool) {}
-
-// Others
-setup_debug_pipeline :: proc () {}
-draw_debug_mesh :: proc(mesh : ^Mesh, model : mat4, color : vec3) {}
-
-setup_emissive_pipeline :: proc() {}
-set_emissive_material :: proc(texture : ^Texture) {}
-
-dispatch_post_process_pipeline :: proc(render_target : ^RenderTarget, exposure : f32) {}
-
-// HElpers?
-@private
-create_pipeline_layout :: proc (
-	set_layouts : []vk.DescriptorSetLayout,
-	push_constants : []vk.PushConstantRange,
-	loc := #caller_location,
-) -> vk.PipelineLayout {
-	info := vk.PipelineLayoutCreateInfo {
-		sType 					= .PIPELINE_LAYOUT_CREATE_INFO,
-		pNext 					= nil,
-		flags 					= {},
-		setLayoutCount 			= u32(len(set_layouts)),
-		pSetLayouts 			= raw_data(set_layouts),
-		pushConstantRangeCount 	= u32(len(push_constants)),
-		pPushConstantRanges 	= raw_data(push_constants),
-	}
-
-	layout : vk.PipelineLayout
-	result := vk.CreatePipelineLayout(graphics.device, &info, nil, &layout)
-	handle_result(result)
-
-	return layout
-}
-
-@private
-UniformStuff :: struct($Data : typeid) {
-	descriptor_set_layout 	: vk.DescriptorSetLayout,
-	descriptor_set 			: vk.DescriptorSet,
-
-	buffer : vk.Buffer,
-	memory : vk.DeviceMemory,
-	mapped : ^Data,
-}
-
-@private
-create_uniform_stuff :: proc($Data : typeid, stages : vk.ShaderStageFlags) -> UniformStuff(Data) {
-	g := &graphics
-
-	u := UniformStuff(Data) {}
-
-	// BUFFER
-	buffer_size := vk.DeviceSize(size_of(Data))
-	u.buffer, u.memory = create_buffer_and_memory(
-		buffer_size,
-		{ .UNIFORM_BUFFER },
-		{ .HOST_VISIBLE, .HOST_COHERENT }
-	)
-	u.mapped = cast(^Data) map_memory(u.memory, 0, buffer_size)
-
-	// DESCRIPTOR SET
-	u.descriptor_set_layout = create_descriptor_set_layout({
-		{ 0, .UNIFORM_BUFFER, 1, stages, nil },
-	})
-
-	u.descriptor_set = allocate_descriptor_set(u.descriptor_set_layout)
-	descriptor_set_write_buffer(u.descriptor_set, 0, u.buffer, .UNIFORM_BUFFER, 0, buffer_size)
-
-	return u
-}
+///////////////////////////////////////////////////////////////////////////////
 
 @private
 create_descriptor_set_layout :: proc(bindings : []vk.DescriptorSetLayoutBinding) -> vk.DescriptorSetLayout {
@@ -289,7 +289,6 @@ create_descriptor_set_layout :: proc(bindings : []vk.DescriptorSetLayoutBinding)
 
 	return layout
 }
-
 
 @private
 allocate_descriptor_set :: proc(
@@ -378,13 +377,41 @@ descriptor_set_write_textures :: proc(
 }
 
 @private
-destroy_uniform_stuff :: proc(us : ^UniformStuff($Data)) {
+map_memory :: proc(memory : vk.DeviceMemory, offset, range : vk.DeviceSize) -> rawptr {
 	g := &graphics
 
-	vk.DestroyDescriptorSetLayout(g.device, us.descriptor_set_layout, nil)
-	vk.FreeMemory(g.device, us.memory, nil)
-	vk.DestroyBuffer(g.device, us.buffer, nil)
+	out : rawptr
+	vk.MapMemory(g.device, memory, offset, range, {}, &out)
+	return out
 }
+
+
+///////////////////////////////////////////////////////////////////////////////
+// pipeline creation helpers
+
+@private
+create_pipeline_layout :: proc (
+	set_layouts : []vk.DescriptorSetLayout,
+	push_constants : []vk.PushConstantRange,
+	loc := #caller_location,
+) -> vk.PipelineLayout {
+	info := vk.PipelineLayoutCreateInfo {
+		sType 					= .PIPELINE_LAYOUT_CREATE_INFO,
+		pNext 					= nil,
+		flags 					= {},
+		setLayoutCount 			= u32(len(set_layouts)),
+		pSetLayouts 			= raw_data(set_layouts),
+		pushConstantRangeCount 	= u32(len(push_constants)),
+		pPushConstantRanges 	= raw_data(push_constants),
+	}
+
+	layout : vk.PipelineLayout
+	result := vk.CreatePipelineLayout(graphics.device, &info, nil, &layout)
+	handle_result(result)
+
+	return layout
+}
+
 
 @private
 pipeline_shader_stage :: proc(
@@ -535,6 +562,7 @@ pipeline_color_blend :: proc(
 	}
 }
 
+///////////////////////////////////////////////////////////////////////////////
 // Rare(shiny?) helpers??? Or move to somewhere else?
 expand_to_vec4 :: proc(v : vec3, w : f32) -> vec4 {
 	return {v.x, v.y, v.z, w}

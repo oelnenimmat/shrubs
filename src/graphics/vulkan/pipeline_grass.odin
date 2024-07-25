@@ -8,13 +8,12 @@ GrassRenderer :: struct {
 	instance_count 	: u32,
 	instance_buffer : vk.Buffer,
 	instance_memory : vk.DeviceMemory,
-	instance_mapped : rawptr,
 
 	placement_output_descriptor : vk.DescriptorSet,
 
 	placement_input_buffer : vk.Buffer,
 	placement_input_memory : vk.DeviceMemory,
-	placement_input_mapped : [^]vec4,
+	placement_input_mapped : ^[2]vec4,
 	placement_input_descriptor : vk.DescriptorSet,
 }
 
@@ -25,14 +24,13 @@ create_grass_renderer :: proc(instance_buffer : ^Buffer, placement_texture : ^Te
 
 	// Instances/placement output
 	{
-		r.instance_count = 8 * 8
+		r.instance_count = 64 * 64
 		buffer_size := vk.DeviceSize(r.instance_count * 4 * size_of(vec4))
 		r.instance_buffer, r.instance_memory = create_buffer_and_memory(
 			buffer_size,
 			{ .VERTEX_BUFFER, .STORAGE_BUFFER },
-			{ .HOST_COHERENT, .HOST_VISIBLE },
+			{ .DEVICE_LOCAL },
 		)
-		vk.MapMemory(g.device, r.instance_memory, 0, buffer_size, {}, cast(^rawptr)&r.instance_mapped)
 		
 		r.placement_output_descriptor = allocate_descriptor_set(
 			g.pipelines.grass_placement.output_layout
@@ -49,13 +47,13 @@ create_grass_renderer :: proc(instance_buffer : ^Buffer, placement_texture : ^Te
 
 	// placement input
 	{
-		input_buffer_size := vk.DeviceSize(3 * size_of(vec4))
+		input_buffer_size := vk.DeviceSize(2 * size_of(vec4))
 		r.placement_input_buffer, r.placement_input_memory = create_buffer_and_memory(
 			input_buffer_size,
 			{ .UNIFORM_BUFFER },
 			{ .HOST_COHERENT, .HOST_VISIBLE },
 		)
-		vk.MapMemory(g.device, r.placement_input_memory, 0, input_buffer_size, {}, cast(^rawptr)&r.placement_input_mapped)
+		r.placement_input_mapped = cast(^[2]vec4) map_memory(r.placement_input_memory, 0, input_buffer_size)
 
 		r.placement_input_descriptor = allocate_descriptor_set(
 			g.pipelines.grass_placement.input_layout
@@ -93,9 +91,10 @@ draw_grass :: proc(r : GrassRenderer, instance_count : int, segment_count : int,
 	vk.CmdBindPipeline(main_cmd, .GRAPHICS, grass.pipeline)
 
 	shared_descriptor_sets := []vk.DescriptorSet {
-		shared.per_frame.descriptor_set,
-		shared.lighting.descriptor_set,
-		shared.grass_types.descriptor_set,
+		shared.per_frame.set,
+		shared.wind.set,
+		shared.lighting.set,
+		shared.grass_types.set,
 	}
 
 	vk.CmdBindDescriptorSets(
@@ -139,9 +138,10 @@ create_grass_pipeline :: proc() {
 	grass 	:= &graphics.pipelines.grass
 
 	grass.layout = create_pipeline_layout({
-		shared.per_frame.descriptor_set_layout,	
-		shared.lighting.descriptor_set_layout,
-		shared.grass_types.descriptor_set_layout,
+		shared.per_frame.layout,	
+		shared.wind.layout,	
+		shared.lighting.layout,
+		shared.grass_types.layout,
 	}, nil)
 
 	// PIPELINE

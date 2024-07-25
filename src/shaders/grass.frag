@@ -1,7 +1,7 @@
 #version 450
 
-const int LIGHTING_SET = 1;
-const int GRASS_TYPES_SET = 2;
+#define LIGHTING_SET 2
+#define GRASS_TYPES_SET 3
 
 #include "lighting.glsl"
 #include "grass_types.glsl"

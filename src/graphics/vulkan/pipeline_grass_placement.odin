@@ -20,26 +20,20 @@ begin_grass_placement :: proc() {
 	vk.CmdBindPipeline(cmd, .COMPUTE, grass_placement.pipeline)
 
 	WORLD_SET :: 0
-	GRASS_TYPES_SET :: 1
+	// GRASS_TYPES_SET :: 1
+
+	shared_descriptors := []vk.DescriptorSet {
+		shared.world.set,
+		shared.grass_types.set,
+	}
 
 	vk.CmdBindDescriptorSets(
 		cmd,
 		.COMPUTE,
 		grass_placement.layout,
 		WORLD_SET,
-		1,
-		&shared.world.descriptor_set,
-		0,
-		nil,
-	)
-
-	vk.CmdBindDescriptorSets(
-		cmd,
-		.COMPUTE,
-		grass_placement.layout,
-		GRASS_TYPES_SET,
-		1,
-		&shared.grass_types.descriptor_set,
+		u32(len(shared_descriptors)),
+		raw_data(shared_descriptors),
 		0,
 		nil,
 	)
@@ -71,7 +65,7 @@ dispatch_grass_placement_chunk :: proc(r : ^GrassRenderer) {
 		nil,
 	)
 
-	vk.CmdDispatch(cmd, 1, 1, 1)
+	vk.CmdDispatch(cmd, 4, 4, 1)
 }
 
 end_grass_placement :: proc() {
@@ -149,8 +143,8 @@ create_grass_placement_pipeline :: proc() {
 	})
 
 	grass_placement.layout = create_pipeline_layout({
-		shared.world.descriptor_set_layout,
-		shared.grass_types.descriptor_set_layout,
+		shared.world.layout,
+		shared.grass_types.layout,
 		grass_placement.input_layout,
 		grass_placement.output_layout,
 	}, nil)

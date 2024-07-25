@@ -16,12 +16,17 @@ struct GrassInstanceData {
 	vec2 	type_index; // only x
 };
 
-layout (local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 
 // per "frame"
 layout(set = 0, binding = 0) uniform World {
 	vec2 placement_texcoord_scale;
 	vec2 placement_texcoord_offset;
+
+	float world_seed;
+	float world_to_grid_scale;
+	float terrain_z_scale;
+	float terrain_z_offset;
 };
 layout(set = 0, binding = 1) uniform sampler2D placement_texture;
 
@@ -33,12 +38,6 @@ layout(set = 2, binding = 0) uniform INPUT {
 	// Todo(Leo): get this from placement map
 	// x: type index
 	vec4 type_index;
-
-	// x: world_seed;
-	// y: world_to_grid_scale;
-	// z: terrain_z_scale;
-	// w: terrain_z_offset;
-	vec4 noise_params;
 
 	// xy: chunk min corner position xy
 	// z: chunk size xy (Todo(Leo): constant?)
@@ -53,11 +52,11 @@ layout (set = 3, binding = 0) buffer OUTPUT {
 
 float sample_height (float x, float y) {
 	// transform to grid scale
-	x /= noise_params.y;
-	y /= noise_params.y;
+	x /= world_to_grid_scale;
+	y /= world_to_grid_scale;
 
-	float noise = value_noise_2D(x, y, int(noise_params.x)) * 2 - 1;
-	return noise * noise_params.z + noise_params.w;
+	float noise = value_noise_2D(x, y, int(world_seed)) * 2 - 1;
+	return noise * terrain_z_scale + terrain_z_offset;
 }
 
 void main() {

@@ -8,12 +8,12 @@ layout(set = 0, binding = 0) uniform PerFrame {
 	mat4 view;
 };
 
-// layout(std140, binding = 2) uniform Wind {
-// 	vec2 texture_offset;
-// 	float texture_scale;
-// 	float _;
-// } wind;
-// layout(location = 2) uniform sampler2D wind_texture;
+layout(set = 1, binding = 0) uniform Wind {
+	vec2 texture_offset;
+	float texture_scale;
+	float _;
+} wind;
+layout(set = 1, binding = 1) uniform sampler2D wind_texture;
 
 // x: segment count
 // y: lod
@@ -62,9 +62,9 @@ void main() {
 
 	// Wind
 	// Todo(Leo): wind here is actually just the turbulence
-	// vec2 wind_uv 		= instance_position.xy * wind.texture_scale + wind.texture_offset;
-	// vec2 wind_amounts 	= textureLod(wind_texture, wind_uv, 0).xy;
-	vec2 wind_amounts 	= vec2(0.5);
+	vec2 wind_uv 		= instance_position.xy * wind.texture_scale + wind.texture_offset;
+	vec2 wind_amounts 	= textureLod(wind_texture, wind_uv, 0).xy;
+	// vec2 wind_amounts 	= vec2(0.5);
 	wind_amounts 		= wind_amounts * 2 - vec2(1, 1);
 	float wind_amount 	= length(wind_amounts) * 2;
 	vec2 wind_direction = normalize(wind_amounts);

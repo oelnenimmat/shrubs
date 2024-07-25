@@ -15,7 +15,7 @@ create_sky_pipeline :: proc() {
 	shared 	:= &graphics.pipelines.shared
 
 	// Layout
-	sky.layout = create_pipeline_layout({shared.lighting.descriptor_set_layout}, nil)
+	sky.layout = create_pipeline_layout({shared.lighting.layout}, nil)
 
 	// PIPELINE
 	{
@@ -95,7 +95,7 @@ draw_sky :: proc() {
 	vk.CmdBindPipeline(main_cmd, .GRAPHICS, sky.pipeline)
 	
 	descriptor_sets := []vk.DescriptorSet {
-		shared.lighting.descriptor_set,
+		shared.lighting.set,
 	}
 
 	vk.CmdBindDescriptorSets(

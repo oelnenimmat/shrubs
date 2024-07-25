@@ -62,9 +62,9 @@ create_terrain_pipeline :: proc() {
 	}
 
 	terrain.layout = create_pipeline_layout({
-		shared.per_frame.descriptor_set_layout,
-		shared.world.descriptor_set_layout,
-		shared.lighting.descriptor_set_layout,
+		shared.per_frame.layout,
+		shared.world.layout,
+		shared.lighting.layout,
 		terrain.material_layout,
 	}, {
 		{ {.VERTEX}, 0, 64,},
@@ -160,9 +160,9 @@ setup_terrain_pipeline :: proc () {
 	vk.CmdBindPipeline(main_cmd, .GRAPHICS, terrain.pipeline)
 
 	descriptor_sets := []vk.DescriptorSet {
-		shared.per_frame.descriptor_set,
-		shared.world.descriptor_set,
-		shared.lighting.descriptor_set,
+		shared.per_frame.set,
+		shared.world.set,
+		shared.lighting.set,
 	}
 
 	vk.CmdBindDescriptorSets(

@@ -65,25 +65,25 @@ create_grass :: proc() -> Grass {
 			&asset_provider.textures[.Grass_Placement],
 		)
 
-		instances := (cast([^]GPU_GrassInstanceData)g.renderers[i].instance_mapped)[0:64]
+		// instances := (cast([^]GPU_GrassInstanceData)g.renderers[i].instance_mapped)[0:64]
 
-		for y in 0..<8 {
-			for x in 0..<8 {
-				position := g.positions[i] + {f32(x) * chunk_size / 8, f32(y) * chunk_size / 8}
+		// for y in 0..<32 {
+		// 	for x in 0..<32 {
+		// 		position := g.positions[i] + {f32(x) * chunk_size / 32, f32(y) * chunk_size / 32}
 			
-				j := x + y * 8
-				instances[j].position = {position.x, position.y, 0, 0}
+		// 		j := x + y * 8
+		// 		instances[j].position = {position.x, position.y, 0, 0}
 			
-				instances[j].field_uv = {position.x, position.y}
-				instances[j].height = 1
-				instances[j].width = 0.5
+		// 		instances[j].field_uv = {position.x, position.y}
+		// 		instances[j].height = 1
+		// 		instances[j].width = 0.5
 				
-				instances[j].more_data.w = 0
+		// 		instances[j].more_data.w = 0
 				
-				instances[j].even_more_data.xy = {0, 1}
-				instances[j].even_more_data.z = 0
-			}
-		}
+		// 		instances[j].even_more_data.xy = {0, 1}
+		// 		instances[j].even_more_data.z = 0
+		// 	}
+		// }
 	}
 
 	return g
