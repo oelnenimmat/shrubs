@@ -1,11 +1,14 @@
 #version 450
 
-layout(std140, binding = 0) uniform PerFrame {
+layout(set = 0, binding = 0) uniform PerFrame {
 	mat4 projection;
 	mat4 view;
 };
 
-layout(location = 2) uniform mat4 model;
+layout(push_constant) uniform WirePerDraw {
+	mat4 model;
+	vec4 color;
+};
 
 layout(location = 0) in vec3 vertex_position;
 

@@ -218,6 +218,7 @@ Pipelines :: struct {
 	grass 			: GrassPipeline,
 	grass_placement : GrassPlacementPipeline,
 	post_process 	: PostProcessPipeline,
+	wire 			: WirePipeline,
 }
 
 @private
@@ -253,6 +254,7 @@ create_pipelines :: proc() {
 	create_grass_pipeline()
 	create_grass_placement_pipeline()
 	create_post_process_pipeline()
+	create_wire_pipeline()
 }
 
 @private
@@ -272,6 +274,7 @@ destroy_pipelines :: proc() {
 	destroy_grass_pipeline()
 	destroy_grass_placement_pipeline()
 	destroy_post_process_pipeline()
+	destroy_wire_pipeline()
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -501,13 +504,13 @@ pipeline_viewport :: proc() -> vk.PipelineViewportStateCreateInfo {
 }
 
 @private
-pipeline_rasterization :: proc(cull_mode : vk.CullModeFlags)-> vk.PipelineRasterizationStateCreateInfo {
+pipeline_rasterization :: proc(cull_mode : vk.CullModeFlags, polygon_mode := vk.PolygonMode.FILL)-> vk.PipelineRasterizationStateCreateInfo {
 	return {
 		sType 					= .PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
 		depthClampEnable 		= VK_FALSE,
 		rasterizerDiscardEnable = VK_FALSE,
-		polygonMode 			= .FILL,
-		lineWidth 				= 1.0,
+		polygonMode 			= polygon_mode,
+		lineWidth 				= 4.0 if polygon_mode == .LINE else 1.0,
 		cullMode	 			= cull_mode,
 		frontFace 				= .COUNTER_CLOCKWISE,
 		depthBiasEnable			= VK_FALSE,

@@ -16,11 +16,13 @@ layout(location = 2) in vec2 vertex_texcoord;
 layout(location = 0) out VS_OUT {
 	vec3 surface_normal;
 	vec2 texcoord;
+	vec3 position_WS;
 };
 
 void main() {
 
-	gl_Position 		= projection * view * model * vec4(vertex_position, 1.0);
+	position_WS 		= (model * vec4(vertex_position, 1)).xyz;
+	gl_Position 		= projection * view * vec4(position_WS, 1);
 
 	mat3 normal_matrix 	= transpose(inverse(mat3(model)));
 	surface_normal 		= normalize(normal_matrix * vertex_normal);

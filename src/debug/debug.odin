@@ -85,7 +85,7 @@ render :: proc() {
 	for d in dd.draws {
 		// Todo(Leo): not nice to set material every frame, maybe limit palette
 		// and sort, but also doesn't really matter (escpecially right now :))
-		graphics.draw_debug_mesh(d.mesh, d.model_matrix, d.color)
+		graphics.draw_wire_mesh(d.mesh, d.model_matrix, d.color)
 	}
 
 }

@@ -38,7 +38,7 @@ main :: proc() {
 		delta_time 		= time.duration_seconds(
 			time.diff(frame_start_time, frame_end_time))
 		
-		limit_fps :: false
+		limit_fps :: true
 		when limit_fps {
 			// todo(Leo): hacktrick! Limit frame rate to 30 FPS to add delay between 
 			// frames while we still not have proper cpu-gpu synchronization
@@ -47,7 +47,7 @@ main :: proc() {
 			time_to_wait_ms := int((target_time - delta_time) * 1000)
 
 			if time_to_wait_ms > 1 {
-				time.sleep(time.Millisecond * time.Duration(time_to_wait_ms))
+				time.accurate_sleep(time.Millisecond * time.Duration(time_to_wait_ms))
 
 				// More time has passed, recalculate
 				frame_end_time = time.now()

@@ -603,7 +603,7 @@ render_camera :: proc(camera : ^Camera, render_target : ^graphics.RenderTarget) 
 	}
 
 	// NEXT PIPELINE
-	graphics.setup_debug_pipeline()
+	graphics.setup_wire_pipeline()
 	debug.render()
 
 	// NEXT PIPELINE
