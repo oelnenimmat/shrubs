@@ -77,43 +77,19 @@ end_grass_placement :: proc() {
 
 	vk.EndCommandBuffer(cmd)
 
-	wait_semaphores := []vk.Semaphore {
-		// g.rendering_complete_semaphores[g.virtual_frame_index],
-	}
-	wait_masks := []vk.PipelineStageFlags {
-		// { .COMPUTE_SHADER },
-	}
-
-	signal_semaphores := []vk.Semaphore {
-		// g.grass_placement_complete_semaphores[g.virtual_frame_index],
-	}
-
-	// Todo(Leo): fence not good, but semaphores didn't work yet
-	// at least move the fence waiting later
-	// fence_create_info := vk.FenceCreateInfo { sType = .FENCE_CREATE_INFO }
-	// fence : vk.Fence
-	// fence_create_result := vk.CreateFence(g.device, &fence_create_info, nil, &fence)
-	// handle_result(fence_create_result)
-
+	// Todo(Leo): fence not best, but semaphores didn't work yet
 	fence := g.grass_placement_complete_fences[g.virtual_frame_index]
 	vk.ResetFences(g.device, 1, &fence)
 
 	submit := vk.SubmitInfo {
 		sType 					= .SUBMIT_INFO,
-		waitSemaphoreCount 		= u32(len(wait_semaphores)),
-		pWaitSemaphores 		= raw_data(wait_semaphores),
-		pWaitDstStageMask 		= raw_data(wait_masks),
+		waitSemaphoreCount 		= 0,
 		commandBufferCount 		= 1,
 		pCommandBuffers 		= &cmd,
-		signalSemaphoreCount 	= u32(len(signal_semaphores)),
-		pSignalSemaphores 		= raw_data(signal_semaphores)
+		signalSemaphoreCount 	= 0,
 	}
 	result := vk.QueueSubmit(g.compute_queue, 1, &submit, fence)
 	handle_result(result)
-
-	// vk.WaitForFences(g.device, 1, &fence, true, max(u64))
-	// vk.DestroyFence(g.device, fence, nil)
-
 }
 
 wait_for_grass :: proc() {

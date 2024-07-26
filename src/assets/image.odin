@@ -27,6 +27,7 @@ write_color_image :: proc(filename : string, width, height : int, pixels_u8_rgba
 	filename := strings.clone_to_cstring(filename)
 	defer delete(filename)
 
-	stbi.flip_vertically_on_write(true)
+	// vulkan doesnt need this :thumbs:
+	// stbi.flip_vertically_on_write(true)
 	stbi.write_png(filename, i32(width), i32(height), 4, raw_data(pixels_u8_rgba), i32(width * 4))
 }

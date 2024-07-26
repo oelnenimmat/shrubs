@@ -452,16 +452,13 @@ render :: proc() {
 	render_camera(&main_camera, &main_render_target)
 
 	// NEXT PIPELINE
-	// graphics.bind_screen_framebuffer()
-	// graphics.dispatch_post_process_pipeline(&main_render_target, scene.lighting.exposure)
 	graphics.draw_post_process(scene.lighting.exposure)
 
 	// Currently we provide a service to save screenshots from the final game view, before gui :thumbs_up:
 	if save_screenshot {
 		save_screenshot = false
 
-		width, height, pixels := graphics.read_screen_framebuffer()
-		defer delete(pixels)
+		width, height, pixels := graphics.copy_screenshot_buffer(context.temp_allocator)
 
 		now := time.now()
 

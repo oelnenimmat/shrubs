@@ -40,6 +40,7 @@ create_color_texture :: proc(
 		t.mip_levels = u32(floor(log2(f32(max(width, height))))) + 1
 	}
 
+	// Todo(Leo): this is presumably some sort of linear data, mipmapping makesn't sense
 	if color_mode == .Linear {
 		t.mip_levels = 1
 	}

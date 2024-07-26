@@ -50,25 +50,15 @@ GPU_GrassTypeData :: struct #align(16) {
 
 GrassTypes :: struct {
 	settings 		: [GrassType]GrassTypeSettings,
-	types_buffer 	: graphics.Buffer,
 }
 
 create_grass_types :: proc() -> GrassTypes {
-	gt := GrassTypes{}
-
-	count 			:= len(GrassType)
-	buffer_size 	:= count * size_of(GPU_GrassTypeData)
-	gt.types_buffer = graphics.create_buffer(buffer_size, true)
-
-	return gt
+	return {}
 }
 
-destroy_grass_types :: proc(gt : ^GrassTypes) {
-	graphics.destroy_buffer(&gt.types_buffer)
-}
+destroy_grass_types :: proc(gt : ^GrassTypes) {}
 
 update_grass_type_buffer :: proc(types : ^GrassTypes) {
-	// gpu_data : [len(GrassType)]GPU_GrassTypeData
 	gpu_data := graphics.get_grass_types_mapped()
 	for type, i in GrassType {
 		gpu_data[i] = {
@@ -88,7 +78,6 @@ update_grass_type_buffer :: proc(types : ^GrassTypes) {
 			{},
 		}
 	}
-	// graphics.buffer_write_data(&types.types_buffer, gpu_data[:])	
 }
 
 load_grass_types :: proc(types : ^GrassTypes) {

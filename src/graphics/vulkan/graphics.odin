@@ -68,11 +68,11 @@ Graphics :: struct {
 
 	main_command_buffers 	: [VIRTUAL_FRAME_COUNT]vk.CommandBuffer,
 	screen_command_buffers 	: [VIRTUAL_FRAME_COUNT]vk.CommandBuffer,
+	imgui_command_buffers 	: [VIRTUAL_FRAME_COUNT]vk.CommandBuffer,
 
 	grass_placement_complete_fences : [VIRTUAL_FRAME_COUNT]vk.Fence,
 	virtual_frame_in_use_fences 	: [VIRTUAL_FRAME_COUNT]vk.Fence,
 	// Todo(Leo): one for grass compute etc :)
-	grass_placement_complete_semaphores : [VIRTUAL_FRAME_COUNT]vk.Semaphore,
 	rendering_complete_semaphores 	: [VIRTUAL_FRAME_COUNT]vk.Semaphore,
 	present_complete_semaphores 	: [VIRTUAL_FRAME_COUNT]vk.Semaphore,
 
@@ -81,6 +81,7 @@ Graphics :: struct {
 	// Render passes
 	main_render_pass 	: vk.RenderPass,
 	screen_render_pass 	: vk.RenderPass,
+	imgui_render_pass 	: vk.RenderPass,
 
 	// Pipelines
 	pipelines : Pipelines,
@@ -106,10 +107,19 @@ Graphics :: struct {
 
 	// Screeeen
 	screen_image 		: vk.Image,
+	screen_image_format : vk.Format,
 	screen_image_view 	: vk.ImageView,
 	screen_memory 		: vk.DeviceMemory,
 	screen_image_extent : vk.Extent2D,
 	screen_framebuffer 	: vk.Framebuffer,
+
+	screenshot_format 	: vk.Format,
+	screenshot_image 	: vk.Image,
+	screenshot_memory 	: vk.DeviceMemory,
+
+	screenshot_copy_buffer : vk.Buffer,
+	screenshot_copy_memory : vk.DeviceMemory,
+	screenshot_copy_mapped : [^]u8,
 
 	// Staging
 	SWAG_staging_capacity 	: vk.DeviceSize,
@@ -120,6 +130,8 @@ Graphics :: struct {
 	// Textures
 	linear_sampler : vk.Sampler,
 }
+
+@private
 graphics : Graphics
 
 @private
@@ -403,38 +415,48 @@ initialize :: proc() {
 	// this is quite important, and easy to miss, detail
 	graphics.virtual_frame_index = 0
 
-	// ------ MAIN COMMAND BUFFERS ------
+	// ------ Allocate COMMAND BUFFERS ------
 	{
 		g := &graphics
 
-		allocate_info := vk.CommandBufferAllocateInfo {
-			sType 				= .COMMAND_BUFFER_ALLOCATE_INFO,
-			commandPool 		= g.command_pools[.Graphics],
-			level 				= .PRIMARY,
-			commandBufferCount 	= VIRTUAL_FRAME_COUNT,
+		allocate_command_buffers :: proc(
+			command_pool 	: vk.CommandPool, 
+			level 			: vk.CommandBufferLevel,
+			$COUNT 			: u32,
+		) -> [COUNT]vk.CommandBuffer {
+			g := &graphics
+			
+			info := vk.CommandBufferAllocateInfo {
+				sType 				= .COMMAND_BUFFER_ALLOCATE_INFO,
+				commandPool 		= command_pool,
+				level 				= level,
+				commandBufferCount 	= COUNT,
+			}
+
+			cmds : [COUNT]vk.CommandBuffer
+			result := vk.AllocateCommandBuffers(g.device, &info, raw_data(&cmds))
+			handle_result(result)
+
+			return cmds
 		}
 
-		allocate_result := vk.AllocateCommandBuffers(
-			g.device,
-			&allocate_info,
-			raw_data(&g.main_command_buffers),
+		g.main_command_buffers = allocate_command_buffers(
+			g.command_pools[.Graphics],
+			.PRIMARY,
+			VIRTUAL_FRAME_COUNT,
 		)
-		handle_result(allocate_result)
 
-		post_process_allocate_info := vk.CommandBufferAllocateInfo {
-			sType 				= .COMMAND_BUFFER_ALLOCATE_INFO,
-			commandPool 		= g.command_pools[.Graphics],
-			level 				= .SECONDARY,
-			commandBufferCount 	= VIRTUAL_FRAME_COUNT,
-		}
-
-		post_process_allocate_result := vk.AllocateCommandBuffers(
-			g.device,
-			&post_process_allocate_info,
-			raw_data(&g.screen_command_buffers),
+		g.screen_command_buffers = allocate_command_buffers(
+			g.command_pools[.Graphics],
+			.SECONDARY,
+			VIRTUAL_FRAME_COUNT,
 		)
-		handle_result(post_process_allocate_result)
 
+		g.imgui_command_buffers = allocate_command_buffers(
+			g.command_pools[.Graphics],
+			.SECONDARY,
+			VIRTUAL_FRAME_COUNT,
+		)
 	}
 
 	// ------ SYNCHRONIZATION ------
@@ -453,7 +475,6 @@ initialize :: proc() {
 		for i in 0..<VIRTUAL_FRAME_COUNT {
 			vk.CreateFence(g.device, &fence_create_info, nil, &g.virtual_frame_in_use_fences[i])
 			vk.CreateFence(g.device, &fence_create_info, nil, &g.grass_placement_complete_fences[i])
-			vk.CreateSemaphore(g.device, &semaphore_create_info, nil, &g.grass_placement_complete_semaphores[i])
 			vk.CreateSemaphore(g.device, &semaphore_create_info, nil, &g.rendering_complete_semaphores[i])
 			vk.CreateSemaphore(g.device, &semaphore_create_info, nil, &g.present_complete_semaphores[i])
 		}
@@ -523,9 +544,13 @@ initialize :: proc() {
 	}
 
 	// RENDER TARGET
-	graphics.render_target_color_format = vk.Format.R8G8B8A8_SRGB
-	graphics.render_target_depth_format = vk.Format.D32_SFLOAT
+	// Todo(Leo): check format properties that we can actually do what we want to with these
+	// formats. Also check other gpu properties
+	graphics.render_target_color_format = .R32G32B32A32_SFLOAT
+	graphics.render_target_depth_format = .D32_SFLOAT
 	graphics.render_target_extent = {1920, 1080} //{1280, 720}
+
+	graphics.screen_image_format = .R8G8B8A8_SRGB
 
 	{
 		g := &graphics
@@ -596,7 +621,7 @@ initialize :: proc() {
 		g := &graphics
 
 		attachment := vk.AttachmentDescription {
-			format 			= g.render_target_color_format,
+			format 			= g.screen_image_format,
 			samples 		= { ._1 },
 			loadOp 			= .CLEAR,
 			storeOp 		= .STORE,
@@ -631,6 +656,43 @@ initialize :: proc() {
 
 	create_screeen()
 
+	{
+		g := &graphics
+
+		attachment := vk.AttachmentDescription {
+			format 			= g.screen_image_format,
+			samples 		= { ._1 },
+			loadOp 			= .LOAD,
+			storeOp 		= .STORE,
+			initialLayout 	= .TRANSFER_SRC_OPTIMAL,
+			finalLayout 	= .TRANSFER_SRC_OPTIMAL,
+		}
+
+		color_attachment_ref := vk.AttachmentReference{0, .COLOR_ATTACHMENT_OPTIMAL}
+
+		subpass := vk.SubpassDescription {
+			pipelineBindPoint 		= .GRAPHICS,
+			colorAttachmentCount 	= 1,
+			pColorAttachments 		= &color_attachment_ref,
+			pDepthStencilAttachment = nil,
+		}
+
+		render_pass_create_info := vk.RenderPassCreateInfo {
+			sType 			= .RENDER_PASS_CREATE_INFO,
+			attachmentCount = 1,
+			pAttachments 	= &attachment,
+			subpassCount 	= 1,
+			pSubpasses 		= &subpass
+		}
+		render_pass_create_result := vk.CreateRenderPass(
+			g.device, 
+			&render_pass_create_info, 
+			nil, 
+			&g.imgui_render_pass,
+		)
+		handle_result(render_pass_create_result)
+	}
+
 	// MAIN Render target framebuffer
 	{
 		g := &graphics
@@ -658,14 +720,6 @@ initialize :: proc() {
 		)
 		handle_result(framebuffer_create_result)
 	}
-
-	// SCREEN Render target framebuffer
-	{
-
-	}
-
-	// ------ MOCKUP SWAPCHAIN FRAMEBUFFERS -------
-	// create_swapchain_framebuffers()
 
 	// -------- PIPELINES ------------
 	create_pipelines()
@@ -726,6 +780,7 @@ terminate :: proc() {
 
 	destroy_screeen()
 	vk.DestroyRenderPass(g.device, g.screen_render_pass, nil)
+	vk.DestroyRenderPass(g.device, g.imgui_render_pass, nil)
 
 	vk.DestroyBuffer(g.device, g.staging_buffer, nil)
 	vk.FreeMemory(g.device, g.staging_memory, nil)
@@ -740,7 +795,6 @@ terminate :: proc() {
 	for i in 0..<VIRTUAL_FRAME_COUNT {
 		vk.DestroyFence(g.device, g.virtual_frame_in_use_fences[i], nil)
 		vk.DestroyFence(g.device, g.grass_placement_complete_fences[i], nil)
-		vk.DestroySemaphore(g.device, g.grass_placement_complete_semaphores[i], nil)
 		vk.DestroySemaphore(g.device, g.rendering_complete_semaphores[i], nil)
 		vk.DestroySemaphore(g.device, g.present_complete_semaphores[i], nil)
 	}
@@ -775,6 +829,7 @@ begin_frame :: proc() {
 	// RESET
 	main_cmd 	:= g.main_command_buffers[g.virtual_frame_index]
 	screen_cmd 	:= g.screen_command_buffers[g.virtual_frame_index]
+	imgui_cmd 	:= g.imgui_command_buffers[g.virtual_frame_index]
 	// Todo(Leo): this is apparently implicit
 	// reset_result := vk.ResetCommandBuffer(main_cmd, {})
 	// handle_result(reset_result)
@@ -787,7 +842,22 @@ begin_frame :: proc() {
 	main_cmd_begin_result := vk.BeginCommandBuffer(main_cmd, &main_cmd_begin_info)
 	handle_result(main_cmd_begin_result)
 
-	// Imgui cmd buffer
+	// Screen cmd buffer
+	screen_viewport := vk.Viewport {
+		x 		= 0,
+		y 		= 0,
+		width 	= f32(g.screen_image_extent.width),
+		height 	= f32(g.screen_image_extent.height),
+		minDepth = 0.0,
+		maxDepth = 1.0,
+	}
+
+	screen_scissor := vk.Rect2D {
+		offset = {0, 0},
+		extent = g.screen_image_extent,
+	}
+
+	// Screen cmd buffer
 	{
 		inheritance := vk.CommandBufferInheritanceInfo {
 			sType 		= .COMMAND_BUFFER_INHERITANCE_INFO,
@@ -796,37 +866,48 @@ begin_frame :: proc() {
 			framebuffer = g.screen_framebuffer,
 		}
 
-		viewport := vk.Viewport {
-			x 		= 0,
-			y 		= 0,
-			width 	= f32(g.screen_image_extent.width),
-			height 	= f32(g.screen_image_extent.height),
-			minDepth = 0.0,
-			maxDepth = 1.0,
-		}
 
-		scissor := vk.Rect2D {
-			offset = {0, 0},
-			extent = g.screen_image_extent,
-		}
-
-		screen_cmd_begin_info := vk.CommandBufferBeginInfo {
+		begin_info := vk.CommandBufferBeginInfo {
 			sType 				= .COMMAND_BUFFER_BEGIN_INFO,
 			flags 				= { .RENDER_PASS_CONTINUE },
 			pInheritanceInfo 	= &inheritance,
 		}
-		screen_cmd_begin_result := vk.BeginCommandBuffer(screen_cmd, &screen_cmd_begin_info)
-		handle_result(screen_cmd_begin_result)
 
-		vk.CmdSetViewport(screen_cmd, 0, 1, &viewport)
-		vk.CmdSetScissor(screen_cmd, 0, 1, &scissor)
+		// screen	
+		screen_begin_result := vk.BeginCommandBuffer(screen_cmd, &begin_info)
+		handle_result(screen_begin_result)
+
+		vk.CmdSetViewport(screen_cmd, 0, 1, &screen_viewport)
+		vk.CmdSetScissor(screen_cmd, 0, 1, &screen_scissor)
+	}
+
+	// Imgui cmd buffer
+	{
+		inheritance := vk.CommandBufferInheritanceInfo {
+			sType 		= .COMMAND_BUFFER_INHERITANCE_INFO,
+			renderPass 	= g.imgui_render_pass,
+			subpass 	= 0,
+			framebuffer = g.screen_framebuffer,
+		}
+
+		begin_info := vk.CommandBufferBeginInfo {
+			sType 				= .COMMAND_BUFFER_BEGIN_INFO,
+			flags 				= { .RENDER_PASS_CONTINUE },
+			pInheritanceInfo 	= &inheritance,
+		}
+
+		// imgui
+		imgui_begin_result := vk.BeginCommandBuffer(imgui_cmd, &begin_info)
+		handle_result(imgui_begin_result)
+
+		vk.CmdSetViewport(imgui_cmd, 0, 1, &screen_viewport)
+		vk.CmdSetScissor(imgui_cmd, 0, 1, &screen_scissor)
 	}
 
 
 	// Todo(Leo): think again if present_complete_semaphores make sense with virtual frame stuff
 	virtual_frame_in_use_fence 			:= g.virtual_frame_in_use_fences[g.virtual_frame_index]
 	present_complete_semaphore 			:= g.present_complete_semaphores[g.virtual_frame_index]
-	// grass_placement_complete_semaphore 	:= g.grass_placement_complete_semaphores[g.virtual_frame_index]
 	rendering_complete_semaphore 		:= g.rendering_complete_semaphores[g.virtual_frame_index]
 
 	// ---- PROCESS THE SWAPCHAIN IMAGE -----
@@ -849,28 +930,31 @@ begin_frame :: proc() {
 	render_pass_begin_info := vk.RenderPassBeginInfo {
 		sType 				= .RENDER_PASS_BEGIN_INFO,
 		renderPass 			= g.main_render_pass,
-		framebuffer 		= g.render_target_framebuffer, //swapchain_framebuffers[g.swapchain_image_index],		
+		framebuffer 		= g.render_target_framebuffer,	
 		renderArea 			= {{0, 0}, g.render_target_extent},
 		clearValueCount 	= u32(len(clear_values)),
 		pClearValues 		= raw_data(clear_values),
 	}
 	vk.CmdBeginRenderPass(main_cmd, &render_pass_begin_info, .INLINE)
 
-	viewport := vk.Viewport {
-		x 		= 0,
-		y 		= 0,
-		width 	= f32(g.render_target_extent.width),
-		height 	= f32(g.render_target_extent.height),
-		minDepth = 0.0,
-		maxDepth = 1.0,
-	}
-	vk.CmdSetViewport(main_cmd, 0, 1, &viewport)
+	{
+		main_viewport := vk.Viewport {
+			x 		= 0,
+			y 		= 0,
+			width 	= f32(g.render_target_extent.width),
+			height 	= f32(g.render_target_extent.height),
+			minDepth = 0.0,
+			maxDepth = 1.0,
+		}
 
-	scissor := vk.Rect2D {
-		offset = {0, 0},
-		extent = g.render_target_extent,
+		main_scissor := vk.Rect2D {
+			offset = {0, 0},
+			extent = g.render_target_extent,
+		}
+
+		vk.CmdSetViewport(main_cmd, 0, 1, &main_viewport)
+		vk.CmdSetScissor(main_cmd, 0, 1, &main_scissor)
 	}
-	vk.CmdSetScissor(main_cmd, 0, 1, &scissor)
 }
 
 render :: proc() {
@@ -879,7 +963,6 @@ render :: proc() {
 	// Todo(Leo): think again if present_complete_semaphores make sense with virtual frame stuff
 	virtual_frame_in_use_fence 			:= g.virtual_frame_in_use_fences[g.virtual_frame_index]
 	present_complete_semaphore 			:= g.present_complete_semaphores[g.virtual_frame_index]
-	grass_placement_complete_semaphore 	:= g.grass_placement_complete_semaphores[g.virtual_frame_index]
 	rendering_complete_semaphore 		:= g.rendering_complete_semaphores[g.virtual_frame_index]
 
 	main_cmd := g.main_command_buffers[g.virtual_frame_index]
@@ -890,8 +973,6 @@ render :: proc() {
 	{
 		screen_cmd := g.screen_command_buffers[g.virtual_frame_index]
 		vk.EndCommandBuffer(screen_cmd)
-
-		// transition render target color image to SHADER_READ_ONLY_OPTIMAL
 
 		// Testingfgjogisj	
 		clear_values := []vk.ClearValue { 
@@ -907,8 +988,81 @@ render :: proc() {
 			pClearValues 		= raw_data(clear_values),
 		}
 		vk.CmdBeginRenderPass(main_cmd, &begin, .SECONDARY_COMMAND_BUFFERS)
-
 		vk.CmdExecuteCommands(main_cmd, 1, &screen_cmd)
+		vk.CmdEndRenderPass(main_cmd)
+
+		cmd_transition_image_layout(
+			main_cmd,
+			g.screenshot_image,
+			{{.COLOR}, 0, 1, 0, 1},
+			{ }, { .TRANSFER_WRITE },
+			.UNDEFINED, .TRANSFER_DST_OPTIMAL,
+			{ .TRANSFER }, { .TRANSFER },
+		)
+
+		// blit image to screenshot image
+		blit := vk.ImageBlit {
+			srcSubresource = { {.COLOR}, 0, 0, 1},
+			srcOffsets = { {0, 0, 0}, {i32(g.screen_image_extent.width), i32(g.screen_image_extent.height), 1} },
+
+			dstSubresource = { {.COLOR}, 0, 0, 1},
+			dstOffsets = { {0, 0, 0}, {i32(g.screen_image_extent.width), i32(g.screen_image_extent.height), 1} },
+		}
+
+		vk.CmdBlitImage(
+			main_cmd,
+			g.screen_image, .TRANSFER_SRC_OPTIMAL,
+			g.screenshot_image, .TRANSFER_DST_OPTIMAL,
+			1, &blit,
+			.LINEAR,
+		)
+
+		// also copy it to copyable buffer, since there was no blit dst able format with
+		// linear tiling
+		cmd_transition_image_layout(
+			main_cmd,
+			g.screenshot_image,
+			{{.COLOR}, 0, 1, 0, 1},
+			{ .TRANSFER_WRITE }, { .TRANSFER_READ },
+			.TRANSFER_DST_OPTIMAL, .TRANSFER_SRC_OPTIMAL,
+			{ .TRANSFER }, { .TRANSFER },
+		)
+	
+		copy_region := vk.BufferImageCopy {
+			0, 0, 0,
+			{{.COLOR}, 0, 0, 1},
+			{0, 0, 0},
+			{g.screen_image_extent.width, g.screen_image_extent.height, 1},
+		}
+
+		vk.CmdCopyImageToBuffer(
+			main_cmd, 
+			g.screenshot_image, 
+			.TRANSFER_SRC_OPTIMAL,
+			g.screenshot_copy_buffer,
+			1,
+			&copy_region
+		)
+	}
+
+	// Imgui render pass
+	{
+		imgui_cmd := g.imgui_command_buffers[g.virtual_frame_index]
+		vk.EndCommandBuffer(imgui_cmd)
+
+		begin := vk.RenderPassBeginInfo {
+			sType 				= .RENDER_PASS_BEGIN_INFO,
+			renderPass 			= g.imgui_render_pass,
+
+			// Todo(Leo): Luckily we can use same framebuffer. Maybe is since
+			// attachments are equivalent?
+			framebuffer 		= g.screen_framebuffer,		
+			renderArea 			= {{0, 0}, g.screen_image_extent},
+			clearValueCount 	= 0,
+		}
+		vk.CmdBeginRenderPass(main_cmd, &begin, .SECONDARY_COMMAND_BUFFERS)
+
+		vk.CmdExecuteCommands(main_cmd, 1, &imgui_cmd)
 
 		vk.CmdEndRenderPass(main_cmd)
 	}
@@ -958,11 +1112,9 @@ render :: proc() {
 
 
 	wait_semaphores := []vk.Semaphore {
-		// grass_placement_complete_semaphore,
 		present_complete_semaphore,
 	}
 	wait_masks := []vk.PipelineStageFlags {
-		// { .VERTEX_SHADER },
 		{ .COLOR_ATTACHMENT_OUTPUT },
 	}
 
@@ -1055,10 +1207,16 @@ end_submit_wait_and_free_command_buffer :: proc(cmd : vk.CommandBuffer) {
 	vk.FreeCommandBuffers(g.device, g.command_pools[.Graphics], 1, &cmd)
 }
 
-// rndom
-bind_screen_framebuffer :: proc() {}
-bind_uniform_buffer :: proc(buffer : ^Buffer, binding : u32) {}
-read_screen_framebuffer :: proc() -> (width, height : int, pixels_u8_rgba : []u8) {
+copy_screenshot_buffer :: proc(allocator : runtime.Allocator) -> (width, height : int, pixels_u8_rgba : []u8) {
+	g := &graphics
+
+	width = int(g.screen_image_extent.width)
+	height = int(g.screen_image_extent.height)
+
+	size := 4 * width * height
+	pixels_u8_rgba = make([]u8, size, allocator)
+	copy(pixels_u8_rgba, g.screenshot_copy_mapped[0:size])
+
 	return width, height, pixels_u8_rgba
 }
 
@@ -1250,17 +1408,7 @@ create_swapchain_framebuffers :: proc() {
 destroy_swapchain :: proc() {
 	g := &graphics
 
-	// for i in 0..<len(g.swapchain_framebuffers) {
-	// 	vk.DestroyFramebuffer(g.device, g.swapchain_framebuffers[i], nil)
-	// }
-
-	// for iv in g.swapchain_image_views {
-	// 	vk.DestroyImageView(g.device, iv, nil)
-	// }
 	vk.DestroySwapchainKHR(g.device, g.swapchain, nil)
-
-	// delete(g.swapchain_framebuffers)
-	// delete(g.swapchain_image_views)
 	delete(g.swapchain_images)
 }
 
@@ -1424,81 +1572,154 @@ create_screeen :: proc() {
 
 	fmt.println("[GRAPHICS]: screen created")
 
-	width, height := window.get_window_size()
-	g.screen_image_extent.width 	= u32(width)
-	g.screen_image_extent.height 	= u32(height)
+	// Screen render target image
+	{
+		width, height := window.get_window_size()
+		g.screen_image_extent.width 	= u32(width)
+		g.screen_image_extent.height 	= u32(height)
 
-	image_create_info := vk.ImageCreateInfo {
-		sType 					= .IMAGE_CREATE_INFO,
-		imageType 				= .D2,
-		format 					= g.render_target_color_format,
-		extent 					= {g.screen_image_extent.width, g.screen_image_extent.height, 1},
-		mipLevels 				= 1,
-		arrayLayers 			= 1,
-		samples 				= { ._1 },
-		tiling 					= .OPTIMAL,
-		usage 					= { .COLOR_ATTACHMENT, .TRANSFER_SRC },
-		sharingMode 			= .EXCLUSIVE,
-		queueFamilyIndexCount 	= 1,
-		pQueueFamilyIndices 	= &g.graphics_queue_family,
-		initialLayout 			= .UNDEFINED,
+		image_create_info := vk.ImageCreateInfo {
+			sType 					= .IMAGE_CREATE_INFO,
+			imageType 				= .D2,
+			format 					= g.screen_image_format,
+			extent 					= {g.screen_image_extent.width, g.screen_image_extent.height, 1},
+			mipLevels 				= 1,
+			arrayLayers 			= 1,
+			samples 				= { ._1 },
+			tiling 					= .OPTIMAL,
+			usage 					= { .COLOR_ATTACHMENT, .TRANSFER_SRC },
+			sharingMode 			= .EXCLUSIVE,
+			queueFamilyIndexCount 	= 1,
+			pQueueFamilyIndices 	= &g.graphics_queue_family,
+			initialLayout 			= .UNDEFINED,
+		}
+		image_create_result := vk.CreateImage(
+			g.device,
+			&image_create_info,
+			nil,
+			&g.screen_image,
+		)
+		handle_result(image_create_result)
+
+		memory_requirements := get_image_memory_requirements(g.screen_image)
+		memory_type_index := find_memory_type(memory_requirements, { .DEVICE_LOCAL } )
+
+		allocate_info := vk.MemoryAllocateInfo {
+			sType 			= .MEMORY_ALLOCATE_INFO,
+			allocationSize 	= memory_requirements.size,
+			memoryTypeIndex = memory_type_index, 
+		}
+		allocate_result := vk.AllocateMemory(g.device, &allocate_info, nil, &g.screen_memory)
+		handle_result(allocate_result)
+
+		vk.BindImageMemory(g.device, g.screen_image, g.screen_memory, 0)
 	}
-	image_create_result := vk.CreateImage(
-		g.device,
-		&image_create_info,
-		nil,
-		&g.screen_image,
-	)
-	handle_result(image_create_result)
 
-	memory_requirements := get_image_memory_requirements(g.screen_image)
-	memory_type_index := find_memory_type(memory_requirements, { .DEVICE_LOCAL } )
-
-	allocate_info := vk.MemoryAllocateInfo {
-		sType 			= .MEMORY_ALLOCATE_INFO,
-		allocationSize 	= memory_requirements.size,
-		memoryTypeIndex = memory_type_index, 
+	// Image view to use as an attachment
+	{
+		image_view_create_info := vk.ImageViewCreateInfo {
+			sType 				= .IMAGE_VIEW_CREATE_INFO,
+			image 				= g.screen_image,
+			viewType 			= .D2,
+			format 				= g.screen_image_format,
+			subresourceRange 	= {{ .COLOR }, 0, 1, 0, 1 }
+		}
+		image_view_create_result := vk.CreateImageView(
+			g.device,
+			&image_view_create_info,
+			nil,
+			&g.screen_image_view
+		)
+		handle_result(image_view_create_result)
 	}
-	allocate_result := vk.AllocateMemory(g.device, &allocate_info, nil, &g.screen_memory)
-	handle_result(allocate_result)
-
-	vk.BindImageMemory(g.device, g.screen_image, g.screen_memory, 0)
-
-	image_view_create_info := vk.ImageViewCreateInfo {
-		sType 				= .IMAGE_VIEW_CREATE_INFO,
-		image 				= g.screen_image,
-		viewType 			= .D2,
-		format 				= g.render_target_color_format,
-		subresourceRange 	= {{ .COLOR }, 0, 1, 0, 1 }
-	}
-	image_view_create_result := vk.CreateImageView(
-		g.device,
-		&image_view_create_info,
-		nil,
-		&g.screen_image_view
-	)
-	handle_result(image_view_create_result)
 
 	// Framebuffer
-	attachment := g.screen_image_view
+	{
+		attachment := g.screen_image_view
 
-	framebuffer_create_info := vk.FramebufferCreateInfo {
-		sType 			= .FRAMEBUFFER_CREATE_INFO,
-		renderPass 		= g.screen_render_pass,
-		attachmentCount = 1,
-		pAttachments 	= &attachment,
-		width 			= g.screen_image_extent.width,
-		height 			= g.screen_image_extent.height,
-		layers 			= 1,
+		framebuffer_create_info := vk.FramebufferCreateInfo {
+			sType 			= .FRAMEBUFFER_CREATE_INFO,
+			renderPass 		= g.screen_render_pass,
+			attachmentCount = 1,
+			pAttachments 	= &attachment,
+			width 			= g.screen_image_extent.width,
+			height 			= g.screen_image_extent.height,
+			layers 			= 1,
+		}
+
+		framebuffer_create_result := vk.CreateFramebuffer(
+			g.device, 
+			&framebuffer_create_info, 
+			nil,
+			&g.screen_framebuffer,
+		)
+		handle_result(framebuffer_create_result)
 	}
 
-	framebuffer_create_result := vk.CreateFramebuffer(
-		g.device, 
-		&framebuffer_create_info, 
-		nil,
-		&g.screen_framebuffer,
-	)
-	handle_result(framebuffer_create_result)
+	// Screenshot image
+	{
+		g.screenshot_format	= .R8G8B8A8_UNORM
+
+		// {
+		// 	props3 := vk.FormatProperties3 {
+		// 		sType = .FORMAT_PROPERTIES_3,
+		// 	}
+		// 	props2 := vk.FormatProperties2 {
+		// 		sType = .FORMAT_PROPERTIES_2,
+		// 		pNext = &props3,
+		// 	}
+		// 	vk.GetPhysicalDeviceFormatProperties2(g.physical_device, g.screenshot_format, &props2)
+		
+		// 	fmt.println(props2)
+		// }
+
+		image_create_info := vk.ImageCreateInfo {
+			sType 					= .IMAGE_CREATE_INFO,
+			imageType 				= .D2,
+			format 					= g.screenshot_format,
+			extent 					= {g.screen_image_extent.width, g.screen_image_extent.height, 1},
+			mipLevels 				= 1,
+			arrayLayers 			= 1,
+			samples 				= { ._1 },
+			tiling 					= .OPTIMAL,
+			usage 					= { .TRANSFER_DST, .TRANSFER_SRC },
+			sharingMode 			= .EXCLUSIVE,
+			queueFamilyIndexCount 	= 1,
+			pQueueFamilyIndices 	= &g.graphics_queue_family,
+			initialLayout 			= .UNDEFINED,
+		}
+		image_create_result := vk.CreateImage(
+			g.device,
+			&image_create_info,
+			nil,
+			&g.screenshot_image,
+		)
+		handle_result(image_create_result)
+
+		memory_requirements := get_image_memory_requirements(g.screenshot_image)
+		memory_type_index := find_memory_type(memory_requirements, { .DEVICE_LOCAL } )
+
+		allocate_info := vk.MemoryAllocateInfo {
+			sType 			= .MEMORY_ALLOCATE_INFO,
+			allocationSize 	= memory_requirements.size,
+			memoryTypeIndex = memory_type_index, 
+		}
+		allocate_result := vk.AllocateMemory(g.device, &allocate_info, nil, &g.screenshot_memory)
+		handle_result(allocate_result)
+
+		vk.BindImageMemory(g.device, g.screenshot_image, g.screenshot_memory, 0)
+	}
+
+	// Screenshot copy memory
+	{
+		memory_size := vk.DeviceSize (4 * g.screen_image_extent.width * g.screen_image_extent.height)
+		g.screenshot_copy_buffer, g.screenshot_copy_memory = create_buffer_and_memory(
+			memory_size,
+			{ .TRANSFER_DST },
+			{ .HOST_VISIBLE, .HOST_COHERENT },
+		)
+		g.screenshot_copy_mapped = cast([^]u8) map_memory(g.screenshot_copy_memory, 0, memory_size)
+	}
 }
 
 @private
@@ -1510,6 +1731,12 @@ destroy_screeen :: proc() {
 	vk.FreeMemory(g.device, g.screen_memory, nil)
 
 	vk.DestroyFramebuffer(g.device, g.screen_framebuffer, nil)
+
+	vk.DestroyImage(g.device, g.screenshot_image, nil)
+	vk.FreeMemory(g.device, g.screenshot_memory, nil)
+
+	vk.DestroyBuffer(g.device, g.screenshot_copy_buffer, nil)
+	vk.FreeMemory(g.device, g.screenshot_copy_memory, nil)
 }
 
 @private

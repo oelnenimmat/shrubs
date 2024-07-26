@@ -1,0 +1,21 @@
+
+CLINK C:\Users\Leo\Documents\gamedev\shrubs>odin run src -out:shrubs.exe -collection:shrubs=src 
+Vulkan supported, yay! :)
+instance created
+more proc addresses loaded
+[VULKAN]: debug utils created
+[VULKAN]: surface created: true
+B8G8R8A8_UNORM
+[GRAPHICS]: screen created
+FormatProperties2{sType = "FORMAT_PROPERTIES_2", pNext = 0xF80C6FC580, formatProperties = FormatProperties{linearTilingFeatures = FormatFeatureFlags{SAMPLED_IMAGE, STORAGE_IMAGE, BLIT_SRC, SAMPLED_IMAGE_FILTER_LINEAR, TRANSFER_SRC, TRANSFER_DST, SAMPLED_IMAGE_FILTER_MINMAX}, optimalTilingFeatures = FormatFeatureFlags{SAMPLED_IMAGE, STORAGE_IMAGE, COLOR_ATTACHMENT, COLOR_ATTACHMENT_BLEND, BLIT_SRC, BLIT_DST, SAMPLED_IMAGE_FILTER_LINEAR, TRANSFER_SRC, TRANSFER_DST, SAMPLED_IMAGE_FILTER_MINMAX}, bufferFeatures = FormatFeatureFlags{UNIFORM_TEXEL_BUFFER, STORAGE_TEXEL_BUFFER, VERTEX_BUFFER, ACCELERATION_STRUCTURE_VERTEX_BUFFER_KHR}}}
+[VULKAN]: Vulkan graphics initialized propely!
+Big_Rock.scene .scene
+Blue_Hills_Zone.scene .scene
+grass.json .json
+Monument_In_Center.scene .scene
+tank_develop.scene .scene
+Editor state loaded
+Validation Error: [ VUID-vkCmdBlitImage-dstImage-02000 ] Object 0: handle = 0x2b1e823ada0, type = VK_OBJECT_TYPE_COMMAND_BUFFER; Object 1: handle = 0x3a6cbb0000000025, type = VK_OBJECT_TYPE_IMAGE; | MessageID = 0x86bc2a78 | vkCmdBlitImage(): dstImage (VkImage 0x3a6cbb0000000025[]) was created with format VK_FORMAT_R8G8B8A8_UNORM and tiling VK_IMAGE_TILING_LINEAR which have VkFormatFeatureFlags2 (VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_BIT|VK_FORMAT_FEATURE_2_STORAGE_IMAGE_BIT|VK_FORMAT_FEATURE_2_BLIT_SRC_BIT|VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_FILTER_LINEAR_BIT|VK_FORMAT_FEATURE_2_TRANSFER_SRC_BIT|VK_FORMAT_FEATURE_2_TRANSFER_DST_BIT|VK_FORMAT_FEATURE_2_SAMPLED_IMAGE_FILTER_MINMAX_BIT|VK_FORMAT_FEATURE_2_STORAGE_READ_WITHOUT_FORMAT_BIT|VK_FORMAT_FEATURE_2_STORAGE_WRITE_WITHOUT_FORMAT_BIT|VK_FORMAT_FEATURE_2_LINEAR_COLOR_ATTACHMENT_BIT_NV) which in turn is missing the required feature VK_FORMAT_FEATURE_2_BLIT_DST_BIT. The Vulkan spec states: The format features of dstImage must contain VK_FORMAT_FEATURE_BLIT_DST_BIT (https://vulkan.lunarg.com/doc/view/1.3.268.0/windows/1.3-extensions/vkspec.html#VUID-vkCmdBlitImage-dstImage-02000)
+Editor state saved
+Vulkan graphics terminated propely!
+All good!
