@@ -536,11 +536,14 @@ pipeline_depth_stencil :: proc() -> vk.PipelineDepthStencilStateCreateInfo {
 }
 
 @private
-pipeline_multisample :: proc() -> vk.PipelineMultisampleStateCreateInfo {
+pipeline_multisample :: proc(multisample_enabled : bool) -> vk.PipelineMultisampleStateCreateInfo {
+	enabled 		:= b32(multisample_enabled && (MULTI_SAMPLE_COUNT != {._1}))
+	sample_count 	:= MULTI_SAMPLE_COUNT if enabled else {._1}
+
 	return {
 		sType 					= .PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-		sampleShadingEnable 	= VK_FALSE,
-		rasterizationSamples 	= { ._1 },
+		sampleShadingEnable 	= false,
+		rasterizationSamples 	= sample_count,
 		minSampleShading 		= 1.0,
 		pSampleMask 			= nil,
 		alphaToCoverageEnable 	= VK_FALSE,

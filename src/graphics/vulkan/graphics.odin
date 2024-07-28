@@ -29,6 +29,12 @@ import "core:runtime"
 
 VIRTUAL_FRAME_COUNT :: 3
 
+// Setting this to one results only in a complaint about there being an resolve attachment
+// (ofc it is happy accident that only works on my computer, so fix)
+// Todo(Leo): dont do resolving when this is one.
+// Todo(Leo): make this configurable and recreate (everything??) when changed
+MULTI_SAMPLE_COUNT :: vk.SampleCountFlags {._2}
+
 @private
 Graphics :: struct {
 	// use this to allocate all slices in here, maybe even this struct itself down the line
@@ -102,8 +108,13 @@ Graphics :: struct {
 	color_image_view 	: vk.ImageView,
 	color_memory 		: vk.DeviceMemory,
 
+	color_resolve_image 		: vk.Image,
+	color_resolve_image_view 	: vk.ImageView,
+	color_resolve_memory 		: vk.DeviceMemory,
+
 	color_image_descriptor_layout 	: vk.DescriptorSetLayout,
 	color_image_descriptor_set 		: vk.DescriptorSet,
+
 
 	// Screeeen
 	screen_image 		: vk.Image,
@@ -572,7 +583,7 @@ initialize :: proc() {
 		attachments := []vk.AttachmentDescription {
 			{
 				format 			= g.render_target_color_format,
-				samples 		= { ._1 },
+				samples 		= MULTI_SAMPLE_COUNT,
 				loadOp 			= .CLEAR,
 				storeOp 		= .STORE,
 				initialLayout 	= .UNDEFINED,
@@ -580,23 +591,33 @@ initialize :: proc() {
 			},
 			{
 				format 			= g.render_target_depth_format,
-				samples 		= { ._1 },
+				samples 		= MULTI_SAMPLE_COUNT,
 				loadOp 			= .CLEAR,
 				storeOp 		= .DONT_CARE,
 				stencilLoadOp 	= .DONT_CARE,
 				stencilStoreOp 	= .DONT_CARE,
 				initialLayout 	= .UNDEFINED,
 				finalLayout 	= .DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-			}
+			},
+			{
+				format 			= g.render_target_color_format,
+				samples 		= { ._1 },
+				loadOp 			= .DONT_CARE,
+				storeOp 		= .STORE,
+				initialLayout 	= .UNDEFINED,
+				finalLayout 	= .SHADER_READ_ONLY_OPTIMAL,
+			},
 		}
 
 		color_attachment_ref := vk.AttachmentReference{0, .COLOR_ATTACHMENT_OPTIMAL}
 		depth_attachment_ref := vk.AttachmentReference{1, .DEPTH_STENCIL_ATTACHMENT_OPTIMAL}
+		resolve_attachment_ref := vk.AttachmentReference{2, .COLOR_ATTACHMENT_OPTIMAL}
 
 		subpass := vk.SubpassDescription {
 			pipelineBindPoint 		= .GRAPHICS,
 			colorAttachmentCount 	= 1,
 			pColorAttachments 		= &color_attachment_ref,
+			pResolveAttachments 	= &resolve_attachment_ref,
 			pDepthStencilAttachment = &depth_attachment_ref,
 		}
 
@@ -700,6 +721,7 @@ initialize :: proc() {
 		attachments := []vk.ImageView {
 			g.color_image_view,
 			g.depth_image_view,
+			g.color_resolve_image_view,
 		}
 
 		framebuffer_create_info := vk.FramebufferCreateInfo {
@@ -1416,41 +1438,16 @@ destroy_swapchain :: proc() {
 create_depth :: proc() {
 	g := &graphics
 
-	image_create_info := vk.ImageCreateInfo {
-		sType 					= .IMAGE_CREATE_INFO,
-		imageType 				= .D2,
-		format 					= g.render_target_depth_format,
-		extent 					= {g.render_target_extent.width, g.render_target_extent.height, 1},
-		mipLevels 				= 1,
-		arrayLayers 			= 1,
-		samples 				= { ._1 },
-		tiling 					= .OPTIMAL,
-		usage 					= { .DEPTH_STENCIL_ATTACHMENT },
-		sharingMode 			= .EXCLUSIVE,
-		queueFamilyIndexCount 	= 1,
-		pQueueFamilyIndices 	= &g.graphics_queue_family,
-		initialLayout 			= .UNDEFINED,
-	}
-	image_create_result := vk.CreateImage(
-		g.device,
-		&image_create_info,
-		nil,
-		&g.depth_image,
+	g.depth_image, g.depth_memory = create_image_and_memory(
+		g.render_target_depth_format,
+		g.render_target_extent,
+		MULTI_SAMPLE_COUNT,
+		.OPTIMAL,
+		{
+			/* render target: */		.DEPTH_STENCIL_ATTACHMENT,
+		},
+		{ .DEVICE_LOCAL },
 	)
-	handle_result(image_create_result)
-
-	memory_requirements := get_image_memory_requirements(g.depth_image)
-	memory_type_index := find_memory_type(memory_requirements, { .DEVICE_LOCAL } )
-
-	allocate_info := vk.MemoryAllocateInfo {
-		sType 			= .MEMORY_ALLOCATE_INFO,
-		allocationSize 	= memory_requirements.size,
-		memoryTypeIndex = memory_type_index, 
-	}
-	allocate_result := vk.AllocateMemory(g.device, &allocate_info, nil, &g.depth_memory)
-	handle_result(allocate_result)
-
-	vk.BindImageMemory(g.device, g.depth_image, g.depth_memory, 0)
 
 	image_view_create_info := vk.ImageViewCreateInfo {
 		sType 				= .IMAGE_VIEW_CREATE_INFO,
@@ -1478,69 +1475,62 @@ destroy_depth :: proc() {
 }
 
 @private
+create_image_view :: proc(image : vk.Image, format : vk.Format) -> vk.ImageView {
+	g := &graphics
+
+	info := vk.ImageViewCreateInfo {
+		sType 				= .IMAGE_VIEW_CREATE_INFO,
+		image 				= image,
+		viewType 			= .D2,
+		format 				= format,
+		subresourceRange 	= {{ .COLOR }, 0, 1, 0, 1 }
+	}
+
+	view : vk.ImageView
+	result := vk.CreateImageView(g.device, &info, nil, &view)
+	handle_result(result)
+
+	return view
+}
+
+@private
 create_color :: proc() {
 	g := &graphics
 
-	image_create_info := vk.ImageCreateInfo {
-		sType 					= .IMAGE_CREATE_INFO,
-		imageType 				= .D2,
-		format 					= g.render_target_color_format,
-		extent 					= {g.render_target_extent.width, g.render_target_extent.height, 1},
-		mipLevels 				= 1,
-		arrayLayers 			= 1,
-		samples 				= { ._1 },
-		tiling 					= .OPTIMAL,
-		usage 					= {
+	g.color_image, g.color_memory = create_image_and_memory(
+		g.render_target_color_format,
+		g.render_target_extent,
+		MULTI_SAMPLE_COUNT,
+		.OPTIMAL,
+		{
 			/* render target: */		.COLOR_ATTACHMENT,
 			/* read in post process: */	.SAMPLED,
 			/* copy to screenshot: */	.TRANSFER_SRC, 
 		},
-		sharingMode 			= .EXCLUSIVE,
-		queueFamilyIndexCount 	= 1,
-		pQueueFamilyIndices 	= &g.graphics_queue_family,
-		initialLayout 			= .UNDEFINED,
-	}
-	image_create_result := vk.CreateImage(
-		g.device,
-		&image_create_info,
-		nil,
-		&g.color_image,
+		{ .DEVICE_LOCAL },
 	)
-	handle_result(image_create_result)
 
-	memory_requirements := get_image_memory_requirements(g.color_image)
-	memory_type_index := find_memory_type(memory_requirements, { .DEVICE_LOCAL } )
-
-	allocate_info := vk.MemoryAllocateInfo {
-		sType 			= .MEMORY_ALLOCATE_INFO,
-		allocationSize 	= memory_requirements.size,
-		memoryTypeIndex = memory_type_index, 
-	}
-	allocate_result := vk.AllocateMemory(g.device, &allocate_info, nil, &g.color_memory)
-	handle_result(allocate_result)
-
-	vk.BindImageMemory(g.device, g.color_image, g.color_memory, 0)
-
-	image_view_create_info := vk.ImageViewCreateInfo {
-		sType 				= .IMAGE_VIEW_CREATE_INFO,
-		image 				= g.color_image,
-		viewType 			= .D2,
-		format 				= g.render_target_color_format,
-		subresourceRange 	= {{ .COLOR }, 0, 1, 0, 1 }
-	}
-	image_view_create_result := vk.CreateImageView(
-		g.device,
-		&image_view_create_info,
-		nil,
-		&g.color_image_view
+	g.color_resolve_image, g.color_resolve_memory = create_image_and_memory(
+		g.render_target_color_format,
+		g.render_target_extent,
+		{ ._1 },
+		.OPTIMAL,
+		{
+			/* render target: */		.COLOR_ATTACHMENT,
+			/* read in post process: */	.SAMPLED,
+			/* copy to screenshot: */	.TRANSFER_SRC, 
+		},
+		{ .DEVICE_LOCAL },
 	)
-	handle_result(image_view_create_result)
+
+	g.color_image_view = create_image_view(g.color_image, g.render_target_color_format)
+	g.color_resolve_image_view = create_image_view(g.color_resolve_image, g.render_target_color_format)
 
 	// Samplable image for post processor
 	{
 		image_info := vk.DescriptorImageInfo{
 			sampler 	= g.linear_sampler,
-			imageView 	= g.color_image_view,
+			imageView 	= g.color_resolve_image_view,
 			imageLayout = .SHADER_READ_ONLY_OPTIMAL,
 		}
 
@@ -1564,6 +1554,10 @@ destroy_color :: proc() {
 	vk.DestroyImageView(g.device, g.color_image_view, nil)
 	vk.DestroyImage(g.device, g.color_image, nil)
 	vk.FreeMemory(g.device, g.color_memory, nil)
+
+	vk.DestroyImageView(g.device, g.color_resolve_image_view, nil)
+	vk.DestroyImage(g.device, g.color_resolve_image, nil)
+	vk.FreeMemory(g.device, g.color_resolve_memory, nil)
 }
 
 @private
@@ -1573,46 +1567,23 @@ create_screeen :: proc() {
 	fmt.println("[GRAPHICS]: screen created")
 
 	// Screen render target image
+
 	{
 		width, height := window.get_window_size()
 		g.screen_image_extent.width 	= u32(width)
 		g.screen_image_extent.height 	= u32(height)
 
-		image_create_info := vk.ImageCreateInfo {
-			sType 					= .IMAGE_CREATE_INFO,
-			imageType 				= .D2,
-			format 					= g.screen_image_format,
-			extent 					= {g.screen_image_extent.width, g.screen_image_extent.height, 1},
-			mipLevels 				= 1,
-			arrayLayers 			= 1,
-			samples 				= { ._1 },
-			tiling 					= .OPTIMAL,
-			usage 					= { .COLOR_ATTACHMENT, .TRANSFER_SRC },
-			sharingMode 			= .EXCLUSIVE,
-			queueFamilyIndexCount 	= 1,
-			pQueueFamilyIndices 	= &g.graphics_queue_family,
-			initialLayout 			= .UNDEFINED,
-		}
-		image_create_result := vk.CreateImage(
-			g.device,
-			&image_create_info,
-			nil,
-			&g.screen_image,
+		g.screen_image, g.screen_memory = create_image_and_memory(
+			g.screen_image_format,
+			g.screen_image_extent,
+			{ ._1 },
+			.OPTIMAL,
+			{
+				/* render target: */		.COLOR_ATTACHMENT,
+				/* copy to screenshot: */	.TRANSFER_SRC, 
+			},
+			{ .DEVICE_LOCAL },
 		)
-		handle_result(image_create_result)
-
-		memory_requirements := get_image_memory_requirements(g.screen_image)
-		memory_type_index := find_memory_type(memory_requirements, { .DEVICE_LOCAL } )
-
-		allocate_info := vk.MemoryAllocateInfo {
-			sType 			= .MEMORY_ALLOCATE_INFO,
-			allocationSize 	= memory_requirements.size,
-			memoryTypeIndex = memory_type_index, 
-		}
-		allocate_result := vk.AllocateMemory(g.device, &allocate_info, nil, &g.screen_memory)
-		handle_result(allocate_result)
-
-		vk.BindImageMemory(g.device, g.screen_image, g.screen_memory, 0)
 	}
 
 	// Image view to use as an attachment
@@ -1784,6 +1755,59 @@ create_buffer_and_memory :: proc(
 get_buffer_memory_requirements :: proc(buffer : vk.Buffer) -> (res : vk.MemoryRequirements) {
 	vk.GetBufferMemoryRequirements(graphics.device, buffer, &res)
 	return
+}
+
+@private
+create_image_and_memory :: proc(
+	format 				: vk.Format,
+	extent 				: vk.Extent2D,
+	samples 			: vk.SampleCountFlags,
+	tiling 				: vk.ImageTiling,
+	usage 				: vk.ImageUsageFlags,
+	memory_properties 	: vk.MemoryPropertyFlags,
+) -> (vk.Image, vk.DeviceMemory) {
+	g := &graphics
+
+	image 	: vk.Image
+	memory 	: vk.DeviceMemory
+
+	image_create_info := vk.ImageCreateInfo {
+		sType 					= .IMAGE_CREATE_INFO,
+		imageType 				= .D2,
+		format 					= format,
+		extent 					= {extent.width, extent.height, 1},
+		mipLevels 				= 1,
+		arrayLayers 			= 1,
+		samples 				= samples,
+		tiling 					= tiling,
+		usage 					= usage,
+		sharingMode 			= .EXCLUSIVE,
+		queueFamilyIndexCount 	= 1,
+		pQueueFamilyIndices 	= &g.graphics_queue_family,
+		initialLayout 			= .UNDEFINED,
+	}
+	image_create_result := vk.CreateImage(
+		g.device,
+		&image_create_info,
+		nil,
+		&image,
+	)
+	handle_result(image_create_result)
+
+	memory_requirements := get_image_memory_requirements(image)
+	memory_type_index := find_memory_type(memory_requirements, memory_properties )
+
+	allocate_info := vk.MemoryAllocateInfo {
+		sType 			= .MEMORY_ALLOCATE_INFO,
+		allocationSize 	= memory_requirements.size,
+		memoryTypeIndex = memory_type_index, 
+	}
+	allocate_result := vk.AllocateMemory(g.device, &allocate_info, nil, &memory)
+	handle_result(allocate_result)
+
+	vk.BindImageMemory(g.device, image, memory, 0)
+
+	return image, memory
 }
 
 @private

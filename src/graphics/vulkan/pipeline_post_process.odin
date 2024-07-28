@@ -49,7 +49,7 @@ create_post_process_pipeline :: proc() {
 		viewport 		:= pipeline_viewport()
 		rasterization 	:= pipeline_rasterization({})
 		// depth_stencil 	:= pipeline_depth_stencil()
-		multisample 	:= pipeline_multisample()
+		multisample 	:= pipeline_multisample(false)
 
 		color_blend_attachments := []vk.PipelineColorBlendAttachmentState {
 			pipeline_color_blend_attachment()

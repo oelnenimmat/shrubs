@@ -39,7 +39,7 @@ initialize :: proc(width, height: int, application_name: string) {
 	// Create window with small size, and then maximize so we get nice
 	// big screen but also if need to see the underlying console there
 	// is reasonable sized window to restore to with windows hotkeys quickly
-	// glfw.MaximizeWindow(window_handle)
+	glfw.MaximizeWindow(window_handle)
 }
 
 terminate :: proc() {
