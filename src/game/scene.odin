@@ -130,6 +130,8 @@ save_scene :: proc(scene : ^Scene) {
 }
 
 unload_scene :: proc(s : ^Scene) {
+	graphics.wait_idle()
+
 	save_scene(s)
 
 	destroy_terrain(&s.terrain)

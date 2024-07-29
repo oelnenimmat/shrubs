@@ -93,7 +93,7 @@ unload_asset_provider :: proc() {
 // Todo(Leo): I do not think assets package should own the memory, as
 // there might be cases where we want to keep the the mesh info on CPU
 // ram after uploading it into GPU ram. 
-@(private = "file")
+// @(private = "file")
 load_mesh_gltf :: proc(mesh_file_name, mesh_node_name : cstring) -> graphics.Mesh {
 	positions, normals, texcoords, elements := assets.NOT_MEMORY_SAFE_gltf_load_node(mesh_file_name, mesh_node_name)
 	mesh := graphics.create_mesh(positions, normals, texcoords, elements)

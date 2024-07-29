@@ -108,6 +108,20 @@ draw_wire_cube :: proc(position : vec3, rotation : quaternion, size : vec3, colo
 	draw(model_matrix, color, &dd.cube_mesh)
 }
 
+draw_wire_capsule :: proc(position : vec3, up : vec3, radius : f32, height : f32, color : vec3) {
+	dd := &debug_drawing
+
+	// up := linalg.mul(rotation, vec3{0, 0, 1})
+
+	h := height - radius
+
+	m1 := linalg.matrix4_from_trs_f32(position - up * h, quaternion(1), vec3(radius * 2))
+	m2 := linalg.matrix4_from_trs_f32(position + up * h, quaternion(1), vec3(radius * 2))
+
+	draw(m1, color, &dd.sphere_mesh)
+	draw(m2, color, &dd.sphere_mesh)
+}
+
 // Todo(Leo): this is a start of more proper debug messaging thing, this way we don't
 // end up with fmt.printlns everywhere, when this is in fact what we want. Later print
 // to gui or smth

@@ -89,7 +89,6 @@ load_editor_state :: proc() {
 
 	fmt.println("Editor state loaded")
 
-
 	// Lets just always start in this to lessen nausea
 	editor.mode = .ClickyClicky
 

@@ -230,14 +230,14 @@ update_tank :: proc(tank : ^Tank, delta_time : f32) {
 	// should use fixed, but this is probably same issue as moving this to
 	// physics package
 	// accelerate by gravity
-	gravity_acceleration := vec3{0, 0, -physics.GRAVITATIONAL_ACCELERATION}
 	for _ in 0..<physics.ticks_this_frame() {
 		for i in 0..<TANK_WHEEL_COUNT {
 			current_position 	:= tank.wheel_positions[i]
 			old_position 		:= tank.old_wheel_positions[i]
 			new_position 		:= current_position + 
 									(current_position - old_position) * 0.99 + 
-									gravity_acceleration * physics.DELTA_TIME * physics.DELTA_TIME
+									// Todo(Leo): gravity is approximated same for the duration of the frame, maybe is good enough, maybe is not
+									physics.get_gravitational_pull(current_position) * physics.DELTA_TIME * physics.DELTA_TIME
 
 			tank.old_wheel_positions[i] = current_position
 			tank.wheel_positions[i] = new_position

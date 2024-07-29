@@ -90,39 +90,6 @@ timings : struct {
 	frame_time : SmoothValue(30),
 }
 
-DebugValue :: struct {
-	label : string,
-	value : union { int, f32, bool, vec3 }
-}
-debug_values : [dynamic] DebugValue
-
-put_debug_value_f32 :: proc(label : string, value : f32) {
-	append(&debug_values, DebugValue{label, value})
-}
-
-put_debug_value_int :: proc(label : string, value : int) {
-	append(&debug_values, DebugValue{label, value})
-}
-
-put_debug_value_bool :: proc(label : string, value : bool) {
-	append(&debug_values, DebugValue{label, value})
-}
-
-put_debug_value_vec3 :: proc(label : string, value : vec3) {
-	append(&debug_values, DebugValue{label, value})
-}
-
-put_debug_value :: proc {
-	put_debug_value_int,
-	put_debug_value_f32,
-	put_debug_value_bool,
-	put_debug_value_vec3,
-}
-
-clear_debug_values :: proc() {
-	debug_values = make([dynamic]DebugValue, 0, 20, context.temp_allocator)
-}
-
 show_debug_values := true
 
 test_position : vec3
@@ -143,6 +110,11 @@ wind : struct {
 
 main_render_target : graphics.RenderTarget
 tank_render_target : graphics.RenderTarget
+
+world_mesh : graphics.Mesh
+world_material : graphics.BasicMaterial
+// world_radius := f32(1000)
+world_radius := f32(100)
 
 initialize :: proc() {
 	// Todo(Leo): some of this stuff seems to bee "application" or "engine" and not "game"
@@ -245,13 +217,21 @@ initialize :: proc() {
 		0,
 		&asset_provider.textures[.Wind],
 	)
+
+	world_mesh = load_mesh_gltf("assets/shapes.glb", "shape_hi_res_sphere")
+	world_material = graphics.create_basic_material(&asset_provider.textures[.Road])
+	world_material.mapped.surface_color = {1, 1, 1, 1}
+	world_material.mapped.texcoord_scale = 0.1
 }
 
 terminate :: proc() {
 	graphics.wait_idle()
 
+
 	save_editor_state()
 
+	graphics.destroy_mesh(&world_mesh)
+	graphics.destroy_basic_material(&world_material)
 	graphics.destroy_basic_material(&player_material)
 
 	destroy_tank(&tank)
@@ -339,14 +319,25 @@ update :: proc(delta_time: f64) {
 
 		physics.begin_frame(delta_time)
 		
-		// submit greyboxes
+		// world
 		{
+			colliders := []physics.SphereCollider {{vec3(0), world_radius}}
+			physics.submit_colliders(colliders)
+		}
+
+		// submit greyboxes
+		{	
+			g := &scene.greyboxing
+			base_t := g.base_position
+			base_r := linalg.quaternion_from_euler_angles(g.base_rotation.x, g.base_rotation.y, g.base_rotation.z, .XYZ)
+			base_transform := linalg.matrix4_from_trs(base_t, base_r, vec3(1))
+
 			colliders := make([]physics.BoxCollider, len(scene.greyboxing.boxes), context.temp_allocator)
 			for _, i in colliders {
 				b := scene.greyboxing.boxes[i]
 				colliders[i] = {
-					b.position,
-					linalg.quaternion_from_euler_angles(b.rotation.x, b.rotation.y, b.rotation.z, .XYZ),
+					matrix4_mul_point(base_transform, b.position),
+					base_r * linalg.quaternion_from_euler_angles(b.rotation.x, b.rotation.y, b.rotation.z, .XYZ),
 					b.size,
 				} 
 			}
@@ -573,16 +564,34 @@ render_camera :: proc(camera : ^Camera, render_target : ^graphics.RenderTarget) 
 
 	// setupped shared stuff, can start drawink
 
+	// NEXT PIPELINE
 	graphics.setup_basic_pipeline()
 	
 
 	render_tank(&tank)
 	render_greyboxing(&scene.greyboxing)
 
+	graphics.set_basic_material(&world_material)
+	graphics.draw_mesh(&world_mesh, linalg.matrix4_scale_f32(world_radius * 2))
+
 	// Player character as a capsule for debug purposes
 	// graphics.set_basic_material({0.6, 0.2, 0.4}, &asset_provider.textures[.White])
 	graphics.set_basic_material(&player_material)
-	model_matrix := linalg.matrix4_translate_f32(player_get_position(&player_character) + OBJECT_UP) *
+	player_rotation : mat4
+	{
+		f := player_character.forward
+		u := player_character.up
+		r := linalg.normalize(linalg.cross(f, u))
+		player_rotation = {
+			r.x, f.x, u.x, 0,
+			r.y, f.y, u.y, 0,
+			r.z, f.z, u.z, 0,
+			0, 0, 0, 1
+		}
+	}
+
+	model_matrix := linalg.matrix4_translate_f32(player_get_position(&player_character) + player_character.up * f32(1.0)) *
+					player_rotation *
 					linalg.matrix4_scale_f32(2)
 	graphics.draw_mesh(&asset_provider.meshes[.Capsule], model_matrix)
 

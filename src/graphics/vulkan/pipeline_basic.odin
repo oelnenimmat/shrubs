@@ -21,8 +21,12 @@ BasicPipeline :: struct {
 @private
 BasicMaterialBuffer :: struct #align(16) {
 	surface_color : vec4,
+	texcoord_scale : f32,
+	_ :f32,
+	_ :f32,
+	_ :f32,
 }
-#assert(size_of(BasicMaterialBuffer) == 16)
+#assert(size_of(BasicMaterialBuffer) == 32)
 
 create_basic_material :: proc(texture : ^Texture) -> BasicMaterial {
 	g 		:= &graphics
@@ -42,6 +46,9 @@ create_basic_material :: proc(texture : ^Texture) -> BasicMaterial {
 	m.descriptor_set = allocate_descriptor_set(basic.material_layout)
 	descriptor_set_write_buffer(m.descriptor_set, 0, m.buffer, .UNIFORM_BUFFER, 0, size)
 	descriptor_set_write_textures(m.descriptor_set, 1, {texture})
+
+	m.mapped.surface_color = {0, 0, 0, 1}
+	m.mapped.texcoord_scale = 1
 
 	return m
 }

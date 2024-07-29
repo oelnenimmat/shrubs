@@ -27,22 +27,26 @@ PLAYER_CHARACTER_MOVE_SPEED :: 6.0
 
 PLAYER_COLLIDER_RADIUS :: 0.5
 PLAYER_COLLIDER_HEIGHT :: 2
-PLAYER_COLLIDER_CENTER :: vec3{0, 0, 0.5 * PLAYER_COLLIDER_HEIGHT}
+// PLAYER_COLLIDER_CENTER :: vec3{0, 0, 0.5 * PLAYER_COLLIDER_HEIGHT}
+
+PLAYER_HEAD_HEIGHT :: 3
+PLAYER_CAMERA_DISTANCE :: -8
 
 PlayerCharacter :: struct {
 	physics_position 		: vec3,
 	old_physics_position 	: vec3,
 
+	up 		: vec3,
+	forward : vec3,
+
 	view_forward 			: vec3,
-	head_height 			: f32,
 
 	is_attached_on_tank : bool,
 }
 
 create_player_character :: proc() -> PlayerCharacter {
 	pc : PlayerCharacter
-	pc.head_height = 1.8
-	pc.physics_position = {0, 0, 5}
+	pc.physics_position = {10, 10, world_radius * 1.2}
 	pc.old_physics_position = pc.physics_position
 
 	pc.view_forward = OBJECT_FORWARD
@@ -71,8 +75,6 @@ update_player_character :: proc(pc : ^PlayerCharacter, cam : ^Camera, delta_time
 	move_right_input 	:= input.DEBUG_get_key_axis(.A, .D)
 	move_forward_input 	:= input.DEBUG_get_key_axis(.S, .W)
 	
-	HACK_move_head_up_input := input.DEBUG_get_key_axis(.F, .R)
-
 	look_right_input 	:= input.DEBUG_get_mouse_movement(0) * 0.005
 	look_up_input 		:= input.DEBUG_get_mouse_movement(1) * 0.005
 
@@ -104,7 +106,8 @@ update_player_character :: proc(pc : ^PlayerCharacter, cam : ^Camera, delta_time
 	// Todo(Leo): for now we have flat plane as a world, but this will prob
 	// change. To move along the plane, we need to know what is the local
 	// up at that point of the world.
-	world_local_up := OBJECT_UP
+	// world_local_up := OBJECT_UP
+	world_local_up := -linalg.normalize(physics.get_gravitational_pull(pc.physics_position))
 
 	view_right 		:= normalize(cross(pc.view_forward, world_local_up))
 	view_forward 	:= pc.view_forward
@@ -115,14 +118,15 @@ update_player_character :: proc(pc : ^PlayerCharacter, cam : ^Camera, delta_time
 
 	pc.view_forward = normalize(mul(pan * tilt, view_forward))
 
+	pc.up 			= world_local_up
+	pc.forward 		= normalize(cross(pc.up, /*right: */ normalize(cross(pc.view_forward, pc.up))))
+
 	// Project view vectors on local up (just z-axis for now) to move on a flat plane
 	flat_right 		:= normalize(view_right - projection(view_right, world_local_up))
 	flat_forward 	:= normalize(view_forward - projection(view_forward, world_local_up))
 
 	// Move
 	move_vector := move_right_input * flat_right + move_forward_input * flat_forward
-
-	pc.head_height += HACK_move_head_up_input * PLAYER_CHARACTER_MOVE_SPEED * delta_time
 
 	GROUNDING_SKIN_WIDTH :: 0.02
 	// Physicsy -> apply forces
@@ -131,12 +135,12 @@ update_player_character :: proc(pc : ^PlayerCharacter, cam : ^Camera, delta_time
 		player_physics_update(pc, move_vector)
 	}
 
-	min_z 		:= sample_height(pc.physics_position.x, pc.physics_position.y, &scene.world)
-	grounded 	:= pc.physics_position.z < (min_z + GROUNDING_SKIN_WIDTH)
+	// min_z 		:= sample_height(pc.physics_position.x, pc.physics_position.y, &scene.world)
+	grounded 	:= false // pc.physics_position.z < (min_z + GROUNDING_SKIN_WIDTH)
 
 	// ground collider is slimmer to not hit walls and slightly below, also put it slighlyt down to hit the ground
 	ground_collider := physics.CapsuleCollider {
-		pc.physics_position + PLAYER_COLLIDER_CENTER + {0, 0, -0.05},
+		pc.physics_position + (pc.up * (0.5 * PLAYER_COLLIDER_HEIGHT - 0.05)),
 		PLAYER_COLLIDER_RADIUS - 0.1,
 		PLAYER_COLLIDER_HEIGHT,
 	}
@@ -172,11 +176,17 @@ update_player_character :: proc(pc : ^PlayerCharacter, cam : ^Camera, delta_time
 
 	// No sliding on the ground
 	if grounded {
-		pc.old_physics_position.xy = pc.physics_position.xy
+		G 			:= physics.get_gravitational_pull(pc.physics_position)
+		G_direction := linalg.normalize(G)
+		G_magnitude := linalg.length(G)
+
+		// project difference to G_direction and subtract that from the difference
+		// pc.old_physics_position.xy = pc.physics_position.xy
 
 		if jump_input {
 			// Todo(Leo): this is very dependent on physics.DELTA_TIME and GRAVITATIONAL_ACCELERATION. Duh, obviously
-			pc.physics_position.z += physics.GRAVITATIONAL_ACCELERATION * physics.DELTA_TIME * 0.5
+			// pc.physics_position.z += physics.GRAVITATIONAL_ACCELERATION * physics.DELTA_TIME * 0.5
+			pc.physics_position += -G * physics.DELTA_TIME * 0.5
 		}
 	}
 
@@ -213,8 +223,11 @@ update_player_character :: proc(pc : ^PlayerCharacter, cam : ^Camera, delta_time
 		view_rotation := quaternion_from_matrix4(m)
 
 		// Move eyes a tiny bit outside
-		eye_depth := f32(0.15)
-		cam.position = pc.physics_position + world_local_up * pc.head_height + view_forward * eye_depth 
+		// eye_depth := f32(0.15)
+		cam.position = pc.physics_position +
+						 world_local_up * PLAYER_HEAD_HEIGHT +
+						 view_forward * PLAYER_CAMERA_DISTANCE
+						 // view_forward * eye_depth 
 		cam.rotation = view_rotation
 	}
 
@@ -259,6 +272,9 @@ update_player_character :: proc(pc : ^PlayerCharacter, cam : ^Camera, delta_time
 		pc.is_attached_on_tank = false
 		debug.draw_wire_cube(tank.inside_trigger_volume.position, tank.inside_trigger_volume.rotation, tank.inside_trigger_volume.size, debug.RED)
 	}
+
+
+	debug.draw_wire_capsule(pc.physics_position + pc.up * 0.5 * PLAYER_COLLIDER_HEIGHT, pc.up, PLAYER_COLLIDER_RADIUS * 1.1, PLAYER_COLLIDER_HEIGHT, debug.RED)
 }
 
 player_physics_update :: proc(pc : ^PlayerCharacter, move_vector : vec3) {
@@ -272,22 +288,24 @@ player_physics_update :: proc(pc : ^PlayerCharacter, move_vector : vec3) {
 	}
 
 	move_step := cast(f32) PLAYER_CHARACTER_MOVE_SPEED * physics.DELTA_TIME
-	pc.physics_position 	+= move_vector * move_step
-	pc.old_physics_position += move_vector * move_step
+	pc.physics_position 	+= move_vector * move_step * 0.01
+	// pc.old_physics_position += move_vector * move_step
 
 	current_physics_position := pc.physics_position
 	old_physics_position := pc.old_physics_position
 	new_physics_position := current_physics_position + 
 							(current_physics_position - old_physics_position) + 
-							vec3{0, 0, -physics.GRAVITATIONAL_ACCELERATION} * physics.DELTA_TIME * physics.DELTA_TIME
+							// Todo(Leo): gravity is approximated same for the duration of the frame, maybe is good enough, maybe is not
+							physics.get_gravitational_pull(current_physics_position) * physics.DELTA_TIME * physics.DELTA_TIME
 
 	// Collide/constrain
-	min_z := sample_height(new_physics_position.x, new_physics_position.y, &scene.world)
-	correction := math.max(0, min_z - new_physics_position.z)
-	new_physics_position.z += correction
+	// min_z := sample_height(new_physics_position.x, new_physics_position.y, &scene.world)
+	// correction := math.max(0, min_z - new_physics_position.z)
+	// new_physics_position.z += correction
 
 
-	collider.position = new_physics_position + PLAYER_COLLIDER_CENTER
+
+	collider.position = new_physics_position + pc.up * (0.5 * PLAYER_COLLIDER_HEIGHT)
 	for c in physics.collide(&collider) {
 		correction := c.direction * c.depth
 
