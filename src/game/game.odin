@@ -113,8 +113,12 @@ tank_render_target : graphics.RenderTarget
 
 world_mesh : graphics.Mesh
 world_material : graphics.BasicMaterial
+
+// Current collision detection cannot handle too big size difference 
+// so we stick with 20 m radius for now
 // world_radius := f32(1000)
-world_radius := f32(100)
+// world_radius := f32(100)
+world_radius := f32(20)
 
 initialize :: proc() {
 	// Todo(Leo): some of this stuff seems to bee "application" or "engine" and not "game"

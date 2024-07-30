@@ -1,6 +1,5 @@
 package physics
 
-import "core:fmt"
 import "core:math"
 import "core:math/linalg"
 
@@ -28,6 +27,11 @@ simplex_put_first :: proc(s : ^Simplex, p : vec3) {
 	copy_slice(s.points[1:s.len + 1], temp.points[:s.len])
 	s.points[0] = p
 	s.len 		+= 1
+
+	// s.points[3] = s.points[2]
+	// s.points[2] = s.points[1]
+	// s.points[1] = s.points[0]
+	// s.points[0] = p
 }
 
 solve_gjk :: proc(a : ^$A, b : ^$B, initial_direction : vec3) -> (bool, Collision) {
@@ -41,7 +45,7 @@ solve_gjk :: proc(a : ^$A, b : ^$B, initial_direction : vec3) -> (bool, Collisio
 	// kinda sanity check. Would not expect to hit this, but it happens still
 	// todo(Leo): learn more
 	MAX_ITERATIONS :: 20
-	for _ in 0..<MAX_ITERATIONS {
+	for i in 0..<MAX_ITERATIONS {
 		support = gjk_get_support_point(a, b, direction)
 
 		if linalg.dot(support, direction) <= 0.0 {
@@ -52,9 +56,9 @@ solve_gjk :: proc(a : ^$A, b : ^$B, initial_direction : vec3) -> (bool, Collisio
 
 		done := false
 		switch points.len {
-			case 2:	gjk_process_line(&points, &direction)
-			case 3: gjk_process_triangle(&points, &direction)
-			case 4: done = gjk_process_tetrahedron(&points, &direction)
+			case 2: points, direction = gjk_process_line(points, direction)
+			case 3: points, direction = gjk_process_triangle(points, direction)
+			case 4: points, direction, done = gjk_process_tetrahedron(points, direction)
 			case: panic("gjk went bad :(")
 		}
 
@@ -88,9 +92,9 @@ solve_gjk_only :: proc(a : ^$A, b : ^$B, initial_direction : vec3) -> bool {
 
 		done := false
 		switch points.len {
-			case 2:	gjk_process_line(&points, &direction)
-			case 3: gjk_process_triangle(&points, &direction)
-			case 4: done = gjk_process_tetrahedron(&points, &direction)
+			case 2: points, direction = gjk_process_line(points, direction)
+			case 3: points, direction = gjk_process_triangle(points, direction)
+			case 4: points, direction, done = gjk_process_tetrahedron(points, direction)
 			case: panic("gjk went bad :(")
 		}
 
@@ -113,7 +117,10 @@ gjk_same_direction :: proc(a, b: vec3) -> bool {
 }
 
 @(private="file")
-gjk_process_line :: proc(s : ^Simplex, direction : ^vec3) {
+gjk_process_line :: proc(s : Simplex, direction : vec3) -> (Simplex, vec3) {
+	s 			:= s
+	direction := linalg.normalize(direction)
+
 	cross :: linalg.cross
 
 	a := s.points[0]
@@ -122,19 +129,28 @@ gjk_process_line :: proc(s : ^Simplex, direction : ^vec3) {
 	ab 			:= b - a
 	to_origin 	:= 0 - a
 
+	// direction 	:= direction
+	
 	// if b is closer to origin than a
 	if gjk_same_direction(ab, to_origin) {
-		direction^ = cross(cross(ab, to_origin), ab)
+		axis 		:= cross(ab, to_origin)
+		direction 	= cross(axis, ab)
 
 	// if a is closer to orign than b
 	} else {
-		s^ 			= simplex(a)
-		direction^ 	= to_origin
+		s 			= simplex(a)
+		direction 	= to_origin
 	}
+
+	direction = linalg.normalize(direction)
+	return s, direction
 }
 
 @(private="file")
-gjk_process_triangle :: proc(s : ^Simplex, direction : ^vec3) {
+gjk_process_triangle :: proc(s : Simplex, direction : vec3) -> (Simplex, vec3) {
+	s 			:= s
+	direction := linalg.normalize(direction)
+	
 	cross :: linalg.cross
 
 	a := s.points[0]
@@ -150,31 +166,37 @@ gjk_process_triangle :: proc(s : ^Simplex, direction : ^vec3) {
 
 	to_origin := 0 - a
 
+
 	if gjk_same_direction(cross(abc, ac), to_origin) {
 		if gjk_same_direction(ac, to_origin) {
-			s^ 			= simplex(a,c)
-			direction^ 	= cross(cross(ac, to_origin), ac)
+			s 			= simplex(a,c)
+			direction 	= cross(cross(ac, to_origin), ac)
 		} else {
-			s^ = simplex(a,b)
-			gjk_process_line(s, direction)
+			s = simplex(a,b)
+			s, direction := gjk_process_line(s, direction)
 		}
 	} else {
 		if gjk_same_direction(cross(ab, abc), to_origin) {
-			s^ = simplex(a,b)
-			gjk_process_line(s, direction)
+			s = simplex(a,b)
+			s, direction = gjk_process_line(s, direction)
 		} else {
 			if gjk_same_direction(abc, to_origin) {
-				direction^ = abc
+				direction = abc
 			} else {
-				s^ 			= simplex(a, c, b)
-				direction^ 	= -abc
+				s 			= simplex(a, c, b)
+				direction 	= -abc
 			}
 		}
 	}
+
+	direction = linalg.normalize(direction)
+	return s, direction
 }
 
 @(private="file")
-gjk_process_tetrahedron :: proc(s : ^Simplex, direction : ^vec3) -> bool {
+gjk_process_tetrahedron :: proc(s : Simplex, direction : vec3) -> (Simplex, vec3, bool) {
+	s 			:= s
+	direction 	:= linalg.normalize(direction)
 
 	cross :: linalg.vector_cross3
 
@@ -198,28 +220,32 @@ gjk_process_tetrahedron :: proc(s : ^Simplex, direction : ^vec3) -> bool {
 	// normal points to origin (is same direction as vector to origin) then the origin is outside
 	// (so no collision) to that direction. Continue by looking into that direction
 
+
 	if gjk_same_direction(abc, to_origin) {
-		s^ = simplex(a, b, c)
-		gjk_process_triangle(s, direction)
+		s = simplex(a, b, c)
+		s, direction = gjk_process_triangle(s, direction)
 		
-		return false
+	direction = linalg.normalize(direction)
+		return s, direction, false
 	} 
 
 	if gjk_same_direction(acd, to_origin) {
-		s^ = simplex(a, c, d)
-		gjk_process_triangle(s, direction)
+		s = simplex(a, c, d)
+		s, direction = gjk_process_triangle(s, direction)
 		
-		return false
+	direction = linalg.normalize(direction)
+		return s, direction, false
 	} 
 
 	if gjk_same_direction(adb, to_origin) {
-		s^ = simplex(a, d, b)
-		gjk_process_triangle(s, direction)
+		s = simplex(a, d, b)
+		s, direction = gjk_process_triangle(s, direction)
 		
-		return false
+	direction = linalg.normalize(direction)
+		return s, direction, false
 	}
 
-	return true
+	return s, direction, true
 }
 
 @(private="file")
@@ -227,6 +253,7 @@ solve_epa :: proc(s : Simplex, a : ^$A, b : ^$B) -> Collision {
 
 	// todo(Leo): instead of just using the temp_allocator, get some arena or something
 	// and store temp_allocator offset here and return to it on exit
+	// Todo(Leo): use the scratch allocator
 	polytope := make([dynamic]vec3, 0, 20, context.temp_allocator)
 	append(&polytope, s.points[0], s.points[1], s.points[2], s.points[3])
 
@@ -254,6 +281,7 @@ solve_epa :: proc(s : Simplex, a : ^$A, b : ^$B) -> Collision {
 	// 	1, 3, 2,
 	// )
 
+	// Todo(Leo): allocate once and always just pass the same thing resized to zero
 	normals, closest_face_index := get_face_normals(polytope[:], faces[:])
 	defer delete(normals)
 
@@ -262,6 +290,7 @@ solve_epa :: proc(s : Simplex, a : ^$A, b : ^$B) -> Collision {
 
 	EPSILON : f32 : 0.001
 
+	// Todo(Leo): allocate once and always just pass the same thing resized to zero
 	// allocate these from arena thing too
 	new_unique_edges 	:= make([dynamic]Edge)
 	new_faces 			:= make([dynamic]int)

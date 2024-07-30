@@ -200,25 +200,49 @@ ray_sphere_intersect :: proc(sc : SphereCollider, ray : Ray) -> (hit := false, i
 
 CapsuleCollider :: struct {
 	position 	: vec3,
+	up 			: vec3,
 	radius 		: f32,
 	height 		: f32,
 }
 
 get_aabb_capsule_collider :: proc(using self : ^CapsuleCollider) -> AABB {
-	return AABB_from_bounds (position, { radius, radius, height / 2})
+	p0 := position - up * (height / 2 - radius)
+	p1 := position + up * (height / 2 - radius)
+
+	aabb0 := AABB_from_bounds(p0, radius)
+	aabb1 := AABB_from_bounds(p1, radius)
+
+	aabb := AABB {
+		min = linalg.min(aabb0.min, aabb1.min),
+		max = linalg.max(aabb0.max, aabb1.max),
+	}
+	return aabb
+
+	// return AABB_from_bounds (position, { radius, radius, height / 2})
 }
 
 get_support_point_capsule_collider :: proc(using self : ^CapsuleCollider, direction : vec3) -> vec3 {
 	// between p0 and p1 (inclusive) all points are equally far into the direction, so either one
 	// of the two is good. Beyond those, it is same as with sphere.
 
-	p0 := position - UP * (height / 2 - radius)
-	p1 := position + UP * (height / 2 - radius)
+	// Basically just two spheres combined
 
-	d0 := linalg.dot(p0, direction)
-	d1 := linalg.dot(p1, direction)
+	// maybe store p0 and p1 if need to optimize
+	point_0 := position - up * (height / 2 - radius)
+	point_1 := position + up * (height / 2 - radius)
 
-	p := p0 if d0 > d1 else p1
+	// direction := linalg.normalize(direction)
+
+	// support_point_0 = point_0 + direction * radius
+	// support_point_1 = point_1 + direction * radius
+
+
+
+	// d0 := linalg.dot(p0, direction)
+	// d1 := linalg.dot(p1, direction)
+
+	p := point_0 if linalg.dot(up, direction) < 0 else point_1
+	// p := point_0 if d0 > d1 else point_1
 
 	return p + linalg.normalize(direction) * radius
 }

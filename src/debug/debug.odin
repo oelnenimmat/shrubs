@@ -113,7 +113,7 @@ draw_wire_capsule :: proc(position : vec3, up : vec3, radius : f32, height : f32
 
 	// up := linalg.mul(rotation, vec3{0, 0, 1})
 
-	h := height - radius
+	h := height / 2 - radius
 
 	m1 := linalg.matrix4_from_trs_f32(position - up * h, quaternion(1), vec3(radius * 2))
 	m2 := linalg.matrix4_from_trs_f32(position + up * h, quaternion(1), vec3(radius * 2))

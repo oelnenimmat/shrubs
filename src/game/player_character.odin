@@ -141,6 +141,7 @@ update_player_character :: proc(pc : ^PlayerCharacter, cam : ^Camera, delta_time
 	// ground collider is slimmer to not hit walls and slightly below, also put it slighlyt down to hit the ground
 	ground_collider := physics.CapsuleCollider {
 		pc.physics_position + (pc.up * (0.5 * PLAYER_COLLIDER_HEIGHT - 0.05)),
+		pc.up,
 		PLAYER_COLLIDER_RADIUS - 0.1,
 		PLAYER_COLLIDER_HEIGHT,
 	}
@@ -203,7 +204,7 @@ update_player_character :: proc(pc : ^PlayerCharacter, cam : ^Camera, delta_time
 	// put_debug_value("ground correction", player_debug.ground_correction.value)
 	// put_debug_value("physics ticks", int(math.round(player_debug.physticks.value)))
 	// put_debug_value("grounded", grounded)
-	// put_debug_value("position", pc.physics_position)
+	put_debug_value("position", pc.physics_position)
 	// put_debug_value("old position", pc.old_physics_position)
 	put_debug_value("is attached on tank", pc.is_attached_on_tank)
 
@@ -280,9 +281,11 @@ update_player_character :: proc(pc : ^PlayerCharacter, cam : ^Camera, delta_time
 player_physics_update :: proc(pc : ^PlayerCharacter, move_vector : vec3) {
 	
 	// collider_position := pc.physics_position + vec3{0, 0, 0.5 * collider_height}
+	// Todo(Leo): recalculate pc.up here
 
 	collider := physics.CapsuleCollider {
 		{},
+		pc.up,
 		PLAYER_COLLIDER_RADIUS,
 		PLAYER_COLLIDER_HEIGHT,
 	}
@@ -290,6 +293,10 @@ player_physics_update :: proc(pc : ^PlayerCharacter, move_vector : vec3) {
 	move_step := cast(f32) PLAYER_CHARACTER_MOVE_SPEED * physics.DELTA_TIME
 	pc.physics_position 	+= move_vector * move_step * 0.01
 	// pc.old_physics_position += move_vector * move_step
+
+	if math.is_nan(pc.physics_position.x) {
+		fmt.println("nan")
+	}
 
 	current_physics_position := pc.physics_position
 	old_physics_position := pc.old_physics_position
@@ -309,6 +316,10 @@ player_physics_update :: proc(pc : ^PlayerCharacter, move_vector : vec3) {
 	for c in physics.collide(&collider) {
 		correction := c.direction * c.depth
 
+		if math.is_nan(correction.x) {
+			fmt.println("nan")
+		}
+
 		new_physics_position += correction
 
 		velocity_vector := new_physics_position - current_physics_position
@@ -318,6 +329,10 @@ player_physics_update :: proc(pc : ^PlayerCharacter, move_vector : vec3) {
 
 	pc.old_physics_position = current_physics_position
 	pc.physics_position 	= new_physics_position
+
+	if math.is_nan(pc.physics_position.x) {
+		fmt.println("nan")
+	}
 }
 
 
