@@ -306,9 +306,9 @@ player_physics_update :: proc(pc : ^PlayerCharacter, move_vector : vec3) {
 							physics.get_gravitational_pull(current_physics_position) * physics.DELTA_TIME * physics.DELTA_TIME
 
 	// Collide/constrain
-	// min_z := sample_height(new_physics_position.x, new_physics_position.y, &scene.world)
-	// correction := math.max(0, min_z - new_physics_position.z)
-	// new_physics_position.z += correction
+	min_z := sample_height(new_physics_position.x, new_physics_position.y, &scene.world)
+	correction := math.max(0, min_z - new_physics_position.z)
+	new_physics_position.z += correction
 
 
 

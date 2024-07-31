@@ -16,5 +16,7 @@ get_gravitational_pull :: proc(location : vec3) -> vec3 {
 	and then this can be computed to be varying depending on height of the location etc.
 	*/
 	// For now, assume constant magnitude towards center
-	return linalg.normalize(-location) * GRAVITATIONAL_ACCELERATION
+	// return linalg.normalize(-location) * GRAVITATIONAL_ACCELERATION
+
+	return {0, 0, -GRAVITATIONAL_ACCELERATION}
 }
