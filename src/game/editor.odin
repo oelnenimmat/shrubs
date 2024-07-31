@@ -9,9 +9,11 @@ import "shrubs:imgui"
 import "shrubs:input"
 
 EDITOR_STATE_SAVE_FILE_NAME :: "local/editor_state.json"
-EDITOR_CAMERA_MOVE_SPEED :: 6
+EDITOR_CAMERA_SLOW_MOVE_SPEED :: f32(25)
+EDITOR_CAMERA_FAST_MOVE_SPEED :: f32(250)
 
 EditorMode :: enum { ClickyClicky, FlyView }
+EditorCameraSpeedMode :: enum { Slow, Fast }
 EditorGizmoType :: enum { None, Translate, Rotate, Size }
 EditorGizmoOrientation :: enum { Local, World }
 
@@ -25,6 +27,7 @@ editor : struct {
 	camera_view_forward : vec3,
 	camera_view_up 		: vec3,
 	camera_position 	: vec3,
+	camera_speed_mode 	: EditorCameraSpeedMode,
 
 	// Only first gets to use gizmo, so we dont get weird results
 	// Todo(Leo): not necessarily necessary, but for now is like this
@@ -118,6 +121,11 @@ update_editor_camera :: proc(camera : ^Camera, delta_time : f32) {
 		}
 	}
 
+	if input.DEBUG_get_key_pressed(.F2) {
+		editor.camera_speed_mode = .Slow if editor.camera_speed_mode == .Fast else .Fast
+	}
+
+
 	// Camera gets sometimes annoingly tilted, this is the siml
 	if input.DEBUG_get_key_pressed(.R, {.Ctrl}) {
 		editor.camera_view_forward = OBJECT_FORWARD
@@ -157,7 +165,8 @@ update_editor_camera :: proc(camera : ^Camera, delta_time : f32) {
 		editor.camera_view_up = normalize(mul(pan * tilt, up))
 		
 		movement := right * move.x + forward * move.y + world_local_up * move.z
-		editor.camera_position += movement * EDITOR_CAMERA_MOVE_SPEED * delta_time
+		speed := EDITOR_CAMERA_SLOW_MOVE_SPEED if editor.camera_speed_mode == .Slow else EDITOR_CAMERA_FAST_MOVE_SPEED
+		editor.camera_position += movement * speed * delta_time
 	}
 
 	// Camera position needs to be set regardless of editor mode

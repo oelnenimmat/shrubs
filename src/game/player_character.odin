@@ -291,7 +291,7 @@ player_physics_update :: proc(pc : ^PlayerCharacter, move_vector : vec3) {
 	}
 
 	move_step := cast(f32) PLAYER_CHARACTER_MOVE_SPEED * physics.DELTA_TIME
-	pc.physics_position 	+= move_vector * move_step * 0.01
+	pc.physics_position 	+= move_vector * move_step * 0.1
 	// pc.old_physics_position += move_vector * move_step
 
 	if math.is_nan(pc.physics_position.x) {

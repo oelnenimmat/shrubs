@@ -9,8 +9,8 @@ import "core:math/linalg"
 import "core:math/rand"
 
 // Squares!!! for now..
-TERRAIN_CHUNK_SIZE_1D 		:: 10 // x 10
-TERRAIN_QUADS_PER_CHUNK_1D 	:: 10
+TERRAIN_CHUNK_SIZE_1D 		:: 100 // x 10
+TERRAIN_QUADS_PER_CHUNK_1D 	:: 100
 
 GRASS_DENSITY_PER_UNIT :: 10
 GRASS_CHUNK_WORLD_SIZE :: 10

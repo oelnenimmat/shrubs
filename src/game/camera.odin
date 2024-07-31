@@ -25,7 +25,7 @@ OBJECT_UP 		:: vec3{0, 0, 1}
 // SETTINGS
 VERTICAL_FIELD_OF_VIEW 	:: 1
 NEAR_CLIPPING_PLANE 	:: 0.1
-FAR_CLIPPING_PLANE 		:: 300.00
+FAR_CLIPPING_PLANE 		:: 1000.00
 
 Camera :: struct {
 	position 	: vec3,
