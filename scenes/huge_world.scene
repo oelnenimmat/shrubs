@@ -1,8 +1,8 @@
 {
 	"world": {
 		"seed": 728,
-		"noise_scale": 100.00000000,
-		"z_scale": 20.00000000,
+		"noise_scale": 500.00000000,
+		"z_scale": 70.00000000,
 		"z_offset": 10.00000000,
 		"chunk_count_1D": 40,
 		"placement_match_world_size": false,

@@ -23,6 +23,10 @@ import "shrubs:debug"
 import "shrubs:input"
 import "shrubs:physics"
 
+// get to max speed in 1s
+PLAYER_CHARACTER_ACCELERATION 	:: 6.0
+PLAYER_CHARACTER_MAX_SPEED 		:: 6.0
+
 PLAYER_CHARACTER_MOVE_SPEED :: 6.0
 
 PLAYER_COLLIDER_RADIUS :: 0.5
@@ -294,9 +298,6 @@ player_physics_update :: proc(pc : ^PlayerCharacter, move_vector : vec3) {
 	pc.physics_position 	+= move_vector * move_step * 0.1
 	// pc.old_physics_position += move_vector * move_step
 
-	if math.is_nan(pc.physics_position.x) {
-		fmt.println("nan")
-	}
 
 	current_physics_position := pc.physics_position
 	old_physics_position := pc.old_physics_position
@@ -316,10 +317,6 @@ player_physics_update :: proc(pc : ^PlayerCharacter, move_vector : vec3) {
 	for c in physics.collide(&collider) {
 		correction := c.direction * c.depth
 
-		if math.is_nan(correction.x) {
-			fmt.println("nan")
-		}
-
 		new_physics_position += correction
 
 		velocity_vector := new_physics_position - current_physics_position
@@ -329,10 +326,6 @@ player_physics_update :: proc(pc : ^PlayerCharacter, move_vector : vec3) {
 
 	pc.old_physics_position = current_physics_position
 	pc.physics_position 	= new_physics_position
-
-	if math.is_nan(pc.physics_position.x) {
-		fmt.println("nan")
-	}
 }
 
 
