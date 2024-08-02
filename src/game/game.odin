@@ -325,8 +325,23 @@ update :: proc(delta_time: f64) {
 		
 		// world
 		{
+			// old test sphere world
 			colliders := []physics.SphereCollider {{vec3(0), world_radius}}
 			physics.submit_colliders(colliders)
+
+			terrain_collider := physics.HeightfieldCollider {
+				position = {0, 0, 0},
+
+				noise_seed = scene.world.seed,
+				noise_scale = scene.world.noise_scale,
+
+				z_scale = scene.world.z_scale,
+				z_offset = scene.world.z_offset,
+
+				bounds_min = {-50, -50, -100},
+				bounds_max = {50, 50, 100},
+			}
+			physics.submit_colliders([]physics.HeightfieldCollider{terrain_collider})
 		}
 
 		// submit greyboxes
@@ -616,10 +631,6 @@ render_camera :: proc(camera : ^Camera, render_target : ^graphics.RenderTarget) 
 	}
 
 	// NEXT PIPELINE
-	graphics.setup_wire_pipeline()
-	debug.render()
-
-	// NEXT PIPELINE
 	graphics.setup_terrain_pipeline()
 	graphics.set_terrain_material(&terrain_material)
 	for p, i in scene.terrain.positions {
@@ -641,6 +652,13 @@ render_camera :: proc(camera : ^Camera, render_target : ^graphics.RenderTarget) 
 	// NEXT PIPELINE
 	graphics.draw_sky()
 	graphics.wait_for_grass()
+
+	debug.draw_line(player_character.position + {0, 0, 2}, player_character.position + {1, 0, 2}, debug.RED)
+	debug.draw_line(player_character.position + {0, 0, 2}, player_character.position + {0, 1, 2}, debug.GREEN)
+	debug.draw_line(player_character.position + {0, 0, 2}, player_character.position + {0, 0, 3}, debug.BLUE)
+
+	// NEXT PIPELINE
+	debug.render()
 
 	// FINISH
 	// graphics.resolve_render_target(render_target)

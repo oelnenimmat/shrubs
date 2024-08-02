@@ -4,9 +4,6 @@ import "core:math/linalg"
 
 DELTA_TIME :: 0.01
 
-
-
-@private
 GRAVITATIONAL_ACCELERATION :: 10
 
 get_gravitational_pull :: proc(location : vec3) -> vec3 {

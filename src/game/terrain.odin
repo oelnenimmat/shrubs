@@ -1,6 +1,7 @@
 package game
 
 import graphics "shrubs:graphics/vulkan"
+import "shrubs:common"
 import "shrubs:imgui"
 
 import "core:fmt"
@@ -9,8 +10,8 @@ import "core:math/linalg"
 import "core:math/rand"
 
 // Squares!!! for now..
-TERRAIN_CHUNK_SIZE_1D 		:: 100 // x 10
-TERRAIN_QUADS_PER_CHUNK_1D 	:: 100
+TERRAIN_CHUNK_SIZE_1D 		:: 100
+// TERRAIN_QUADS_PER_CHUNK_1D 	:: 100 // -> one quad is 1m x 1m
 
 GRASS_DENSITY_PER_UNIT :: 10
 GRASS_CHUNK_WORLD_SIZE :: 10
@@ -148,7 +149,7 @@ sample_height :: proc(x, y : f32, world : ^WorldSettings) -> f32 {
 	x := x / world.noise_scale
 	y := y / world.noise_scale
 
-	noise := value_noise_2D(x, y, i32(world.seed)) * 2 - 1
+	noise := common.value_noise_2D(x, y, i32(world.seed)) * 2 - 1
 	return noise * world.z_scale + world.z_offset
 }
 

@@ -11,16 +11,16 @@ import "core:fmt"
 import "core:math"
 import "core:math/linalg"
 
-// import "../engine"
-// import "../graphics/debug"
+import "shrubs:common"
+import "shrubs:debug"
 
 // these two groups are what matter
 get_aabb :: proc {
 	get_aabb_box_collider,
 	get_aabb_capsule_collider,
 	get_aabb_sphere_collider,
-	triangle_collider_aabb,
-	// heightfield_collider_aabb,
+	get_aabb_triangle_collider,
+	get_aabb_heightfield_collider,
 }
 
 get_support_point :: proc {
@@ -262,7 +262,7 @@ TriangleCollider :: struct {
 	points 		: [3]vec3, // in world space
 }
 
-triangle_collider_aabb :: proc(using self : ^TriangleCollider) -> AABB {
+get_aabb_triangle_collider :: proc(using self : ^TriangleCollider) -> AABB {
 	bounds_min := points[0]
 	bounds_max := points[0]
 
@@ -296,39 +296,93 @@ triangle_collider_get_support_point :: proc(using self : ^TriangleCollider, dire
 
 	return farthest_point
 }
-/*
+
 HeightfieldCollider :: struct {
-	using hf : engine.Heightfield,
 	position : vec3,
+
+	noise_seed 	: int,
+	noise_scale : f32,
+
+	z_scale : f32,
+	z_offset : f32,
+
+	bounds_min : vec3,
+	bounds_max : vec3,
 }
 
-heightfield_collider_aabb :: proc(hfc : ^HeightfieldCollider) -> AABB {
-	min_bounds := vec3 {
-		-f32(hfc.size[0]) * hfc.scale / 2,
-		-f32(hfc.size[1]) * hfc.scale / 2,
-		hfc.min_height,
-	} + hfc.position
-	max_bounds := vec3 {
-		f32(hfc.size[0]) * hfc.scale / 2,
-		f32(hfc.size[1]) * hfc.scale / 2,
-		hfc.max_height,
-	} + hfc.position
 
-	return AABB_from_min_and_max(min_bounds, max_bounds)
+get_aabb_heightfield_collider :: proc(c : ^HeightfieldCollider) -> AABB {
+	return AABB_from_min_and_max(c.bounds_min, c.bounds_max)
 }
 
-heightfield_collider_generate_triangles :: proc(hfc : ^HeightfieldCollider, target : AABB, allocator : runtime.Allocator) -> []TriangleCollider {
-	
+heightfield_collider_generate_triangles :: proc(c : ^HeightfieldCollider, target : AABB, allocator : runtime.Allocator) -> []TriangleCollider {
+
+	grid_scale := f32(10)
+
+	grid_min := linalg.floor(target.min / grid_scale)
+	grid_max := linalg.ceil(target.max / grid_scale)
+
+	quad_count 		:= grid_max - grid_min
+	triangle_count 	:= 2 * int(quad_count.x) * int(quad_count.y)
+	triangles 		:= make([]TriangleCollider, triangle_count, allocator)
+
+	for y in 0..<int(quad_count.y) {
+		for x in 0..<int(quad_count.x) {
+
+			vs : [4]vec3
+			vs[0].xy = ({f32(x), 		f32(y)} 	+ grid_min.xy) * grid_scale
+			vs[1].xy = ({f32(x + 1), 	f32(y)} 	+ grid_min.xy) * grid_scale
+			vs[2].xy = ({f32(x), 		f32(y + 1)} + grid_min.xy) * grid_scale
+			vs[3].xy = ({f32(x + 1), 	f32(y + 1)} + grid_min.xy) * grid_scale			
+
+			for _,i in vs {
+				// normalized noise in [-1, 1]
+				vs[i].z = common.value_noise_2D(
+					vs[i].x / c.noise_scale,
+					vs[i].y / c.noise_scale,
+					i32(c.noise_seed),
+				) * 2 - 1
+
+				// scale to actual dimensions
+				vs[i].z = vs[i].z * c.z_scale + c.z_offset
+			}
+
+			quad_index := x + y * int(quad_count.x)
+			t0 := quad_index * 2 + 0
+			t1 := quad_index * 2 + 1
+		
+			triangles[t0] = {(vs[0] + vs[1] + vs[2]) / 3, { vs[0], vs[1], vs[2] }}
+			triangles[t1] = {(vs[1] + vs[2] + vs[3]) / 3, { vs[2], vs[1], vs[3] }}
+
+			{
+				COLOR :: vec3{0, 0.6, 1}
+
+				debug.draw_line(vs[0], vs[1], COLOR)
+				debug.draw_line(vs[1], vs[2], COLOR)
+				debug.draw_line(vs[2], vs[0], COLOR)
+				debug.draw_line(vs[1], vs[3], COLOR)
+				debug.draw_line(vs[2], vs[3], COLOR)
+
+				debug.draw_line(vs[0], vs[0] + {0, 0, 0.5}, debug.RED)
+				debug.draw_line(vs[1], vs[1] + {0, 0, 0.5}, debug.RED)
+				debug.draw_line(vs[2], vs[2] + {0, 0, 0.5}, debug.RED)
+				debug.draw_line(vs[3], vs[3] + {0, 0, 0.5}, debug.RED)
+			}
+		}
+	}
+
+	return triangles
+	/*
 	// todo(Leo): draw aabb and "expanded to grid space" aabb for nice visualiztions
 
 	// origin is at center, as is mesh's
-	hfc_space_min := Vector2((target.min - hfc.position).xy)
-	hfc_space_max := Vector2((target.max - hfc.position).xy)
+	hfc_space_min := Vector2((target.min - c.position).xy)
+	hfc_space_max := Vector2((target.max - c.position).xy)
 
 	// intger coordinate space in height field map
-	hw 	:= f32(hfc.size[0]) / 2 // half width
-	hh 	:= f32(hfc.size[1]) / 2 // half height
-	s 	:= hfc.scale 
+	hw 	:= f32(c.size[0]) / 2 // half width
+	hh 	:= f32(c.size[1]) / 2 // half height
+	s 	:= c.scale 
 
 	offset 			:= Vector2 { hw * s, hh * s }
 	hfc_space_min 	= linalg.floor((hfc_space_min + offset) / s)
@@ -341,8 +395,8 @@ heightfield_collider_generate_triangles :: proc(hfc : ^HeightfieldCollider, targ
 	}
 
 	coord_max := [2]int {
-		min(int(hfc_space_max.x), hfc.size[0] - 1),
-		min(int(hfc_space_max.y), hfc.size[1] - 1),
+		min(int(hfc_space_max.x), c.size[0] - 1),
+		min(int(hfc_space_max.y), c.size[1] - 1),
 	}
 
 	quad_counts 	:= coord_max - coord_min
@@ -356,16 +410,16 @@ heightfield_collider_generate_triangles :: proc(hfc : ^HeightfieldCollider, targ
 		x1 := x0 + 1
 		y1 := y0 + 1
 
-		v0 := x0 + y0 * hfc.size[0]
-		v1 := x1 + y0 * hfc.size[0]
-		v2 := x0 + y1 * hfc.size[0]
-		v3 := x1 + y1 * hfc.size[0]
+		v0 := x0 + y0 * c.size[0]
+		v1 := x1 + y0 * c.size[0]
+		v2 := x0 + y1 * c.size[0]
+		v3 := x1 + y1 * c.size[0]
 
 		p := []vec3 {
-			vec3 { (f32(x0) - hw) * s, (f32(y0) - hh) * s, hfc.data[v0] } + hfc.position,
-			vec3 { (f32(x1) - hw) * s, (f32(y0) - hh) * s, hfc.data[v1] } + hfc.position,
-			vec3 { (f32(x0) - hw) * s, (f32(y1) - hh) * s, hfc.data[v2] } + hfc.position,
-			vec3 { (f32(x1) - hw) * s, (f32(y1) - hh) * s, hfc.data[v3] } + hfc.position,
+			vec3 { (f32(x0) - hw) * s, (f32(y0) - hh) * s, c.data[v0] } + c.position,
+			vec3 { (f32(x1) - hw) * s, (f32(y0) - hh) * s, c.data[v1] } + c.position,
+			vec3 { (f32(x0) - hw) * s, (f32(y1) - hh) * s, c.data[v2] } + c.position,
+			vec3 { (f32(x1) - hw) * s, (f32(y1) - hh) * s, c.data[v3] } + c.position,
 		}
 
 		// Note(Leo): here we are defininf winding, and it must be same as with mesh generation
@@ -391,8 +445,9 @@ heightfield_collider_generate_triangles :: proc(hfc : ^HeightfieldCollider, targ
 	}
 
 	return triangles
+	*/
 }
-*/
+
 /*
 PlaneCollider :: struct {
 	point 		: vec3,

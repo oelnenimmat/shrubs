@@ -25,7 +25,6 @@ create_wire_pipeline :: proc() {
 
 	wire.layout = create_pipeline_layout({
 		shared.per_frame.layout,	
-		shared.lighting.layout,
 	}, {
 		{ {.VERTEX, .FRAGMENT }, 0, size_of(WirePushConstant), },
 	})
@@ -115,7 +114,6 @@ setup_wire_pipeline :: proc () {
 
 	descriptor_sets := []vk.DescriptorSet {
 		shared.per_frame.set,
-		shared.lighting.set,
 	}
 
 	vk.CmdBindDescriptorSets(

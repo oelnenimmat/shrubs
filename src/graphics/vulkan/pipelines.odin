@@ -218,7 +218,9 @@ Pipelines :: struct {
 	grass 			: GrassPipeline,
 	grass_placement : GrassPlacementPipeline,
 	post_process 	: PostProcessPipeline,
+
 	wire 			: WirePipeline,
+	line 			: LinePipeline,
 }
 
 @private
@@ -254,7 +256,9 @@ create_pipelines :: proc() {
 	create_grass_pipeline()
 	create_grass_placement_pipeline()
 	create_post_process_pipeline()
+	
 	create_wire_pipeline()
+	create_line_pipeline()
 }
 
 @private
@@ -274,7 +278,9 @@ destroy_pipelines :: proc() {
 	destroy_grass_pipeline()
 	destroy_grass_placement_pipeline()
 	destroy_post_process_pipeline()
+	
 	destroy_wire_pipeline()
+	destroy_line_pipeline()
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -505,6 +511,9 @@ pipeline_viewport :: proc() -> vk.PipelineViewportStateCreateInfo {
 
 @private
 pipeline_rasterization :: proc(cull_mode : vk.CullModeFlags, polygon_mode := vk.PolygonMode.FILL)-> vk.PipelineRasterizationStateCreateInfo {
+	depth_bias_enabled := b32(false) //polygon_mode == .LINE)
+	depth_bias_factor := f32(-1 if depth_bias_enabled else 0)
+
 	return {
 		sType 					= .PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
 		depthClampEnable 		= VK_FALSE,
@@ -513,7 +522,8 @@ pipeline_rasterization :: proc(cull_mode : vk.CullModeFlags, polygon_mode := vk.
 		lineWidth 				= 4.0 if polygon_mode == .LINE else 1.0,
 		cullMode	 			= cull_mode,
 		frontFace 				= .COUNTER_CLOCKWISE,
-		depthBiasEnable			= VK_FALSE,
+		depthBiasEnable			= depth_bias_enabled,
+		depthBiasConstantFactor = depth_bias_factor,
 	}
 }
 

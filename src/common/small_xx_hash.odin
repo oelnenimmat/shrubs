@@ -6,7 +6,7 @@ read that more carefully for extra cpu-optimization hints and other stuff
 this is a very quick implementation for very limited and try-outty use case
 */
 
-package game
+package common
 
 PRIME_A : u32 : 2654435761 //0b10011110001101110111100110110001
 PRIME_B : u32 : 2246822519 //0b10000101111010111100101001110111

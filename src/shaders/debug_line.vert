@@ -5,13 +5,12 @@ layout(set = 0, binding = 0) uniform PerFrame {
 	mat4 view;
 };
 
-layout(push_constant) uniform WirePerDraw {
-	mat4 model;
+layout(push_constant) uniform LinePerDraw {
+	vec4 points[2];
 	vec4 color;
 };
 
-layout(location = 0) in vec3 vertex_position;
-
 void main() {
-	gl_Position = projection * view * model * vec4(vertex_position, 1.0);
+	vec3 position 	= points[gl_VertexIndex].xyz;
+	gl_Position 	= projection * view * vec4(position, 1.0);
 }

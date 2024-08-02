@@ -31,8 +31,18 @@ DrawCall :: struct {
 }
 
 @private
+LineDrawCall :: struct {
+	points 	: [2]vec3,
+	color 	: vec3,
+}
+
+@private
 debug_drawing : struct {
-	draws : [dynamic]DrawCall,
+	// Todo(Leo): these become obsolete once we get debug command buffer on
+	// graphics side, but then its is unclear to me what is going on in their
+	// dynamic allocations
+	draws 		: [dynamic]DrawCall,
+	line_draws 	: [dynamic]LineDrawCall,
 
 	sphere_mesh : graphics.Mesh,
 	cube_mesh 	: graphics.Mesh,
@@ -41,6 +51,10 @@ debug_drawing : struct {
 initialize :: proc(capacity : int) {
 	dd := &debug_drawing
 	dd^ = {}
+
+	// Todo(Leo): allocator
+	dd.draws = make([dynamic]DrawCall, 0, 256, context.allocator)
+	dd.line_draws = make([dynamic]LineDrawCall, 0, 256, context.allocator)
 
 	{
 		positions, normals, texcoords, elements := assets.NOT_MEMORY_SAFE_gltf_load_node("assets/shapes.glb", "shape_sphere")
@@ -67,6 +81,7 @@ terminate :: proc() {
 	dd := &debug_drawing
 
 	delete (dd.draws)
+	delete (dd.line_draws)
 
 	graphics.destroy_mesh(&dd.sphere_mesh)
 	graphics.destroy_mesh(&dd.cube_mesh)
@@ -77,17 +92,23 @@ terminate :: proc() {
 new_frame :: proc() {
 	// debug_drawing.count = 0
 	resize(&debug_drawing.draws, 0)
+	resize(&debug_drawing.line_draws, 0)
 }
 
 render :: proc() {
 	dd := &debug_drawing
 
+	graphics.setup_wire_pipeline()
 	for d in dd.draws {
 		// Todo(Leo): not nice to set material every frame, maybe limit palette
 		// and sort, but also doesn't really matter (escpecially right now :))
 		graphics.draw_wire_mesh(d.mesh, d.model_matrix, d.color)
 	}
 
+	graphics.setup_line_pipeline()
+	for l in dd.line_draws {
+		graphics.draw_line(l.points, l.color)
+	}
 }
 
 @private
@@ -120,6 +141,12 @@ draw_wire_capsule :: proc(position : vec3, up : vec3, radius : f32, height : f32
 
 	draw(m1, color, &dd.sphere_mesh)
 	draw(m2, color, &dd.sphere_mesh)
+}
+
+draw_line :: proc(p0, p1 : vec3, color : vec3) {
+	dd := &debug_drawing
+
+	append(&dd.line_draws, LineDrawCall{{p0, p1}, color})
 }
 
 // Todo(Leo): this is a start of more proper debug messaging thing, this way we don't

@@ -95,7 +95,7 @@ create_terrain_pipeline :: proc() {
 		vertex_input 	:= pipeline_vertex_input(bindings, attributes)
 		input_assembly 	:= pipeline_input_assembly(.TRIANGLE_LIST)
 		viewport 		:= pipeline_viewport()
-		rasterization 	:= pipeline_rasterization({.BACK})
+		rasterization 	:= pipeline_rasterization({.BACK}, .FILL)
 		depth_stencil 	:= pipeline_depth_stencil()
 		multisample 	:= pipeline_multisample(true)
 

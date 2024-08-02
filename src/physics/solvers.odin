@@ -220,12 +220,11 @@ gjk_process_tetrahedron :: proc(s : Simplex, direction : vec3) -> (Simplex, vec3
 	// normal points to origin (is same direction as vector to origin) then the origin is outside
 	// (so no collision) to that direction. Continue by looking into that direction
 
-
 	if gjk_same_direction(abc, to_origin) {
 		s = simplex(a, b, c)
 		s, direction = gjk_process_triangle(s, direction)
 		
-	direction = linalg.normalize(direction)
+		direction = linalg.normalize(direction)
 		return s, direction, false
 	} 
 
@@ -233,7 +232,7 @@ gjk_process_tetrahedron :: proc(s : Simplex, direction : vec3) -> (Simplex, vec3
 		s = simplex(a, c, d)
 		s, direction = gjk_process_triangle(s, direction)
 		
-	direction = linalg.normalize(direction)
+		direction = linalg.normalize(direction)
 		return s, direction, false
 	} 
 
@@ -241,7 +240,7 @@ gjk_process_tetrahedron :: proc(s : Simplex, direction : vec3) -> (Simplex, vec3
 		s = simplex(a, d, b)
 		s, direction = gjk_process_triangle(s, direction)
 		
-	direction = linalg.normalize(direction)
+		direction = linalg.normalize(direction)
 		return s, direction, false
 	}
 
@@ -287,7 +286,7 @@ solve_epa :: proc(s : Simplex, a : ^$A, b : ^$B) -> Collision {
 
 	out_min_normal 		: vec3 = ---
 	out_min_distance 	: f32 = ---
-
+ 
 	EPSILON : f32 : 0.001
 
 	// Todo(Leo): allocate once and always just pass the same thing resized to zero
@@ -299,7 +298,7 @@ solve_epa :: proc(s : Simplex, a : ^$A, b : ^$B) -> Collision {
 	defer delete(new_faces)
 
 	for {
-		min_normal 		: vec3 = normals[closest_face_index].xyz
+		min_normal 		:= normals[closest_face_index].xyz
 		min_distance 	:= normals[closest_face_index].w
 
 		support 	:= gjk_get_support_point(a, b, min_normal)
@@ -322,6 +321,7 @@ solve_epa :: proc(s : Simplex, a : ^$A, b : ^$B) -> Collision {
 			}
 		}
 
+		// Todo(Leo): Maybe this can be merged with the break below
 		if done {
 			out_min_normal 		= min_normal
 			out_min_distance 	= min_distance
@@ -348,7 +348,8 @@ solve_epa :: proc(s : Simplex, a : ^$A, b : ^$B) -> Collision {
 			}
 		}
 
-		// todo(Leo): this relates to two breaks below. It has to do with us not finding any new solutions or something
+		// todo(Leo): this relates to two breaks below. 
+		// It has to do with us not finding any new solutions or something
 		if len(new_unique_edges) == 0 {
 			out_min_normal 		= min_normal
 			out_min_distance 	= min_distance
@@ -411,10 +412,9 @@ solve_epa :: proc(s : Simplex, a : ^$A, b : ^$B) -> Collision {
 	SKIN_WIDTH : f32 : 0.0001
 
 	return {
-		out_min_distance + SKIN_WIDTH,
-		-linalg.normalize(out_min_normal),
-		{ /* velocity here, but rn we dont have access to it so it is filled later */ },
-		{ /* this is tag, also not set here */ },
+		depth 			= out_min_distance + SKIN_WIDTH,
+		direction 		= -linalg.normalize(out_min_normal),
+		DEBUG_position 	= b.position,
 	}
 }
 

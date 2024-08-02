@@ -21,9 +21,9 @@ matrix4_mul_rotation 	:: common.matrix4_mul_rotation
 Collision :: struct {
 	 depth 		: f32,		// distance to move the least amout to get untangled
 	 direction 	: vec3, 	// direction to move the least amount to get untangled
-	 // normal 	: vec3, 	// not necessarily same as the min move out direction
-	 velocity 	: vec3,
-	 tag 		: int,
+
+	 // Not really a meaningful position but something to get us started
+	 DEBUG_position : vec3,
 }
 
 // todo(Leo): for now, we usually don't need to loop submitted colliders, so it is okay
@@ -35,7 +35,7 @@ SubmittedCollider :: union {
 	SphereCollider,
 	CapsuleCollider,
 	TriangleCollider,
-	// HeightfieldCollider,
+	HeightfieldCollider,
 }
 
 // Todo(Leo): this is singletong kinda thing, so no need for explicit struct type
@@ -210,10 +210,15 @@ Allocates memory from context.temp_allocator (so modify that if needed) to a dyn
 array and returns slice from that. Idea is that this would not need to be explicitly
 deleted, but free_all in the beginning of a frame would take care of this.
 */
-collide :: proc(collider : ^$Collider) -> []Collision {
+collide :: proc(collider : $Collider) -> []Collision {
+	
+	// Todo(Leo): prob no reason to use this as a pointer (i.e. no need to shadow here),
+	// but it was previously like this, and this is a remnant
+	collider := collider
+
 	p := &physics
 
-	aabb := get_aabb(collider)
+	aabb := get_aabb(&collider)
 	collision_indices := get_aabb_collisions(p, aabb)
 
 	// obsolete_comment: we only ever possibly need as many as collision indices number of these
@@ -227,28 +232,31 @@ collide :: proc(collider : ^$Collider) -> []Collision {
 		collision 	: Collision
 
 		switch c in &p.submitted_colliders[i] {
-			case BoxCollider: 		did_collide, collision = solve_gjk(collider, &c, c.position - collider.position)
-			case SphereCollider: 	did_collide, collision = solve_gjk(collider, &c, c.position - collider.position)
-			case CapsuleCollider: 	did_collide, collision = solve_gjk(collider, &c, c.position - collider.position)
-			case TriangleCollider:	did_collide, collision = solve_gjk(collider, &c, c.position - collider.position)
+			case BoxCollider: 		did_collide, collision = solve_gjk(&collider, &c, c.position - collider.position)
+			case SphereCollider: 	did_collide, collision = solve_gjk(&collider, &c, c.position - collider.position)
+			case CapsuleCollider: 	did_collide, collision = solve_gjk(&collider, &c, c.position - collider.position)
+			case TriangleCollider:	did_collide, collision = solve_gjk(&collider, &c, c.position - collider.position)
 
-			// case HeightfieldCollider:
-			// 	triangles := heightfield_collider_generate_triangles(&c, aabb, context.temp_allocator)
-			// 	for t in &triangles {
-			// 		did_collide, collision = solve_gjk(collider, &t, t.position - collider.position)
+			case HeightfieldCollider:
+				triangles := heightfield_collider_generate_triangles(&c, aabb, context.temp_allocator)
+				// fmt.println(triangles)
+				for t in &triangles {
+					did_collide, collision = solve_gjk(&collider, &t, t.position - collider.position)
 
-			// 		if did_collide {
-			// 			append(&collisions, collision)
-			// 		}
-			// 	}
+					if did_collide {
+						append(&collisions, collision)
+					}
 
-			// 	// every thing is already handled
-			// 	did_collide := false
+					debug.draw_line(collider.position, t.position, debug.GREEN)
+					// fmt.println(collider.position, t.position)
+				}
+				// fmt.println()
+
+				// every thing is already handled
+				did_collide := false
 		}
 
 		if did_collide {
-			collision.velocity = p.velocities[i]
-			collision.tag = p.collider_tags[i]
 			append(&collisions, collision)
 		}
 	}
