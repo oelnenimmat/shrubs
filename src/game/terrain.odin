@@ -13,12 +13,7 @@ import "core:math/linalg"
 import "core:math/rand"
 
 // Squares!!! for now..
-TERRAIN_CHUNK_SIZE_1D 		:: 100
-// TERRAIN_QUADS_PER_CHUNK_1D 	:: 100 // -> one quad is 1m x 1m
-
-GRASS_DENSITY_PER_UNIT :: 10
-GRASS_CHUNK_WORLD_SIZE :: 10
-GRASS_BLADES_IN_CHUNK_1D :: 128
+WORLD_CHUNK_SIZE_1D :: 100
 
 // "World" as in isolated part of "world" that makes up this specific scene 
 WorldSettings :: struct {
@@ -34,47 +29,9 @@ WorldSettings :: struct {
 	placement_offset 			: vec2,
 }
 
-check_dirty_bool :: proc(dirty : ^bool, edited : bool) {
-	if edited {
-		dirty^ = true
-	}
-}
 
-check_dirty_b8 :: proc(dirty : ^bool, edited : b8) {
-	if edited {
-		dirty^ = true
-	}
-}
-
-check_dirty :: proc { check_dirty_bool, check_dirty_b8 }
-
-edit_world_settings :: proc(w : ^WorldSettings) {
-	dirty := false
-
-	check_dirty(&dirty, imgui.input_int("seed", &w.seed))
-	check_dirty(&dirty, imgui.DragFloat("noise scale", &w.noise_scale, 0.01))
-	check_dirty(&dirty, imgui.DragFloat("z scale", &w.z_scale, 0.01))
-	check_dirty(&dirty, imgui.DragFloat("z offset", &w.z_offset, 0.01))
-
-	check_dirty(&dirty, imgui.input_int("chunk count(1D)", &w.chunk_count_1D))
-	imgui.text("world size: {}", w.chunk_count_1D * TERRAIN_CHUNK_SIZE_1D)
-
-	if imgui.button("generate") || dirty {
-		generate_terrain_mesh = true
-	}
-
-	imgui.Separator()
-	imgui.text("Placement texture")
-	imgui.checkbox("match world size", &w.placement_match_world_size)
-	imgui.drag_vec2("scale", &w.placement_scale)
-	imgui.drag_vec2("offset", &w.placement_offset)
-
-	if w.placement_match_world_size {
-		w.placement_scale = vec2(f32(w.chunk_count_1D * TERRAIN_CHUNK_SIZE_1D))
-		w.placement_offset = -0.5 * w.placement_scale
-	}
-
-}
+TERRAIN_CHUNK_SIZE_1D :: WORLD_CHUNK_SIZE_1D
+TERRAIN_QUADS_PER_CHUNK_1D :: 10 // -> one quad is 10m x 10m
 
 Terrain :: struct {
 	positions 		: []vec3,
@@ -186,9 +143,9 @@ sample_height :: proc(x, y : f32, world : ^WorldSettings) -> f32 {
 create_static_terrain_mesh :: proc(min_corner_position : vec2, uv_offset : vec2, world : ^WorldSettings) -> graphics.Mesh {
 	
 	// per dimension
-	quad_count_1D := 10
+	quad_count_1D := TERRAIN_QUADS_PER_CHUNK_1D
 	quad_count := quad_count_1D * quad_count_1D
-	quad_size := f32(TERRAIN_CHUNK_SIZE_1D) / f32(quad_count_1D)
+	quad_size := f32(TERRAIN_CHUNK_SIZE_1D) / f32(TERRAIN_QUADS_PER_CHUNK_1D)
 
 	// VERTICES
 	vertex_count := (quad_count_1D + 1) * (quad_count_1D + 1)
@@ -276,4 +233,49 @@ create_static_terrain_mesh :: proc(min_corner_position : vec2, uv_offset : vec2,
 
 	mesh := graphics.create_mesh(positions, normals, texcoords, indices)
 	return mesh
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Editor
+
+check_dirty_bool :: proc(dirty : ^bool, edited : bool) {
+	if edited {
+		dirty^ = true
+	}
+}
+
+check_dirty_b8 :: proc(dirty : ^bool, edited : b8) {
+	if edited {
+		dirty^ = true
+	}
+}
+
+check_dirty :: proc { check_dirty_bool, check_dirty_b8 }
+
+edit_world_settings :: proc(w : ^WorldSettings) {
+	dirty := false
+
+	check_dirty(&dirty, imgui.input_int("seed", &w.seed))
+	check_dirty(&dirty, imgui.DragFloat("noise scale", &w.noise_scale, 0.01))
+	check_dirty(&dirty, imgui.DragFloat("z scale", &w.z_scale, 0.01))
+	check_dirty(&dirty, imgui.DragFloat("z offset", &w.z_offset, 0.01))
+
+	check_dirty(&dirty, imgui.input_int("chunk count(1D)", &w.chunk_count_1D))
+	imgui.text("world size: {}", w.chunk_count_1D * TERRAIN_CHUNK_SIZE_1D)
+
+	if imgui.button("generate") || dirty {
+		generate_terrain_mesh = true
+	}
+
+	imgui.Separator()
+	imgui.text("Placement texture")
+	imgui.checkbox("match world size", &w.placement_match_world_size)
+	imgui.drag_vec2("scale", &w.placement_scale)
+	imgui.drag_vec2("offset", &w.placement_offset)
+
+	if w.placement_match_world_size {
+		w.placement_scale = vec2(f32(w.chunk_count_1D * TERRAIN_CHUNK_SIZE_1D))
+		w.placement_offset = -0.5 * w.placement_scale
+	}
+
 }

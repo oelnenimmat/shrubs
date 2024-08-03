@@ -2,6 +2,8 @@ package graphics
 
 import vk "vendor:vulkan"
 
+COMPUTE_SHADER_WORK_GROUP_SIZE_XY :: 16
+
 begin_grass_placement :: proc() {
 	g 				:= graphics
 	shared 			:= &graphics.pipelines.shared
@@ -65,7 +67,8 @@ dispatch_grass_placement_chunk :: proc(r : ^GrassRenderer) {
 		nil,
 	)
 
-	vk.CmdDispatch(cmd, 4, 4, 1)
+	work_group_count := r.instance_count_1D / COMPUTE_SHADER_WORK_GROUP_SIZE_XY
+	vk.CmdDispatch(cmd, work_group_count, work_group_count, 1)
 }
 
 end_grass_placement :: proc() {

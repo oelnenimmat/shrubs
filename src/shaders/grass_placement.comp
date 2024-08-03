@@ -42,10 +42,9 @@ layout(set = 2, binding = 0) uniform INPUT {
 	// x: type index
 	vec4 type_index;
 
-	// xy: chunk min corner position xy
-	// z: chunk size xy (Todo(Leo): constant?)
-	// w: grass blades in chunk 1D (Todo(Leo): constant?)
-	vec4 chunk_params;
+	vec2 chunk_position;
+	float chunk_size_1D;
+	float blade_count_1D;
 };
 
 // output
@@ -64,7 +63,7 @@ float sample_height (float x, float y) {
 
 void main() {
 	uint index = gl_GlobalInvocationID.x + 
-				uint(chunk_params.w) * gl_GlobalInvocationID.y;
+				uint(blade_count_1D) * gl_GlobalInvocationID.y;
 	uint cell_x = gl_GlobalInvocationID.x;
 	uint cell_y = gl_GlobalInvocationID.y;
 
@@ -74,14 +73,14 @@ void main() {
 	uint hx = hash_eat(hash, int(cell_x));
 	uint hy = hash_eat(hash, int(cell_y));
 
-	vec2 cell_size = chunk_params.zz / chunk_params.w;
+	vec2 cell_size = vec2(chunk_size_1D / blade_count_1D);
 
 	// World space!
 
 	// base position before clumping. clumping moves this, so z component is found after that
 	vec3 position_WS = vec3(
-		chunk_params.x + (cell_x + hash_get_float(hx)) * cell_size.x,
-		chunk_params.y + (cell_y + hash_get_float(hy)) * cell_size.y,
+		chunk_position.x + (cell_x + hash_get_float(hx)) * cell_size.x,
+		chunk_position.y + (cell_y + hash_get_float(hy)) * cell_size.y,
 		0
 	);
 

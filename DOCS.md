@@ -54,3 +54,7 @@ Prefix todo comments with `Todo(Name): `, like
 // but is is neither clear or efficient.
 HACK_do_an_important_operation :: proc (seven_pointers : []rawptr) { ... }
 ```
+
+## LOD System
+
+As of now, LOD system primarily covers terrain and other scenery, as there pretty much is nothing else. Initially, all different systems use same granularity, but this likely need to be revisited later (probably quite soon).

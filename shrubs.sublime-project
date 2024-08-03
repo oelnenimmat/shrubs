@@ -1,0 +1,10 @@
+{
+	"folders":
+	[
+		{
+			"file_exclude_patterns": [ "*.spv" ],
+			"folder_exclude_patterns": ["opengl"],
+			"path": "."
+		}
+	]
+}

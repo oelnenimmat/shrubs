@@ -495,41 +495,27 @@ render :: proc() {
 
 render_camera :: proc(camera : ^Camera, render_target : ^graphics.RenderTarget) {
 	// NEXT PIPELINE
-	// compute grass lods
-	grass_lods 			: [100]int
-	lod_segment_counts 	: [100]int
-	lod_instance_counts : [100]int
-	lod_check_position 	:= player_get_position(&player_character)
-	for lod, i in &grass_lods {
-		chunk_center := grass_system.positions[i] + vec2(2.5)
-
-		to_player := lod_check_position.xy - chunk_center
-		distance_to_player := linalg.length(to_player) 
+	// Todo(Leo): compute grass lod locations
 	
-		if lod_enabled == -1 {
-			switch {
-				case distance_to_player < 7.5: lod = 0
-				case distance_to_player < 15: lod = 1
-				case: lod = 2
-			}
-		} else {
-			lod = lod_enabled
-		}
-
-		lod_instance_counts[i] = grass_lod_settings[lod].instance_count
-		lod_segment_counts[i] = grass_lod_settings[lod].segment_count
-	}
-
 	graphics.begin_grass_placement()
 
-	for i in 0..<len(grass_system.instance_buffers) {
+	lod_blade_counts := []f32{GRASS_LOD_0_BLADE_COUNT_1D, GRASS_LOD_1_BLADE_COUNT_1D, GRASS_LOD_2_BLADE_COUNT_1D}
 
-		input := grass_system.renderers[i].placement_input_mapped
+	for _, lod in grass_system.lod_renderers {
+		for _, i in grass_system.lod_renderers[lod] {
 
-		input[0].x = f32(scene.grass_type)
-		input[1] = {grass_system.positions[i].x, grass_system.positions[i].y, 5, 64}
+			input := grass_system.lod_renderers[lod][i].placement_input_mapped
 
-		graphics.dispatch_grass_placement_chunk(&grass_system.renderers[i])
+			input[0].x = f32(scene.grass_type)
+			input[1] = {
+				grass_system.lod_positions[lod][i].x,
+				grass_system.lod_positions[lod][i].y,
+				GRASS_CHUNK_SIZE_1D,
+				lod_blade_counts[lod]
+			}
+
+			graphics.dispatch_grass_placement_chunk(&grass_system.lod_renderers[lod][i])
+		}		
 	}
 
 	graphics.end_grass_placement()
@@ -628,13 +614,10 @@ render_camera :: proc(camera : ^Camera, render_target : ^graphics.RenderTarget) 
 
 	// NEXT PIPELINE
 	graphics.setup_grass_pipeline(grass_cull_back)
-	for i in 0..<len(grass_system.instance_buffers) {
-		graphics.draw_grass(
-			grass_system.renderers[i],
-			lod_instance_counts[i] * lod_instance_counts[i],
-			lod_segment_counts[i],
-			grass_lods[i],
-		)
+	for _, lod in grass_system.lod_renderers {
+		for _, i in grass_system.lod_renderers[lod] {
+			graphics.draw_grass(grass_system.lod_renderers[lod][i], 0, 0, 0)
+		}
 	}
 
 	// NEXT PIPELINE

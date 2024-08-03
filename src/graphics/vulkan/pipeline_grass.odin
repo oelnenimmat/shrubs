@@ -5,6 +5,7 @@ import vk "vendor:vulkan"
 setup_grass_pipeline :: proc(cull_back : bool) {}
 
 GrassRenderer :: struct {
+	instance_count_1D : u32,
 	instance_count 	: u32,
 	instance_buffer : vk.Buffer,
 	instance_memory : vk.DeviceMemory,
@@ -17,14 +18,16 @@ GrassRenderer :: struct {
 	placement_input_descriptor : vk.DescriptorSet,
 }
 
-create_grass_renderer :: proc(instance_buffer : ^Buffer, placement_texture : ^Texture) -> GrassRenderer {
+create_grass_renderer :: proc(instance_count_1D : int, placement_texture : ^Texture) -> GrassRenderer {
 	g := &graphics
 
 	r := GrassRenderer{}
 
 	// Instances/placement output
 	{
-		r.instance_count = 64 * 64
+		r.instance_count_1D = u32(instance_count_1D)
+		r.instance_count = u32(instance_count_1D * instance_count_1D)
+
 		buffer_size := vk.DeviceSize(r.instance_count * 4 * size_of(vec4))
 		r.instance_buffer, r.instance_memory = create_buffer_and_memory(
 			buffer_size,
@@ -80,7 +83,8 @@ destroy_grass_renderer :: proc(r : ^GrassRenderer) {
 	vk.FreeMemory(g.device, r.placement_input_memory, nil)
 }
 
-draw_grass :: proc(r : GrassRenderer, instance_count : int, segment_count : int, lod : int) {
+draw_grass :: proc(r : GrassRenderer, _ : int, _ : int, _ : int) {
+// draw_grass :: proc(r : GrassRenderer, instance_count : int, segment_count : int, lod : int) {
 	g 		:= &graphics
 	shared 	:= &graphics.pipelines.shared
 	grass 	:= &graphics.pipelines.grass
