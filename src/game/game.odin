@@ -329,19 +329,7 @@ update :: proc(delta_time: f64) {
 			colliders := []physics.SphereCollider {{vec3(0), world_radius}}
 			physics.submit_colliders(colliders)
 
-			terrain_collider := physics.HeightfieldCollider {
-				position = {0, 0, 0},
-
-				noise_seed = scene.world.seed,
-				noise_scale = scene.world.noise_scale,
-
-				z_scale = scene.world.z_scale,
-				z_offset = scene.world.z_offset,
-
-				bounds_min = {-50, -50, -100},
-				bounds_max = {50, 50, 100},
-			}
-			physics.submit_colliders([]physics.HeightfieldCollider{terrain_collider})
+			physics.submit_colliders(scene.terrain.colliders)
 		}
 
 		// submit greyboxes

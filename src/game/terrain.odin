@@ -1,7 +1,10 @@
 package game
 
-import graphics "shrubs:graphics/vulkan"
 import "shrubs:common"
+import graphics "shrubs:graphics/vulkan"
+import "shrubs:physics"
+
+// import "shrubs:editor/imgui"
 import "shrubs:imgui"
 
 import "core:fmt"
@@ -76,6 +79,7 @@ edit_world_settings :: proc(w : ^WorldSettings) {
 Terrain :: struct {
 	positions 		: []vec3,
 	meshes 			: []graphics.Mesh,
+	colliders 		: []physics.HeightfieldCollider,
 
 	grass_placement_map : ^graphics.Texture,
 	grass_field_texture : ^graphics.Texture,
@@ -97,6 +101,31 @@ create_terrain :: proc(
 	t.grass_field_texture = grass_field_texture
 	t.road_texture = road_texture
 	
+
+	t.colliders = make([]physics.HeightfieldCollider, len(t.meshes), context.allocator)
+	for _, i in t.colliders {				
+		t.colliders[i] = {
+			position = t.positions[i],
+
+			noise_seed = world.seed,
+			noise_scale = world.noise_scale,
+
+			z_scale = world.z_scale,
+			z_offset = world.z_offset,
+
+			bounds_min = {
+				t.positions[i].x, 
+				t.positions[i].y, 
+				-world.z_scale + world.z_offset
+			},
+			bounds_max = {
+				t.positions[i].x + TERRAIN_CHUNK_SIZE_1D, 
+				t.positions[i].y + TERRAIN_CHUNK_SIZE_1D, 
+				world.z_scale + world.z_offset
+			},
+		}
+	}
+
 	return t
 }
 
@@ -138,6 +167,7 @@ destroy_terrain_meshes :: proc(terrain : ^Terrain) {
 }
 
 destroy_terrain :: proc(terrain : ^Terrain) {
+	delete (terrain.colliders)
 	destroy_terrain_meshes(terrain)
 	terrain^ = {}
 }

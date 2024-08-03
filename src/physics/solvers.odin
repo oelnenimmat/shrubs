@@ -44,6 +44,7 @@ solve_gjk :: proc(a : ^$A, b : ^$B, initial_direction : vec3) -> (bool, Collisio
 
 	// kinda sanity check. Would not expect to hit this, but it happens still
 	// todo(Leo): learn more
+	// todo(Leo): maybe still solve epa?
 	MAX_ITERATIONS :: 20
 	for i in 0..<MAX_ITERATIONS {
 		support = gjk_get_support_point(a, b, direction)
