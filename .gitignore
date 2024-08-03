@@ -5,6 +5,9 @@
 # Helper commmands
 *.cmd
 
+# project files
+*.sublime-*
+
 # Selected directories
 /local
 /assets
