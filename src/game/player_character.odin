@@ -73,6 +73,15 @@ player_get_position :: proc (p : ^PlayerCharacter) -> vec3 {
 
 update_player_character :: proc(p : ^PlayerCharacter, cam : ^Camera, delta_time : f32) {
 	
+	// Debug reset
+	{
+		if input.DEBUG_get_key_pressed(.R, {.Ctrl}) {
+			p.position = {10, 10, world_radius * 1.2}
+			p.z_speed = 0
+		}
+
+	}
+
 	// Gather input
 	move_right_input 	:= input.DEBUG_get_key_axis(.A, .D)
 	move_forward_input 	:= input.DEBUG_get_key_axis(.S, .W)

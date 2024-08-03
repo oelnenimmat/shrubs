@@ -497,6 +497,86 @@ render_camera :: proc(camera : ^Camera, render_target : ^graphics.RenderTarget) 
 	// NEXT PIPELINE
 	// Todo(Leo): compute grass lod locations
 	
+	player_position 	:= player_character.position
+	player_view_forward := player_character.view_forward
+
+	player_grass_tile_x := int(math.floor(player_position.x / GRASS_TILE_SIZE_1D))
+	player_grass_tile_y := int(math.floor(player_position.y / GRASS_TILE_SIZE_1D))
+
+	lod_0_tile_position := vec3{
+		f32(player_grass_tile_x) * GRASS_TILE_SIZE_1D,
+		f32(player_grass_tile_y) * GRASS_TILE_SIZE_1D,
+		0,
+	}
+
+	lod_1_tile_positions := []vec3 {
+		lod_0_tile_position + {-1, -1, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {0, -1, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {1, -1, 0} * GRASS_TILE_SIZE_1D,
+
+		lod_0_tile_position + {-1, 0, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {1, 0, 0} * GRASS_TILE_SIZE_1D,
+		
+		lod_0_tile_position + {-1, 1, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {0, 1, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {1, 1, 0} * GRASS_TILE_SIZE_1D,
+	}
+
+	lod_2_tile_positions := []vec3 {
+		lod_0_tile_position + {-3, -3, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {-2, -3, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {-1, -3, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {0, -3, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {1, -3, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {2, -3, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {3, -3, 0} * GRASS_TILE_SIZE_1D,
+		
+		lod_0_tile_position + {-3, -2, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {-2, -2, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {-1, -2, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {0, -2, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {1, -2, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {2, -2, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {3, -2, 0} * GRASS_TILE_SIZE_1D,
+		
+		lod_0_tile_position + {-3, -1, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {-2, -1, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {2, -1, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {3, -1, 0} * GRASS_TILE_SIZE_1D,
+
+		lod_0_tile_position + {-3, 0, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {-2, 0, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {2, 0, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {3, 0, 0} * GRASS_TILE_SIZE_1D,
+
+		lod_0_tile_position + {-3, 1, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {-2, 1, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {2, 1, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {3, 1, 0} * GRASS_TILE_SIZE_1D,
+		
+		lod_0_tile_position + {-3, 2, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {-2, 2, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {-1, 2, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {0, 2, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {1, 2, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {2, 2, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {3, 2, 0} * GRASS_TILE_SIZE_1D,
+		
+		lod_0_tile_position + {-3, 3, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {-2, 3, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {-1, 3, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {0, 3, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {1, 3, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {2, 3, 0} * GRASS_TILE_SIZE_1D,
+		lod_0_tile_position + {3, 3, 0} * GRASS_TILE_SIZE_1D,
+	}
+
+
+	grass_system.lod_positions[0][0] = lod_0_tile_position
+	copy(grass_system.lod_positions[1], lod_1_tile_positions)
+	copy(grass_system.lod_positions[2], lod_2_tile_positions)
+
+
 	graphics.begin_grass_placement()
 
 	lod_blade_counts := []f32{GRASS_LOD_0_BLADE_COUNT_1D, GRASS_LOD_1_BLADE_COUNT_1D, GRASS_LOD_2_BLADE_COUNT_1D}
@@ -510,7 +590,7 @@ render_camera :: proc(camera : ^Camera, render_target : ^graphics.RenderTarget) 
 			input[1] = {
 				grass_system.lod_positions[lod][i].x,
 				grass_system.lod_positions[lod][i].y,
-				GRASS_CHUNK_SIZE_1D,
+				GRASS_TILE_SIZE_1D,
 				lod_blade_counts[lod]
 			}
 

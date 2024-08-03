@@ -28,23 +28,21 @@ import graphics "shrubs:graphics/vulkan"
 GRASS_INSTANCE_DATA_SIZE :: 4 * size_of(vec4)
 
 
-GRASS_CHUNK_SIZE_1D :: WORLD_CHUNK_SIZE_1D
+GRASS_TILE_SIZE_1D :: WORLD_CHUNK_SIZE_1D / 5
 // GRASS_DENSITY_PER_UNIT :: 10
 // GRASS_CHUNK_WORLD_SIZE :: 10
 GRASS_BLADES_IN_CHUNK_1D :: 256
 
 GRASS_LOD_0_RENDERER_COUNT :: 1
-GRASS_LOD_1_RENDERER_COUNT :: 3
-GRASS_LOD_2_RENDERER_COUNT :: 12
+GRASS_LOD_1_RENDERER_COUNT :: 8
+GRASS_LOD_2_RENDERER_COUNT :: 40
 
-GRASS_LOD_0_BLADE_COUNT_1D :: 1024
-GRASS_LOD_1_BLADE_COUNT_1D :: 512
-GRASS_LOD_2_BLADE_COUNT_1D :: 256
+GRASS_LOD_0_BLADE_COUNT_1D :: 1024 / 4
+GRASS_LOD_1_BLADE_COUNT_1D :: 512 / 4
+GRASS_LOD_2_BLADE_COUNT_1D :: 256 / 4
 
 Grass :: struct {
 	// chunk min corner positions, curresponding to same index instance buffers
-	positions 			: []vec2,
-	renderers			: []graphics.GrassRenderer,
 	placement_map 		: ^graphics.Texture,
 
 	lod_renderers : [3][]graphics.GrassRenderer,
@@ -54,29 +52,9 @@ Grass :: struct {
 create_grass :: proc() -> Grass {
 	g := Grass{}
 
-	capacity := GRASS_BLADES_IN_CHUNK_1D * GRASS_BLADES_IN_CHUNK_1D
-	// buffer_data_size 	:= capacity * GRASS_INSTANCE_DATA_SIZE
-
-	chunk_count_1D := 10
-	chunk_count_2D := chunk_count_1D * chunk_count_1D
-
-	chunk_size := f32(GRASS_CHUNK_SIZE_1D)
+	chunk_size := f32(GRASS_TILE_SIZE_1D)
 
 	// Todo(Leo): allocator!!!!
-	g.positions 		= make([]vec2, chunk_count_2D)
-	g.renderers 		= make([]graphics.GrassRenderer, chunk_count_2D)
-
-	for i in 0..<chunk_count_2D {
-		x := f32(i % chunk_count_1D)
-		y := f32(i / chunk_count_1D)
-
-		g.positions[i] = {x * chunk_size, y * chunk_size}
-		g.renderers[i] = graphics.create_grass_renderer(
-			GRASS_BLADES_IN_CHUNK_1D,	
-			&asset_provider.textures[.Grass_Placement],
-		)
-	}
-
 	{
 		LOD :: 0
 		g.lod_renderers[LOD] = make([]graphics.GrassRenderer, GRASS_LOD_0_RENDERER_COUNT, context.allocator)
@@ -128,20 +106,12 @@ create_grass :: proc() -> Grass {
 }
 
 destroy_grass :: proc(grass : ^Grass) {
-	for _, i in grass.renderers {
-		graphics.destroy_grass_renderer(&grass.renderers[i])
-	}
-
 	for _, lod in grass.lod_renderers{
 		for _, i in grass.lod_renderers[lod] {
 			graphics.destroy_grass_renderer(&grass.lod_renderers[lod][i])
 		}
+		delete(grass.lod_renderers[lod])
 	}	
-
-	delete(grass.renderers)
-	delete(grass.positions)
-
-
 
 	grass^ = {}
 }
