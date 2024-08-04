@@ -209,7 +209,7 @@ update_player_character :: proc(p : ^PlayerCharacter, cam : ^Camera, delta_time 
 		case .Hoverbiking: {
 			h := &hoverbike
 
-			p.position = h.position
+			p.position = h.position + h.forward * HOVERBIKE_SEAT_LOCAL_POSITION.y
 
 			input_space_forward := input.DEBUG_get_key_axis(.S, .W)
 			input_space_right := input.DEBUG_get_key_axis(.A, .D)

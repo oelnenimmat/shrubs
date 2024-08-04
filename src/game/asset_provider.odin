@@ -21,6 +21,8 @@ TextureAssetName :: enum {
 	Rock,
 	Road,
 	Wind,
+
+	Proto_Hoverbike,
 }
 
 /*
@@ -38,6 +40,8 @@ MeshAssetName :: enum {
 
 	Tank_Body,
 	Tank_Wheel,
+
+	Proto_Hoverbike,
 }
 
 asset_provider : struct {
@@ -65,6 +69,8 @@ load_asset_provider :: proc() {
 
 		// http://kitfox.com/projects/perlinNoiseMaker/
 		.Wind 				= load_color_texture("assets/perlin_wind.png", color_mode = .Linear),
+
+		.Proto_Hoverbike 	= load_color_texture("assets/proto_hoverbike.png"),
 	}
 
 	///////////////////////////////////////////////////////////////////////////
@@ -77,6 +83,8 @@ load_asset_provider :: proc() {
 
 		.Tank_Body = load_mesh_gltf("assets/tank.glb", "tank_body"),
 		.Tank_Wheel = load_mesh_gltf("assets/tank.glb", "tank_wheel"),
+	
+		.Proto_Hoverbike = load_mesh_gltf("assets/proto_hoverbike.glb", "proto_hoverbike"),
 	}
 }
 

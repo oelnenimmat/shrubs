@@ -3,6 +3,8 @@ package game
 import "shrubs:physics"
 import graphics "shrubs:graphics/vulkan"
 
+import "shrubs:debug"
+
 import "core:math/linalg"
 
 HOVERBIKE_MAX_SPEED :: 30
@@ -14,6 +16,8 @@ HOVERBIKE_TIME_TO_MAX_SPEED :: 1
 HOVERBIKE_ACCELERATION :: HOVERBIKE_MAX_SPEED / HOVERBIKE_TIME_TO_MAX_SPEED
 
 DEBUG_HOVERBIKE_BODY_SIZE :: vec3{0.6, 3, 1}
+
+HOVERBIKE_SEAT_LOCAL_POSITION :: vec3{0, -1.8, 0}
 
 Hoverbike :: struct {
 	mesh 		: graphics.Mesh,
@@ -34,7 +38,7 @@ create_hoverbike :: proc() -> Hoverbike {
 	h.position = {20, 20, 0}
 	h.velocity = {0, 0, 0}
 
-	h.material = graphics.create_basic_material(&asset_provider.textures[.White])
+	h.material = graphics.create_basic_material(&asset_provider.textures[.Proto_Hoverbike])
 	h.material.mapped.surface_color = {0.7, 0.5, 0.2, 1}
 
 	h.up = OBJECT_UP
@@ -65,9 +69,13 @@ physics_update_hoverbike :: proc(h : ^Hoverbike) {
 
 	h.velocity = forward_and_up_velocity + side_velocity
 
-	collider_offset := vec3{0, 0, -0.3}
-	collider_radius := f32(0.5)
+	collider_offset := vec3{0, 0, -0.4}
+	collider_radius := f32(1)
 	collider := physics.SphereCollider{h.position + collider_offset, collider_radius}
+
+	{
+		debug.draw_wire_sphere(collider.position, collider.radius, debug.BRIGHT_PURPLE)
+	}
 
 	for c in physics.collide(collider) {
 		correction 			:= c.direction * c.depth
@@ -94,9 +102,7 @@ render_hoverbike :: proc(h : ^Hoverbike) {
 			0, 0, 0, 1,
 		}
 	}
-	model := linalg.matrix4_translate(h.position) *
-				rotation *
-				linalg.matrix4_scale(DEBUG_HOVERBIKE_BODY_SIZE)
+	model := linalg.matrix4_translate(h.position) *	rotation;
 
-	graphics.draw_mesh(&asset_provider.meshes[.Cube], model)
+	graphics.draw_mesh(&asset_provider.meshes[.Proto_Hoverbike], model)
 }
