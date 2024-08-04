@@ -54,6 +54,7 @@ SCENE_FILE_EXTENSION :: ".scene"
 player_character 	: PlayerCharacter
 main_camera 		: Camera
 tank 				: Tank
+hoverbike 			: Hoverbike
 
 player_material : graphics.BasicMaterial
 terrain_material : graphics.TerrainMaterial
@@ -140,6 +141,7 @@ initialize :: proc() {
 	main_camera 		= create_camera()
 	tank 				= create_tank()
 	player_character 	= create_player_character()
+	hoverbike 			= create_hoverbike()
 
 	// Application is started in edit mode
 	application.mode = .Edit
@@ -234,11 +236,15 @@ terminate :: proc() {
 
 	save_editor_state()
 
+	destroy_tank(&tank)
+	destroy_hoverbike(&hoverbike)
+
+
+
 	graphics.destroy_mesh(&world_mesh)
 	graphics.destroy_basic_material(&world_material)
 	graphics.destroy_basic_material(&player_material)
 
-	destroy_tank(&tank)
 	destroy_grass(&grass_system)
 	save_grass_types(&grass_types)
 	destroy_grass_types(&grass_types)
@@ -351,6 +357,16 @@ update :: proc(delta_time: f64) {
 			physics.submit_colliders(colliders)
 		}
 
+		// Todo(Leo): update colliders in a sensible manner
+		for _ in 0..<physics.ticks_this_frame() {
+			physics_update_hoverbike(&hoverbike)
+			// physics_update_tank(&tank)
+			// physics_update_player_character(&player_character)
+		}
+
+
+		debug.draw_line(player_character.position, hoverbike.position, debug.RED)
+
 		// tank submits colliders that player needs to use, so that need to update first
 		// Todo(Leo): maybe have a collider handle that is just updated or something, but this
 		// works now, when things are not too complicated. Also there will be a need to think
@@ -361,12 +377,17 @@ update :: proc(delta_time: f64) {
 		update_editor_camera(&main_camera, delta_time)
 	}
 
+	put_debug_value("hoverbike position", hoverbike.position)
+	put_debug_value("hoverbike velocity", hoverbike.velocity)
+
+
 	if wind.enabled {
 		wind.time += delta_time
 		wind.offset.x += delta_time * 0.06
 		wind.offset.y += delta_time * 0.03
 	}
 	wind_amount := math.sin(wind.time) * 0.5
+
 
 	if input.DEBUG_get_key_pressed(.U) {
 		wind.enabled = !wind.enabled
@@ -642,6 +663,7 @@ render_camera :: proc(camera : ^Camera, render_target : ^graphics.RenderTarget) 
 	
 
 	render_tank(&tank)
+	render_hoverbike(&hoverbike)
 	render_greyboxing(&scene.greyboxing)
 
 	graphics.set_basic_material(&world_material)

@@ -36,6 +36,8 @@ PLAYER_COLLIDER_HEIGHT :: 2
 PLAYER_HEAD_HEIGHT :: 3
 PLAYER_CAMERA_DISTANCE :: -8
 
+PlayerCharacterMode :: enum { OnFoot, Hoverbiking }
+
 PlayerCharacter :: struct {
 	position 	: vec3,
 	z_speed 	: f32,
@@ -44,6 +46,8 @@ PlayerCharacter :: struct {
 	forward : vec3,
 
 	view_forward : vec3,
+
+	mode : PlayerCharacterMode,
 }
 
 create_player_character :: proc() -> PlayerCharacter {
@@ -82,124 +86,153 @@ update_player_character :: proc(p : ^PlayerCharacter, cam : ^Camera, delta_time 
 
 	}
 
-	// Gather input
-	move_right_input 	:= input.DEBUG_get_key_axis(.A, .D)
-	move_forward_input 	:= input.DEBUG_get_key_axis(.S, .W)
-	
+	if input.DEBUG_get_key_pressed(.U) {
+		p.mode = .OnFoot if p.mode == .Hoverbiking else .Hoverbiking
+	}
+
 	look_right_input 	:= input.DEBUG_get_mouse_movement(0) * 0.005
 	look_up_input 		:= input.DEBUG_get_mouse_movement(1) * 0.005
 
-	jump_input 			:= input.DEBUG_get_key_pressed(.Space)
+	world_local_up 	:= -linalg.normalize(physics.get_gravitational_pull(p.position))
 
-	using linalg
-
-	// Todo(Leo): for now we have flat plane as a world, but this will prob
-	// change. To move along the plane, we need to know what is the local
-	// up at that point of the world.
-	// world_local_up := OBJECT_UP
-	world_local_up := -normalize(physics.get_gravitational_pull(p.position))
-
-	view_right 		:= normalize(cross(p.view_forward, world_local_up))
+	view_right 		:= linalg.normalize(linalg.cross(p.view_forward, world_local_up))
 	view_forward 	:= p.view_forward
-	view_up 		:= normalize(cross(view_right, p.view_forward))
+	view_up 		:= linalg.normalize(linalg.cross(view_right, p.view_forward))
 
 	// Todo(Leo): use rotors for shits and giggles
 	// pan := rotor_angle_axis(-look_right_input, local_plane)
 	// tilt := rotor_angle_axis(-look_up_input, tilt_plane)
+	pan 	:= linalg.quaternion_angle_axis_f32(-look_right_input, world_local_up)
+	tilt 	:= linalg.quaternion_angle_axis_f32(-look_up_input, view_right)
 
-	pan 	:= quaternion_angle_axis_f32(-look_right_input, world_local_up)
-	tilt 	:= quaternion_angle_axis_f32(-look_up_input, view_right)
+	p.view_forward 	= linalg.normalize(linalg.mul(pan * tilt, view_forward))
 
-	p.view_forward = normalize(mul(pan * tilt, view_forward))
+	switch p.mode {
+		case .OnFoot: {
+			// Gather input
+			move_right_input 	:= input.DEBUG_get_key_axis(.A, .D)
+			move_forward_input 	:= input.DEBUG_get_key_axis(.S, .W)
 
-	p.up 			= world_local_up
-	p.forward 		= normalize(cross(p.up, /*right: */ normalize(cross(p.view_forward, p.up))))
+			jump_input 			:= input.DEBUG_get_key_pressed(.Space)
 
-	// Project view vectors on local up (just z-axis for now) to move on a flat plane
-	flat_right 		:= normalize(view_right - projection(view_right, world_local_up))
-	flat_forward 	:= normalize(view_forward - projection(view_forward, world_local_up))
+			using linalg
 
-	// Move
-	move_vector := move_right_input * flat_right + move_forward_input * flat_forward
+			// Todo(Leo): for now we have flat plane as a world, but this will prob
+			// change. To move along the plane, we need to know what is the local
+			// up at that point of the world.
+			// world_local_up := OBJECT_UP
+			p.up 			= world_local_up
+			p.forward 		= normalize(cross(p.up, /*right: */ normalize(cross(p.view_forward, p.up))))
 
-	p.z_speed += -physics.GRAVITATIONAL_ACCELERATION * delta_time
+			// Project view vectors on local up (just z-axis for now) to move on a flat plane
+			flat_right 		:= normalize(view_right - projection(view_right, world_local_up))
+			flat_forward 	:= normalize(view_forward - projection(view_forward, world_local_up))
 
-	p.position.xy 	+= (move_vector * PLAYER_MOVE_SPEED * delta_time).xy
-	p.position.z 	+= p.z_speed * delta_time
+			// Move
+			move_vector := move_right_input * flat_right + move_forward_input * flat_forward
 
-	GROUNDING_SKIN_WIDTH :: 0.02
+			p.z_speed += -physics.GRAVITATIONAL_ACCELERATION * delta_time
 
+			p.position.xy 	+= (move_vector * PLAYER_MOVE_SPEED * delta_time).xy
+			p.position.z 	+= p.z_speed * delta_time
 
-	// Physicsy -> apply forces
-	collision_count := 0
-	{
-		collider := physics.CapsuleCollider{
-			p.position + p.up * PLAYER_COLLIDER_HEIGHT / 2, 
-			p.up,
-			PLAYER_COLLIDER_RADIUS,
-			PLAYER_COLLIDER_HEIGHT,
-		}
-
-		// this is cool, but unnecessary now
-		// if collisions := physics.collide(collider); collisions != nil {}
-
-		collisions 		:= physics.collide(collider)
-		collision_count = len(collisions)
-		
-		for c in collisions {
-			correction := c.depth * c.direction
-			p.position += correction
-
-			debug.draw_line(c.DEBUG_position, c.DEBUG_position + c.direction * 4, debug.YELLOW)
-		}
-	}
-
-	grounded := false
-
-	// Todo(Leo): use gjk_only version
-	// Todo(Leo): use sphere collider
-	// ground collider is slimmer to not hit walls and slightly below, also put it slighlyt down to hit the ground
-	ground_collider := physics.CapsuleCollider {
-		p.position + (p.up * (0.5 * PLAYER_COLLIDER_HEIGHT - 0.05)),
-		p.up,
-		PLAYER_COLLIDER_RADIUS - 0.1,
-		PLAYER_COLLIDER_HEIGHT,
-	}
-	ground_collisions := physics.collide(ground_collider)
-	grounded = grounded || (len(ground_collisions) > 0)
-
-	// No sliding on the ground
-
-	if grounded {
-		p.z_speed = max(f32(0), p.z_speed)
-
-		if jump_input {
-
-			// kinematic equations
-			// v^2 = v0^2 + 2ax | v = 0
-			// v0^2 = -2ax
-			// v0 = sqrt(-2ax)
-
-			JUMP_HEIGHT :: 3
-			p.z_speed = math.sqrt_f32(2 * physics.GRAVITATIONAL_ACCELERATION * JUMP_HEIGHT)
-		}
-	}
-
-	put_debug_value("grounded", grounded)
+			GROUNDING_SKIN_WIDTH :: 0.02
 
 
+			// Physicsy -> apply forces
+			collision_count := 0
+			{
+				collider := physics.CapsuleCollider{
+					p.position + p.up * PLAYER_COLLIDER_HEIGHT / 2, 
+					p.up,
+					PLAYER_COLLIDER_RADIUS,
+					PLAYER_COLLIDER_HEIGHT,
+				}
 
-	// Done updating the physics position, lets print the values
-	put_debug_value("z speed", p.z_speed)
-	put_debug_value("position", p.position)
+				// this is cool, but unnecessary now
+				// if collisions := physics.collide(collider); collisions != nil {}
 
-	put_debug_value("collisions", collision_count)
-	put_debug_value("ground collisions", len(ground_collisions))
+				collisions 		:= physics.collide(collider)
+				collision_count = len(collisions)
+				
+				for c in collisions {
+					correction := c.depth * c.direction
+					p.position += correction
+
+					debug.draw_line(c.DEBUG_position, c.DEBUG_position + c.direction * 4, debug.YELLOW)
+				}
+			}
+
+			grounded := false
+
+			// Todo(Leo): use gjk_only version
+			// Todo(Leo): use sphere collider
+			// ground collider is slimmer to not hit walls and slightly below, also put it slighlyt down to hit the ground
+			ground_collider := physics.CapsuleCollider {
+				p.position + (p.up * (0.5 * PLAYER_COLLIDER_HEIGHT - 0.05)),
+				p.up,
+				PLAYER_COLLIDER_RADIUS - 0.1,
+				PLAYER_COLLIDER_HEIGHT,
+			}
+			ground_collisions := physics.collide(ground_collider)
+			grounded = grounded || (len(ground_collisions) > 0)
+
+			// No sliding on the ground
+
+			if grounded {
+				p.z_speed = max(f32(0), p.z_speed)
+
+				if jump_input {
+
+					// kinematic equations
+					// v^2 = v0^2 + 2ax | v = 0
+					// v0^2 = -2ax
+					// v0 = sqrt(-2ax)
+
+					JUMP_HEIGHT :: 3
+					p.z_speed = math.sqrt_f32(2 * physics.GRAVITATIONAL_ACCELERATION * JUMP_HEIGHT)
+				}
+			}
+
+			put_debug_value("grounded", grounded)
+
+
+
+			// Done updating the physics position, lets print the values
+			put_debug_value("z speed", p.z_speed)
+			put_debug_value("position", p.position)
+
+			put_debug_value("collisions", collision_count)
+			put_debug_value("ground collisions", len(ground_collisions))
+		} // .OnFoot
+
+		case .Hoverbiking: {
+			h := &hoverbike
+
+			p.position = h.position
+
+			input_space_forward := input.DEBUG_get_key_axis(.S, .W)
+			input_space_right := input.DEBUG_get_key_axis(.A, .D)
+
+			turn 		:= linalg.quaternion_angle_axis_f32(input_space_right * -0.035, h.up)
+			h.forward 	= linalg.normalize(linalg.mul(turn, h.forward))
+
+			h.velocity += h.forward * input_space_forward * HOVERBIKE_ACCELERATION * delta_time
+
+		} // .Hoverbiking
+	} // switch
+
 
 	debug.draw_wire_sphere(p.position, 0.2, debug.RED)
 
 	// Set camera position
 	{
+		world_local_up := -linalg.normalize(physics.get_gravitational_pull(p.position))
+
+		view_right 		:= linalg.normalize(linalg.cross(p.view_forward, world_local_up))
+		view_forward 	:= p.view_forward
+		view_up 		:= linalg.normalize(linalg.cross(view_right, p.view_forward))
+
 		r := view_right
 		f := view_forward
 		u := view_up
@@ -209,7 +242,7 @@ update_player_character :: proc(p : ^PlayerCharacter, cam : ^Camera, delta_time 
 			r.z, f.z, u.z, 0,
 			0, 0, 0, 1,
 		}
-		view_rotation := quaternion_from_matrix4(m)
+		view_rotation := linalg.quaternion_from_matrix4(m)
 
 		// Move eyes a tiny bit outside
 		// eye_depth := f32(0.15)
