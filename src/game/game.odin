@@ -379,6 +379,8 @@ update :: proc(delta_time: f64) {
 
 	put_debug_value("hoverbike position", hoverbike.position)
 	put_debug_value("hoverbike velocity", hoverbike.velocity)
+	put_debug_value("hoverbike speed m/s", linalg.length(hoverbike.velocity))
+	put_debug_value("hoverbike speed km/h", linalg.length(hoverbike.velocity) * 3.6)
 
 
 	if wind.enabled {

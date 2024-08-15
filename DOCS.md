@@ -39,6 +39,27 @@ initialize :: proc (...) { /* create whatever necessary resources */ }
 terminate :: proc() { /* free resource */ }
 ```
 
+### Procedure naming
+
+Some struct types represent some sort of entity in game. These will have some functions that are common across all entity types, such as update and render and some of them will have some functions like control or trigger. In the former case, name them with the common function name first, and in the latter put the type first. Example
+
+```
+Hoverbike :: struct { ... }
+
+update_hoverbike :: proc(h : ^Hoverbike) { ... }
+hoverbike_control :: proc(h : ^Hoverbike, ...) { ... }
+```
+
+Reasoning is that the first are typically used with similar procedures and successive lines will then align nicely to allow reader to quickly glance the types being e.g. updated:
+
+```
+update_hoverbike(...)
+update_player_character(...)
+update_vending_machine(...)
+```
+
+The second is typically used in an arbitrary context, so it is beneficial to be able to easily assess the type. Also this way there is quick way to tell apart "engine magic" procedures from the types' unique procedures.
+
 ### Indentation
 
 Use tabs to indent. Every programmer has their own preference on how much to indent (correct answer is 4, btw) and using tab instead of multiple spaces allows everyone to set the tab width to whatever they want to in their text editor settings (if you cannot do this in you favourite editor, it is time for a new favourite editor).

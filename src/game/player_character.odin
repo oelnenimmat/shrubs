@@ -214,10 +214,7 @@ update_player_character :: proc(p : ^PlayerCharacter, cam : ^Camera, delta_time 
 			input_space_forward := input.DEBUG_get_key_axis(.S, .W)
 			input_space_right := input.DEBUG_get_key_axis(.A, .D)
 
-			turn 		:= linalg.quaternion_angle_axis_f32(input_space_right * -0.035, h.up)
-			h.forward 	= linalg.normalize(linalg.mul(turn, h.forward))
-
-			h.velocity += h.forward * input_space_forward * HOVERBIKE_ACCELERATION * delta_time
+			hoverbike_control(h, input_space_forward, input_space_right, delta_time)
 
 		} // .Hoverbiking
 	} // switch

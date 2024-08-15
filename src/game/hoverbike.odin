@@ -7,7 +7,7 @@ import "shrubs:debug"
 
 import "core:math/linalg"
 
-HOVERBIKE_MAX_SPEED :: 30
+HOVERBIKE_MAX_SPEED :: 40
 
 // Todo(Leo): apply some sort of log curve, but this should still be analytical
 // v = v0 + at
@@ -52,6 +52,13 @@ destroy_hoverbike :: proc(h : ^Hoverbike) {
 	graphics.destroy_basic_material(&h.material)
 }
 
+hoverbike_control :: proc(h : ^Hoverbike, thrust, turn, delta_time : f32) {
+	turn 		:= linalg.quaternion_angle_axis_f32(turn * -0.035, h.up)
+	h.forward 	= linalg.normalize(linalg.mul(turn, h.forward))
+
+	h.velocity += h.forward * thrust * HOVERBIKE_ACCELERATION * delta_time
+}
+
 physics_update_hoverbike :: proc(h : ^Hoverbike) {
 
 	h.velocity += physics.get_gravitational_pull(h.position) * physics.DELTA_TIME
@@ -66,6 +73,14 @@ physics_update_hoverbike :: proc(h : ^Hoverbike) {
 
 	forward_and_up_velocity *= 0.999
 	side_velocity 			*= 0.95
+
+	forward_and_up_speed 		:= linalg.length(forward_and_up_velocity)
+	forward_and_up_direction 	:= linalg.normalize(forward_and_up_velocity)
+
+	// Todo(Leo): really do some kind of drag force
+	forward_and_up_speed = min(forward_and_up_speed, HOVERBIKE_MAX_SPEED)
+	forward_and_up_velocity = forward_and_up_speed * forward_and_up_direction
+
 
 	h.velocity = forward_and_up_velocity + side_velocity
 
@@ -87,8 +102,6 @@ physics_update_hoverbike :: proc(h : ^Hoverbike) {
 
 render_hoverbike :: proc(h : ^Hoverbike) {
 	graphics.set_basic_material(&h.material)
-
-
 
 	rotation : mat4
 	{
