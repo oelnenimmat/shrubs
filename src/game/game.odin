@@ -12,6 +12,8 @@ import "shrubs:imgui"
 import "shrubs:input"
 import "shrubs:physics"
 import "shrubs:window"
+import "shrubs:geom"
+
 
 import "core:fmt"
 import "core:intrinsics"
@@ -120,6 +122,10 @@ world_material : graphics.BasicMaterial
 // world_radius := f32(1000)
 // world_radius := f32(100)
 world_radius := f32(20)
+
+geom_test_pan_angle : f32
+geom_test_tilt_angle : f32
+geom_test_vector := geom.Vector{0, 1, 0}
 
 initialize :: proc() {
 	// Todo(Leo): some of this stuff seems to bee "application" or "engine" and not "game"
@@ -310,6 +316,54 @@ update :: proc(delta_time: f64) {
 
 	if input.DEBUG_get_key_pressed(.F12) {
 		save_screenshot = true
+	}
+
+
+	///////////////////////////////////////////////////////////////////////////
+	// TEST GEOM
+	{
+		input_x := input.DEBUG_get_key_axis(.J, .L)
+		input_y := input.DEBUG_get_key_axis(.K, .I)
+
+		geom_test_pan_angle 	+= input_x * 0.03
+		geom_test_tilt_angle 	+= input_y * 0.03
+
+		geom_test_pan_angle = math.mod(geom_test_pan_angle + 2 * math.PI, 2 * math.PI)
+		geom_test_tilt_angle = math.mod(geom_test_tilt_angle + 2 * math.PI, 2 * math.PI)
+
+		pan_plane 	:= geom.outer(geom.Vector{1, 0, 0}, geom.Vector{0, 1, 0})
+		pan_rotor 	:= geom.rotor_plane_angle(pan_plane, geom_test_pan_angle)
+
+		tilt_plane 	:= geom.outer(geom.Vector{0, 1, 0}, geom.Vector{0, 0, 1})
+		tilt_rotor 	:= geom.rotor_plane_angle(tilt_plane, geom_test_tilt_angle)
+
+		full_rotor 	:= geom.mul(pan_rotor, tilt_rotor)
+		geom_test_vector = geom.rotate_vector(full_rotor, {0, 1, 0})
+
+		put_debug_value("geom test lenght", geom.magnitude(geom_test_vector))
+		put_debug_value("geom test pan", geom_test_pan_angle)
+		put_debug_value("geom test tilt", geom_test_tilt_angle)
+
+		debug.draw_line(
+			player_character.position + {0, 0, 3},
+			player_character.position + {0, 0, 3} + vec3(geom_test_vector),
+			debug.BRIGHT_PURPLE,
+		)
+
+		debug.draw_line(
+			player_character.position + {0, 0, 3},
+			player_character.position + {0, 0, 3} + vec3(pan_plane),
+			debug.BRIGHT_CYAN,
+		)
+
+		debug.draw_line(
+			player_character.position + {0, 0, 3},
+			player_character.position + {0, 0, 3} + vec3(tilt_plane),
+			debug.BRIGHT_ORANGE,
+		)
+
+
+
 	}
 
 
