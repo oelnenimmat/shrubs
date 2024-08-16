@@ -21,7 +21,9 @@ BLUE 	:: vec3{0.1, 0.1, 0.9}
 YELLOW 	:: vec3{0.9, 0.9, 0.1}
 BLACK 	:: vec3{0.1, 0.1, 0.1}
 
-BRIGHT_PURPLE :: vec3{0.8, 0.0, 1.0}
+BRIGHT_PURPLE 	:: vec3{0.8, 0.0, 1.0}
+BRIGHT_CYAN 	:: vec3{0.0, 1.0, 0.8}
+BRIGHT_ORANGE 	:: vec3{1.0, 0.8, 0.0}
 
 @private
 DrawCall :: struct {
